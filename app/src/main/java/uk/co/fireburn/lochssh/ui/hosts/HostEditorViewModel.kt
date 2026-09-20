@@ -10,6 +10,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import uk.co.fireburn.lochssh.data.db.IdentityDao
 import uk.co.fireburn.lochssh.data.db.IdentityEntity
+import uk.co.fireburn.lochssh.data.db.PortForwardDao
+import uk.co.fireburn.lochssh.data.db.PortForwardEntity
 import uk.co.fireburn.lochssh.data.db.SshHostDao
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
 import javax.inject.Inject
@@ -17,11 +19,14 @@ import javax.inject.Inject
 @HiltViewModel
 class HostEditorViewModel @Inject constructor(
     private val hostDao: SshHostDao,
-    private val identityDao: IdentityDao
+    private val identityDao: IdentityDao,
+    private val portForwardDao: PortForwardDao
 ) : ViewModel() {
 
     val identities: Flow<List<IdentityEntity>> = identityDao.observeAll()
     var host by mutableStateOf<SshHostEntity?>(null)
+        private set
+    var forwards by mutableStateOf<List<PortForwardEntity>>(emptyList())
         private set
     var loaded by mutableStateOf(false)
         private set
@@ -29,8 +34,26 @@ class HostEditorViewModel @Inject constructor(
     fun load(id: Long) {
         viewModelScope.launch {
             host = if (id > 0) hostDao.getById(id) else null
+            forwards = if (id > 0) portForwardDao.getByHost(id) else emptyList()
             loaded = true
         }
+    }
+
+    fun addForward(type: String, localPort: String, remoteHost: String, remotePort: String) {
+        val lp = localPort.toIntOrNull() ?: return
+        val rp = remotePort.toIntOrNull() ?: return
+        if (remoteHost.isBlank()) return
+        forwards = forwards + PortForwardEntity(
+            hostId = 0,
+            type = type,
+            localPort = lp,
+            remoteHost = remoteHost,
+            remotePort = rp
+        )
+    }
+
+    fun removeForward(forward: PortForwardEntity) {
+        forwards = forwards.filter { it.id != forward.id }
     }
 
     fun save(
@@ -58,7 +81,16 @@ class HostEditorViewModel @Inject constructor(
                 group = group,
                 identityId = identityId
             )
-            if (existing != null) hostDao.update(entity) else hostDao.insert(entity)
+            val hostId = if (existing != null) {
+                hostDao.update(entity)
+                existing.id
+            } else {
+                hostDao.insert(entity)
+            }
+            portForwardDao.deleteByHost(hostId)
+            forwards.forEach { f ->
+                portForwardDao.insert(f.copy(id = 0, hostId = hostId))
+            }
         }
     }
 }
