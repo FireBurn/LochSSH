@@ -9,6 +9,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import dagger.hilt.android.AndroidEntryPoint
 import uk.co.fireburn.lochssh.R
@@ -61,7 +62,8 @@ class SshForegroundService : Service() {
     }
 
     private suspend fun connect(hostId: Long) {
-        val host = hostDao.getById(hostId) ?: return stopWith("Connection failed", "Host not found")
+        val host = hostDao.getById(hostId) ?: return fail("Host not found")
+        ActiveConnection.lastError = null
         val identity = host.identityId?.let { identityDao.getById(it) }
         val secret = identity?.secretRef?.let { secrets.getSecret(it) }
         val keyMaterial = identity?.keyMaterialRef?.let { secrets.getSecret(it) }
@@ -87,8 +89,9 @@ class SshForegroundService : Service() {
         try {
             m.connect()
         } catch (e: Exception) {
+            Log.e(TAG, "Connect to ${host.host}:${host.port} as ${config.username} failed", e)
             m.disconnect()
-            stopWith("Connection failed", e.message ?: "Unknown error")
+            fail("${e.message ?: e.javaClass.simpleName}")
             return
         }
         manager = m
@@ -97,15 +100,19 @@ class SshForegroundService : Service() {
     }
 
     private fun onSessionExit(code: Int) {
+        Log.i(TAG, "Session exited with code $code")
         manager?.disconnect()
         manager = null
         ActiveConnection.manager = null
+        ActiveConnection.lastError = "Connection closed (exit code $code)"
         showNotification("Connection closed", "Exit code $code")
         stopSelf()
     }
 
-    private fun stopWith(title: String, text: String) {
-        showNotification(title, text)
+    private fun fail(message: String) {
+        Log.e(TAG, "Connection failed: $message")
+        ActiveConnection.lastError = "Connection failed: $message"
+        showNotification("Connection failed", message)
         stopSelf()
     }
 
@@ -159,6 +166,7 @@ class SshForegroundService : Service() {
         private const val NOTIFICATION_ID = 1
         private const val WAKE_LOCK_TAG = "lochssh:ssh-service"
         private const val WAKE_LOCK_TIMEOUT_MS = 12L * 60 * 60 * 1000
+        private const val TAG = "LochSSH"
 
         fun start(context: Context, hostId: Long) {
             val intent = Intent(context, SshForegroundService::class.java)

@@ -4,4 +4,7 @@ package uk.co.fireburn.lochssh.ssh
 object ActiveConnection {
     @Volatile
     var manager: SshConnectionManager? = null
+
+    @Volatile
+    var lastError: String? = null
 }
