@@ -35,7 +35,6 @@ class HostEditorViewModel @Inject constructor(
 
     fun save(
         name: String,
-        username: String,
         hostName: String,
         port: String,
         keepAlive: String,
@@ -46,7 +45,6 @@ class HostEditorViewModel @Inject constructor(
             val existing = host
             val entity = existing?.copy(
                 name = name,
-                username = username,
                 host = hostName,
                 port = port.toIntOrNull() ?: 22,
                 keepAliveSeconds = keepAlive.toIntOrNull() ?: 30,
@@ -54,7 +52,6 @@ class HostEditorViewModel @Inject constructor(
                 identityId = identityId
             ) ?: SshHostEntity(
                 name = name,
-                username = username,
                 host = hostName,
                 port = port.toIntOrNull() ?: 22,
                 keepAliveSeconds = keepAlive.toIntOrNull() ?: 30,

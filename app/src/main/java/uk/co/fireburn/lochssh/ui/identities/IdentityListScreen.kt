@@ -98,10 +98,15 @@ private fun IdentityRow(
         ) {
             Column(modifier = Modifier.weight(1f)) {
                 Text(identity.name, style = MaterialTheme.typography.titleMedium)
-                val subtitle = when (identity.authType) {
-                    "PUBLIC_KEY" -> identity.keyPath ?: "key"
-                    "PASSWORD" -> "password"
-                    else -> "no auth"
+                val subtitle = buildString {
+                    if (identity.username.isNotBlank()) append(identity.username)
+                    val auth = when (identity.authType) {
+                        "PUBLIC_KEY" -> "key"
+                        "PASSWORD" -> "password"
+                        else -> "no auth"
+                    }
+                    if (isNotEmpty()) append(" · ")
+                    append(auth)
                 }
                 Text(
                     subtitle,

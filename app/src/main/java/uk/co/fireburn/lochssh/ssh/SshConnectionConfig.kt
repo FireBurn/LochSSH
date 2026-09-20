@@ -14,6 +14,7 @@ data class SshConnectionConfig(
     val authType: String,
     val password: String?,
     val keyPath: String?,
+    val keyMaterial: String?,
     val keyPassphrase: String?,
     val keepAliveSeconds: Int,
     val initialCols: Int = 80,

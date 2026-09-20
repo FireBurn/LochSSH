@@ -14,6 +14,7 @@ import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -46,7 +47,6 @@ fun HostEditorScreen(
     LaunchedEffect(hostId) { viewModel.load(hostId) }
 
     var name by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
     var host by remember { mutableStateOf("") }
     var port by remember { mutableStateOf("22") }
     var keepAlive by remember { mutableStateOf("30") }
@@ -54,20 +54,7 @@ fun HostEditorScreen(
     var identityId by remember { mutableStateOf<Long?>(null) }
     var identityMenu by remember { mutableStateOf(false) }
 
-    LaunchedEffect(viewModel.loaded) {
-        if (!viewModel.loaded) return@LaunchedEffect
-        viewModel.host?.let {
-            name = it.name
-            username = it.username
-            host = it.host
-            port = it.port.toString()
-            keepAlive = it.keepAliveSeconds.toString()
-            group = it.group
-            identityId = it.identityId
-        }
-    }
-
-    val canSave = name.isNotBlank() && username.isNotBlank() && host.isNotBlank()
+    val canSave = name.isNotBlank() && host.isNotBlank()
 
     Scaffold(
         topBar = {
@@ -82,7 +69,7 @@ fun HostEditorScreen(
                     TextButton(
                         enabled = canSave,
                         onClick = {
-                            viewModel.save(name, username, host, port, keepAlive, group, identityId)
+                            viewModel.save(name, host, port, keepAlive, group, identityId)
                             onBack()
                         }
                     ) { Text("Save") }
@@ -100,13 +87,6 @@ fun HostEditorScreen(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Name") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Username") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )
@@ -163,6 +143,7 @@ fun HostEditorScreen(
                     )
                 }
             }
+
         }
     }
 }

@@ -64,14 +64,16 @@ class SshForegroundService : Service() {
         val host = hostDao.getById(hostId) ?: return stopWith("Connection failed", "Host not found")
         val identity = host.identityId?.let { identityDao.getById(it) }
         val secret = identity?.secretRef?.let { secrets.getSecret(it) }
+        val keyMaterial = identity?.keyMaterialRef?.let { secrets.getSecret(it) }
 
         val config = SshConnectionConfig(
             host = host.host,
             port = host.port,
-            username = host.username,
+            username = identity?.username ?: "",
             authType = identity?.authType ?: AuthTypes.NONE,
             password = if (identity?.authType == AuthTypes.PASSWORD) secret else null,
             keyPath = identity?.keyPath,
+            keyMaterial = keyMaterial,
             keyPassphrase = if (identity?.authType == AuthTypes.PUBLIC_KEY) secret else null,
             keepAliveSeconds = host.keepAliveSeconds,
             forwards = portForwardDao.getByHost(hostId).map {
@@ -79,12 +81,13 @@ class SshForegroundService : Service() {
             }
         )
 
-        val m = SshConnectionManager(config) { code ->
+        val m = SshConnectionManager(this, config) { code ->
             scope.launch { onSessionExit(code) }
         }
         try {
             m.connect()
         } catch (e: Exception) {
+            m.disconnect()
             stopWith("Connection failed", e.message ?: "Unknown error")
             return
         }

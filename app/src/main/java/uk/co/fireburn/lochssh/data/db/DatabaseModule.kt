@@ -16,6 +16,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): LochSshDatabase =
         Room.databaseBuilder(context, LochSshDatabase::class.java, LochSshDatabase.NAME)
+            .addMigrations(LochSshDatabase.MIGRATION_1_2)
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()
 

@@ -1,15 +1,18 @@
 package uk.co.fireburn.lochssh.ssh
 
+import android.content.Context
 import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
+import java.io.File
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
 import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.concurrent.thread
 
 class SshConnectionManager(
+    private val context: Context,
     private val config: SshConnectionConfig,
     private val onExit: (code: Int) -> Unit
 ) {
@@ -24,6 +27,7 @@ class SshConnectionManager(
     private val pipedOut = PipedOutputStream()
     private val pipedIn = PipedInputStream(pipedOut, 64 * 1024)
     private val outputListeners = CopyOnWriteArrayList<OutputListener>()
+    private var tempKeyFile: File? = null
     @Volatile
     private var running = false
 
@@ -41,9 +45,11 @@ class SshConnectionManager(
     @Synchronized
     fun connect() {
         val jsch = JSch()
-        config.keyPath?.let { path ->
-            val passphrase = config.keyPassphrase
-            if (passphrase.isNullOrBlank()) jsch.addIdentity(path) else jsch.addIdentity(path, passphrase)
+        try {
+            loadIdentity(jsch)
+        } catch (e: Exception) {
+            deleteTempKey()
+            throw e
         }
 
         val s = jsch.getSession(config.username, config.host, config.port)
@@ -107,6 +113,35 @@ class SshConnectionManager(
         channel?.setPtySize(cols, rows, 0, 0)
     }
 
+    // Pasted or generated keys are written to app-private storage so the
+    // classic addIdentity(path) API can load them.
+    private fun loadIdentity(jsch: JSch) {
+        val keyFile = config.keyPath ?: config.keyMaterial?.let { writeTempKey(it) }
+        if (keyFile != null) {
+            val passphrase = config.keyPassphrase
+            if (passphrase.isNullOrBlank()) jsch.addIdentity(keyFile) else jsch.addIdentity(keyFile, passphrase)
+        }
+    }
+
+    private fun writeTempKey(material: String): String {
+        val f = File(context.filesDir, "lochssh_key_${System.nanoTime()}")
+        f.writeText(material)
+        try {
+            f.setReadable(false, true)
+            f.setReadable(true, false)
+            f.setWritable(false, true)
+            f.setWritable(true, false)
+        } catch (_: Exception) {
+        }
+        tempKeyFile = f
+        return f.absolutePath
+    }
+
+    private fun deleteTempKey() {
+        tempKeyFile?.let { runCatching { it.delete() } }
+        tempKeyFile = null
+    }
+
     @Synchronized
     fun disconnect() {
         running = false
@@ -123,6 +158,7 @@ class SshConnectionManager(
         } catch (_: Exception) {
         }
         readerThread = null
+        deleteTempKey()
     }
 
     private fun setupForwards(s: Session) {
