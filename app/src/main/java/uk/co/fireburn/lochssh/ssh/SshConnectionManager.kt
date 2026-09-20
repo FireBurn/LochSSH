@@ -6,6 +6,7 @@ import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
+import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.PipedInputStream
 import java.io.PipedOutputStream
@@ -28,6 +29,10 @@ class SshConnectionManager(
     private val pipedOut = PipedOutputStream()
     private val pipedIn = PipedInputStream(pipedOut, 64 * 1024)
     private val outputListeners = CopyOnWriteArrayList<OutputListener>()
+    // Retained so a listener attached after output has started (the UI polls for
+    // the manager) can replay what it missed, e.g. the first shell prompt.
+    private val outputLock = Any()
+    private val outputHistory = ByteArrayOutputStream()
     private var tempKeyFile: File? = null
     @Volatile
     private var running = false
@@ -36,7 +41,11 @@ class SshConnectionManager(
         get() = session?.isConnected == true
 
     fun addOutputListener(listener: OutputListener) {
-        outputListeners.add(listener)
+        synchronized(outputLock) {
+            outputListeners.add(listener)
+            val replay = outputHistory.toByteArray()
+            if (replay.isNotEmpty()) listener.onOutput(replay, replay.size)
+        }
     }
 
     fun removeOutputListener(listener: OutputListener) {
@@ -98,7 +107,12 @@ class SshConnectionManager(
             while (running) {
                 val read = inStream.read(buffer)
                 if (read == -1) break
-                if (read > 0) outputListeners.forEach { it.onOutput(buffer, read) }
+                if (read > 0) {
+                    synchronized(outputLock) {
+                        appendHistory(buffer, read)
+                        outputListeners.forEach { it.onOutput(buffer, read) }
+                    }
+                }
             }
             if (running) {
                 running = false
@@ -149,6 +163,15 @@ class SshConnectionManager(
         tempKeyFile = null
     }
 
+    private fun appendHistory(bytes: ByteArray, length: Int) {
+        outputHistory.write(bytes, 0, length)
+        if (outputHistory.size() > HISTORY_CAP) {
+            val all = outputHistory.toByteArray()
+            outputHistory.reset()
+            outputHistory.write(all, all.size - HISTORY_CAP, HISTORY_CAP)
+        }
+    }
+
     @Synchronized
     fun disconnect() {
         running = false
@@ -163,6 +186,9 @@ class SshConnectionManager(
         try {
             pipedOut.close()
         } catch (_: Exception) {
+        }
+        synchronized(outputLock) {
+            outputHistory.reset()
         }
         readerThread = null
         deleteTempKey()
@@ -184,5 +210,6 @@ class SshConnectionManager(
         private const val CHANNEL_SHELL = "shell"
         private const val PTY_TYPE = "xterm-256color"
         private const val LOCAL_LOOPBACK = "127.0.0.1"
+        private const val HISTORY_CAP = 1024 * 1024
     }
 }

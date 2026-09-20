@@ -45,6 +45,8 @@ fun TerminalView(
     }
 
     Canvas(modifier = modifier) {
+        // Read in the draw lambda: the root layer observes reads made while
+        // drawing, so the canvas invalidates on every output chunk.
         frame.intValue
         drawTerminal(buffer, textMeasurer)
     }
