@@ -28,6 +28,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class SshForegroundService : Service() {
@@ -64,39 +65,42 @@ class SshForegroundService : Service() {
     private suspend fun connect(hostId: Long) {
         val host = hostDao.getById(hostId) ?: return fail("Host not found")
         ActiveConnection.lastError = null
-        val identity = host.identityId?.let { identityDao.getById(it) }
-        val secret = identity?.secretRef?.let { secrets.getSecret(it) }
-        val keyMaterial = identity?.keyMaterialRef?.let { secrets.getSecret(it) }
+        // Key loading and the SSH handshake block, so keep them off the main thread.
+        withContext(Dispatchers.IO) {
+            val identity = host.identityId?.let { identityDao.getById(it) }
+            val secret = identity?.secretRef?.let { secrets.getSecret(it) }
+            val keyMaterial = identity?.keyMaterialRef?.let { secrets.getSecret(it) }
 
-        val config = SshConnectionConfig(
-            host = host.host,
-            port = host.port,
-            username = identity?.username ?: "",
-            authType = identity?.authType ?: AuthTypes.NONE,
-            password = if (identity?.authType == AuthTypes.PASSWORD) secret else null,
-            keyPath = identity?.keyPath,
-            keyMaterial = keyMaterial,
-            keyPassphrase = if (identity?.authType == AuthTypes.PUBLIC_KEY) secret else null,
-            keepAliveSeconds = host.keepAliveSeconds,
-            forwards = portForwardDao.getByHost(hostId).map {
-                PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
+            val config = SshConnectionConfig(
+                host = host.host,
+                port = host.port,
+                username = identity?.username ?: "",
+                authType = identity?.authType ?: AuthTypes.NONE,
+                password = if (identity?.authType == AuthTypes.PASSWORD) secret else null,
+                keyPath = identity?.keyPath,
+                keyMaterial = keyMaterial,
+                keyPassphrase = if (identity?.authType == AuthTypes.PUBLIC_KEY) secret else null,
+                keepAliveSeconds = host.keepAliveSeconds,
+                forwards = portForwardDao.getByHost(hostId).map {
+                    PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
+                }
+            )
+
+            val m = SshConnectionManager(this@SshForegroundService, config) { code ->
+                scope.launch { onSessionExit(code) }
             }
-        )
-
-        val m = SshConnectionManager(this, config) { code ->
-            scope.launch { onSessionExit(code) }
+            try {
+                m.connect()
+            } catch (e: Exception) {
+                Log.e(TAG, "Connect to ${host.host}:${host.port} as ${config.username} failed", e)
+                m.disconnect()
+                fail("${e.message ?: e.javaClass.simpleName}")
+                return@withContext
+            }
+            manager = m
+            ActiveConnection.manager = m
+            showNotification("LochSSH", "Connected to ${host.host}")
         }
-        try {
-            m.connect()
-        } catch (e: Exception) {
-            Log.e(TAG, "Connect to ${host.host}:${host.port} as ${config.username} failed", e)
-            m.disconnect()
-            fail("${e.message ?: e.javaClass.simpleName}")
-            return
-        }
-        manager = m
-        ActiveConnection.manager = m
-        showNotification("LochSSH", "Connected to ${host.host}")
     }
 
     private fun onSessionExit(code: Int) {
