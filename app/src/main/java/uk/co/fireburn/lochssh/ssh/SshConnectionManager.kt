@@ -1,6 +1,7 @@
 package uk.co.fireburn.lochssh.ssh
 
 import android.content.Context
+import android.util.Log
 import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
@@ -45,6 +46,12 @@ class SshConnectionManager(
     @Synchronized
     fun connect() {
         val jsch = JSch()
+        jsch.setInstanceLogger(object : com.jcraft.jsch.Logger {
+            override fun isEnabled(level: Int) = level >= com.jcraft.jsch.Logger.INFO
+            override fun log(level: Int, message: String) {
+                Log.d("LochSSH-jsch", message)
+            }
+        })
         try {
             loadIdentity(jsch)
         } catch (e: Exception) {
