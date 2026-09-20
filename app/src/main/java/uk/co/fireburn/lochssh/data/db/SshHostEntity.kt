@@ -14,6 +14,7 @@ object AuthTypes {
 data class SshHostEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val name: String,
+    val username: String,
     val host: String,
     val port: Int = 22,
     @ColumnInfo(name = "identity_id") val identityId: Long? = null,

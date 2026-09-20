@@ -12,6 +12,12 @@
         android:icon="@drawable/ic_nessi_placeholder"
         android:label="LochSSH"
         android:theme="@android:style/Theme.Material.NoActionBar">
+
+        <service
+            android:name=".service.SshForegroundService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
     </application>
 
 </manifest>

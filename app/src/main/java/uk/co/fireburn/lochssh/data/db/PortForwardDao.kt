@@ -12,6 +12,9 @@ interface PortForwardDao {
     @Query("SELECT * FROM port_forwards WHERE host_id = :hostId")
     fun observeByHost(hostId: Long): Flow<List<PortForwardEntity>>
 
+    @Query("SELECT * FROM port_forwards WHERE host_id = :hostId")
+    suspend fun getByHost(hostId: Long): List<PortForwardEntity>
+
     @Query("SELECT * FROM port_forwards WHERE id = :id")
     suspend fun getById(id: Long): PortForwardEntity?
 
