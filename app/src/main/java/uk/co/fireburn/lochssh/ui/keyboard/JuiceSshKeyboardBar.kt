@@ -17,6 +17,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import uk.co.fireburn.lochssh.ui.terminal.TerminalKey
 import uk.co.fireburn.lochssh.ui.terminal.TerminalKeyEncoder
 
@@ -47,21 +48,22 @@ fun JuiceSshKeyboardBar(
             Key("/", Modifier.weight(1f)) { emit(TerminalKey.Text("/")) }
             Key("|", Modifier.weight(1f)) { emit(TerminalKey.Text("|")) }
             Key("-", Modifier.weight(1f)) { emit(TerminalKey.Text("-")) }
-            Key("HOME", Modifier.weight(1.2f)) { emit(TerminalKey.Home) }
+            Key("HOME", Modifier.weight(1f)) { emit(TerminalKey.Home) }
             Key("▲", Modifier.weight(1f)) { emit(TerminalKey.Arrow('A')) }
-            Key("END", Modifier.weight(1.2f)) { emit(TerminalKey.End) }
-            Key("PGUP", Modifier.weight(1.2f)) { emit(TerminalKey.PgUp) }
+            Key("END", Modifier.weight(1f)) { emit(TerminalKey.End) }
+            Key("PGUP", Modifier.weight(1f)) { emit(TerminalKey.PgUp) }
             Key("FN", Modifier.weight(1f), active = fn) { fn = !fn }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Key("TAB", Modifier.weight(1.2f)) { emit(TerminalKey.Tab) }
-            Key("CTRL", Modifier.weight(1.2f), active = ctrl) { ctrl = !ctrl }
+            Key("TAB", Modifier.weight(1f)) { emit(TerminalKey.Tab) }
+            Key("CTRL", Modifier.weight(1f), active = ctrl) { ctrl = !ctrl }
             Key("ALT", Modifier.weight(1f), active = alt) { alt = !alt }
             Key("◄", Modifier.weight(1f)) { emit(TerminalKey.Arrow('D')) }
             Key("▼", Modifier.weight(1f)) { emit(TerminalKey.Arrow('B')) }
             Key("►", Modifier.weight(1f)) { emit(TerminalKey.Arrow('C')) }
-            Key("PGDN", Modifier.weight(1.2f)) { emit(TerminalKey.PgDn) }
-            Key("IME", Modifier.weight(1.2f)) { emit(TerminalKey.ImeToggle) }
+            Key("DEL", Modifier.weight(1f)) { emit(TerminalKey.Del) }
+            Key("PGDN", Modifier.weight(1f)) { emit(TerminalKey.PgDn) }
+            Key("IME", Modifier.weight(1f)) { emit(TerminalKey.ImeToggle) }
         }
     }
 }
@@ -92,7 +94,8 @@ private fun Key(
             text = label,
             modifier = Modifier.fillMaxWidth(),
             textAlign = TextAlign.Center,
-            maxLines = 1
+            maxLines = 1,
+            fontSize = 11.sp
         )
     }
 }

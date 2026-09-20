@@ -9,6 +9,7 @@ sealed class TerminalKey {
     data object End : TerminalKey()
     data object PgUp : TerminalKey()
     data object PgDn : TerminalKey()
+    data object Del : TerminalKey()
     data object Ctrl : TerminalKey()
     data object Alt : TerminalKey()
     data object Fn : TerminalKey()
@@ -41,6 +42,7 @@ object TerminalKeyEncoder {
             TerminalKey.End -> seq("F")
             TerminalKey.PgUp -> seq("5~")
             TerminalKey.PgDn -> seq("6~")
+            TerminalKey.Del -> seq("3~")
             TerminalKey.Ctrl,
             TerminalKey.Alt,
             TerminalKey.Fn,
