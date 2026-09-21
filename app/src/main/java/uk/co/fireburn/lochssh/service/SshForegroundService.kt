@@ -1,27 +1,34 @@
 package uk.co.fireburn.lochssh.service
 
+import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.pm.PackageManager
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.NotificationManagerCompat
+import androidx.core.content.ContextCompat
 import dagger.hilt.android.AndroidEntryPoint
+import uk.co.fireburn.lochssh.MainActivity
 import uk.co.fireburn.lochssh.R
 import uk.co.fireburn.lochssh.data.EncryptedStorageManager
 import uk.co.fireburn.lochssh.data.db.AuthTypes
 import uk.co.fireburn.lochssh.data.db.IdentityDao
 import uk.co.fireburn.lochssh.data.db.PortForwardDao
 import uk.co.fireburn.lochssh.data.db.SshHostDao
-import uk.co.fireburn.lochssh.ssh.ActiveConnection
 import uk.co.fireburn.lochssh.ssh.PortForwardSpec
+import uk.co.fireburn.lochssh.ssh.SessionRegistry
 import uk.co.fireburn.lochssh.ssh.SshConnectionConfig
 import uk.co.fireburn.lochssh.ssh.SshConnectionManager
+import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -41,8 +48,10 @@ class SshForegroundService : Service() {
     lateinit var portForwardDao: PortForwardDao
     @Inject
     lateinit var secrets: EncryptedStorageManager
+    @Inject
+    lateinit var registry: SessionRegistry
 
-    private var manager: SshConnectionManager? = null
+    private val managers = ConcurrentHashMap<Long, SshConnectionManager>()
     private var wakeLock: PowerManager.WakeLock? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -53,18 +62,28 @@ class SshForegroundService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        val hostId = intent?.getLongExtra(EXTRA_HOST_ID, -1L) ?: -1L
-        if (hostId == -1L) {
-            stopSelf()
+        // Android gives us five seconds to go foreground, which is less than a
+        // connection can take, so the summary goes up before anything else.
+        startForegroundSummary()
+
+        if (intent?.action == ACTION_DISCONNECT) {
+            endSession(intent.getLongExtra(EXTRA_SESSION_ID, -1L), null)
             return Service.START_NOT_STICKY
         }
-        scope.launch { connect(hostId) }
+
+        val hostId = intent?.getLongExtra(EXTRA_HOST_ID, -1L) ?: -1L
+        val sessionId = intent?.getLongExtra(EXTRA_SESSION_ID, -1L) ?: -1L
+        if (hostId == -1L || sessionId == -1L) {
+            stopIfIdle()
+            return Service.START_NOT_STICKY
+        }
+        scope.launch { connect(sessionId, hostId) }
         return Service.START_NOT_STICKY
     }
 
-    private suspend fun connect(hostId: Long) {
-        val host = hostDao.getById(hostId) ?: return fail("Host not found")
-        ActiveConnection.lastError = null
+    private suspend fun connect(sessionId: Long, hostId: Long) {
+        val host = hostDao.getById(hostId) ?: return fail(sessionId, "Host not found")
+        registry.opening(sessionId, hostId, host.name)
         // Key loading and the SSH handshake block, so keep them off the main thread.
         withContext(Dispatchers.IO) {
             val identity = host.identityId?.let { identityDao.getById(it) }
@@ -86,38 +105,53 @@ class SshForegroundService : Service() {
                 }
             )
 
-            val m = SshConnectionManager(this@SshForegroundService, config) { code ->
-                scope.launch { onSessionExit(code) }
+            val manager = SshConnectionManager(this@SshForegroundService, config) { code ->
+                scope.launch { onSessionExit(sessionId, code) }
             }
             try {
-                m.connect()
+                manager.connect()
             } catch (e: Exception) {
                 Log.e(TAG, "Connect to ${host.host}:${host.port} as ${config.username} failed", e)
-                m.disconnect()
-                fail("${e.message ?: e.javaClass.simpleName}")
+                manager.disconnect()
+                fail(sessionId, e.message ?: e.javaClass.simpleName)
                 return@withContext
             }
-            manager = m
-            ActiveConnection.manager = m
-            showNotification("LochSSH", "Connected to ${host.host}")
+            managers[sessionId] = manager
+            registry.connected(sessionId, manager)
+            showSessionNotification(sessionId, host.name, "Connected to ${host.host}")
+            updateSummary()
         }
     }
 
-    private fun onSessionExit(code: Int) {
-        Log.i(TAG, "Session exited with code $code")
-        manager?.disconnect()
-        manager = null
-        ActiveConnection.manager = null
-        ActiveConnection.lastError = "Connection closed (exit code $code)"
-        showNotification("Connection closed", "Exit code $code")
-        stopSelf()
+    private fun onSessionExit(sessionId: Long, code: Int) {
+        Log.i(TAG, "Session $sessionId exited with code $code")
+        endSession(sessionId, "Connection closed (exit code $code)")
     }
 
-    private fun fail(message: String) {
-        Log.e(TAG, "Connection failed: $message")
-        ActiveConnection.lastError = "Connection failed: $message"
-        showNotification("Connection failed", message)
-        stopSelf()
+    private fun endSession(sessionId: Long, message: String?) {
+        managers.remove(sessionId)?.disconnect()
+        if (message == null) {
+            registry.remove(sessionId)
+        } else {
+            registry.failed(sessionId, message)
+        }
+        NotificationManagerCompat.from(this).cancel(sessionNotificationId(sessionId))
+        stopIfIdle()
+    }
+
+    private fun fail(sessionId: Long, message: String) {
+        Log.e(TAG, "Session $sessionId failed: $message")
+        registry.failed(sessionId, "Connection failed: $message")
+        NotificationManagerCompat.from(this).cancel(sessionNotificationId(sessionId))
+        stopIfIdle()
+    }
+
+    private fun stopIfIdle() {
+        if (managers.isEmpty()) {
+            stopSelf()
+        } else {
+            updateSummary()
+        }
     }
 
     private fun createNotificationChannel() {
@@ -130,22 +164,90 @@ class SshForegroundService : Service() {
             .createNotificationChannel(channel)
     }
 
-    private fun showNotification(title: String, text: String) {
+    private fun resumeIntent(sessionId: Long): PendingIntent {
+        val intent = Intent(this, MainActivity::class.java)
+            .setFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            .putExtra(EXTRA_SESSION_ID, sessionId)
+        return PendingIntent.getActivity(
+            this,
+            sessionId.toInt(),
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+    }
+
+    private fun disconnectIntent(sessionId: Long): PendingIntent {
+        val intent = Intent(this, SshForegroundService::class.java)
+            .setAction(ACTION_DISCONNECT)
+            .putExtra(EXTRA_SESSION_ID, sessionId)
+        return PendingIntent.getService(
+            this,
+            DISCONNECT_REQUEST_BASE + sessionId.toInt(),
+            intent,
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
+    }
+
+    private fun showSessionNotification(sessionId: Long, title: String, text: String) {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(text)
             .setOngoing(true)
+            .setGroup(GROUP_KEY)
+            .setCategory(NotificationCompat.CATEGORY_SERVICE)
+            .setContentIntent(resumeIntent(sessionId))
+            .addAction(0, "Disconnect", disconnectIntent(sessionId))
+            .build()
+        notifyIfAllowed(sessionNotificationId(sessionId), notification)
+    }
+
+    private fun summaryNotification(): android.app.Notification {
+        val count = managers.size
+        val text = when (count) {
+            0 -> "Connecting"
+            1 -> "1 session"
+            else -> "$count sessions"
+        }
+        return NotificationCompat.Builder(this, CHANNEL_ID)
+            .setSmallIcon(R.drawable.ic_notification)
+            .setContentTitle("LochSSH")
+            .setContentText(text)
+            .setOngoing(true)
+            .setGroup(GROUP_KEY)
+            .setGroupSummary(true)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(NOTIFICATION_ID, notification, ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+    }
+
+    // The foreground notification goes up regardless, but the per session ones
+    // need a permission the user can refuse.
+    private fun notifyIfAllowed(id: Int, notification: android.app.Notification) {
+        val granted = Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (granted) {
+            NotificationManagerCompat.from(this).notify(id, notification)
         }
     }
 
-    // Keeps the CPU up so the connection survives Doze while the user is attached.
+    private fun startForegroundSummary() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            startForeground(
+                SUMMARY_NOTIFICATION_ID,
+                summaryNotification(),
+                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+            )
+        } else {
+            startForeground(SUMMARY_NOTIFICATION_ID, summaryNotification())
+        }
+    }
+
+    private fun updateSummary() {
+        notifyIfAllowed(SUMMARY_NOTIFICATION_ID, summaryNotification())
+    }
+
+    // Keeps the CPU up so connections survive Doze while the user is attached.
     private fun acquireWakeLock() {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
@@ -153,9 +255,9 @@ class SshForegroundService : Service() {
     }
 
     override fun onDestroy() {
-        manager?.disconnect()
-        manager = null
-        ActiveConnection.manager = null
+        managers.values.forEach { it.disconnect() }
+        managers.keys.forEach { registry.remove(it) }
+        managers.clear()
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
         scope.cancel()
@@ -165,17 +267,34 @@ class SshForegroundService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     companion object {
+        const val EXTRA_SESSION_ID = "session_id"
+
         private const val EXTRA_HOST_ID = "host_id"
+        private const val ACTION_DISCONNECT = "uk.co.fireburn.lochssh.DISCONNECT"
         private const val CHANNEL_ID = "ssh_connections"
-        private const val NOTIFICATION_ID = 1
+        private const val GROUP_KEY = "uk.co.fireburn.lochssh.sessions"
+        private const val SUMMARY_NOTIFICATION_ID = 1
+        private const val SESSION_NOTIFICATION_BASE = 1000
+        private const val DISCONNECT_REQUEST_BASE = 5000
         private const val WAKE_LOCK_TAG = "lochssh:ssh-service"
         private const val WAKE_LOCK_TIMEOUT_MS = 12L * 60 * 60 * 1000
         private const val TAG = "LochSSH"
 
-        fun start(context: Context, hostId: Long) {
+        private fun sessionNotificationId(sessionId: Long) =
+            SESSION_NOTIFICATION_BASE + sessionId.toInt()
+
+        fun start(context: Context, hostId: Long, sessionId: Long) {
             val intent = Intent(context, SshForegroundService::class.java)
                 .putExtra(EXTRA_HOST_ID, hostId)
+                .putExtra(EXTRA_SESSION_ID, sessionId)
             context.startForegroundService(intent)
+        }
+
+        fun disconnect(context: Context, sessionId: Long) {
+            val intent = Intent(context, SshForegroundService::class.java)
+                .setAction(ACTION_DISCONNECT)
+                .putExtra(EXTRA_SESSION_ID, sessionId)
+            context.startService(intent)
         }
     }
 }

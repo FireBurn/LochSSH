@@ -8,15 +8,22 @@ import kotlinx.coroutines.launch
 import uk.co.fireburn.lochssh.data.db.PortForwardDao
 import uk.co.fireburn.lochssh.data.db.SshHostDao
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
+import uk.co.fireburn.lochssh.ssh.SessionRegistry
 import javax.inject.Inject
 
 @HiltViewModel
 class HostsViewModel @Inject constructor(
     private val hostDao: SshHostDao,
-    private val portForwardDao: PortForwardDao
+    private val portForwardDao: PortForwardDao,
+    private val registry: SessionRegistry
 ) : ViewModel() {
 
     val hosts: Flow<List<SshHostEntity>> = hostDao.observeAll()
+    val sessions = registry.sessions
+
+    fun newSessionId(): Long = registry.newId()
+
+    fun dismissSession(id: Long) = registry.remove(id)
 
     fun duplicateHost(id: Long) {
         viewModelScope.launch {

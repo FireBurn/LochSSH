@@ -37,11 +37,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import uk.co.fireburn.lochssh.service.SshForegroundService
-import uk.co.fireburn.lochssh.ssh.ActiveConnection
-import uk.co.fireburn.lochssh.ssh.SshConnectionManager
 import uk.co.fireburn.lochssh.ui.keyboard.ImeKeyEncoder
 import uk.co.fireburn.lochssh.ui.keyboard.JuiceSshKeyboardBar
 import uk.co.fireburn.lochssh.ui.keyboard.TerminalEditText
@@ -50,45 +50,22 @@ import uk.co.fireburn.lochssh.ui.keyboard.TerminalImeInput
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TerminalScreen(
-    hostId: Long,
+    sessionId: Long,
     onBack: () -> Unit,
     viewModel: TerminalViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
+    val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
     val imm = remember {
         context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     }
-    val managerState = remember { mutableStateOf<SshConnectionManager?>(null) }
-    val manager by managerState
-    val errorState = remember { mutableStateOf<String?>(null) }
-    val attempt = remember { mutableIntStateOf(0) }
     var imeVisible by remember { mutableStateOf(false) }
     var imeEditText by remember { mutableStateOf<TerminalEditText?>(null) }
 
-    LaunchedEffect(hostId, attempt.intValue) {
-        viewModel.load(hostId)
-        errorState.value = null
-        while (true) {
-            val m = ActiveConnection.manager
-            if (m != null) {
-                managerState.value = m
-                break
-            }
-            val err = ActiveConnection.lastError
-            if (err != null) {
-                errorState.value = err
-                break
-            }
-            delay(100)
-        }
-    }
+    val session by viewModel.session.collectAsStateWithLifecycle()
+    val manager = session?.manager
 
-    // Surface a dropped session while the screen is open.
-    LaunchedEffect(manager) {
-        val m = manager ?: return@LaunchedEffect
-        while (m.isConnected) delay(500)
-        errorState.value = ActiveConnection.lastError ?: "Connection closed"
-    }
+    LaunchedEffect(sessionId) { viewModel.load(sessionId) }
 
     Scaffold(
         // Only the top inset: the content pads itself against whichever of the
@@ -96,7 +73,7 @@ fun TerminalScreen(
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             TopAppBar(
-                title = { Text(viewModel.hostName.ifBlank { "Terminal" }) },
+                title = { Text(session?.hostName?.ifBlank { null } ?: "Terminal") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
@@ -104,7 +81,7 @@ fun TerminalScreen(
                 },
                 actions = {
                     TextButton(onClick = {
-                        context.stopService(Intent(context, SshForegroundService::class.java))
+                        SshForegroundService.disconnect(context, sessionId)
                         onBack()
                     }) { Text("Disconnect") }
                 }
@@ -116,7 +93,7 @@ fun TerminalScreen(
                 .padding(padding)
                 .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
         ) {
-            val error = errorState.value
+            val error = session?.error
             if (error != null && manager == null) {
                 Column(
                     modifier = Modifier
@@ -131,11 +108,14 @@ fun TerminalScreen(
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.error
                     )
-                    TextButton(onClick = { attempt.intValue++ }) { Text("Retry") }
+                    TextButton(onClick = {
+                        session?.let { SshForegroundService.start(context, it.hostId, it.id) }
+                    }) { Text("Retry") }
                 }
             } else {
                 TerminalView(
                     manager = manager,
+                    fontSize = fontSize.sp,
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
@@ -161,6 +141,7 @@ fun TerminalScreen(
             )
             JuiceSshKeyboardBar(
                 onSend = { manager?.write(it) },
+                onFontSizeChange = { viewModel.changeFontSize(it) },
                 onImeToggle = {
                     val view = imeEditText ?: return@JuiceSshKeyboardBar
                     if (imeVisible) {

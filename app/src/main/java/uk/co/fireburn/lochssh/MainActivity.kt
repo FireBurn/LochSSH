@@ -1,6 +1,12 @@
 package uk.co.fireburn.lochssh
 
+import android.Manifest
+import android.content.Intent
+import android.os.Build
 import android.os.Bundle
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.runtime.LaunchedEffect
+import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
@@ -30,35 +36,64 @@ object Routes {
     const val IDENTITY_EDITOR = "identity_editor?id={id}"
     fun identityEditor(id: Long) = "identity_editor?id=$id"
     const val SETTINGS = "settings"
-    const val TERMINAL = "terminal?hostId={hostId}"
-    fun terminal(hostId: Long) = "terminal?hostId=$hostId"
+    const val TERMINAL = "terminal?sessionId={sessionId}"
+    fun terminal(sessionId: Long) = "terminal?sessionId=$sessionId"
 }
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    // A session id arrives here when one of the connection notifications is tapped.
+    private val resumeSession = MutableStateFlow<Long?>(null)
+
+    private val askNotifications =
+        registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        resumeSession.value = sessionOf(intent)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
         setContent {
             LochSSHTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    LochSshNavHost()
+                    LochSshNavHost(resumeSession)
                 }
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        resumeSession.value = sessionOf(intent)
+    }
+
+    private fun sessionOf(intent: Intent?): Long? =
+        intent?.getLongExtra(SshForegroundService.EXTRA_SESSION_ID, -1L)?.takeIf { it > 0 }
 }
 
 @Composable
-fun LochSshNavHost() {
+fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>) {
     val navController = rememberNavController()
     val context = LocalContext.current
+
+    LaunchedEffect(navController) {
+        resumeSession.collect { id ->
+            if (id != null) {
+                navController.navigate(Routes.terminal(id))
+                resumeSession.value = null
+            }
+        }
+    }
 
     NavHost(navController = navController, startDestination = Routes.HOSTS) {
         composable(Routes.HOSTS) {
             HostListScreen(
-                onOpenTerminal = { id ->
-                    SshForegroundService.start(context, id)
-                    navController.navigate(Routes.terminal(id))
+                onOpenSession = { hostId, sessionId ->
+                    SshForegroundService.start(context, hostId, sessionId)
+                    navController.navigate(Routes.terminal(sessionId))
                 },
                 onEdit = { id -> navController.navigate(Routes.hostEditor(id)) },
                 onNew = { navController.navigate(Routes.hostEditor(0)) },
@@ -96,10 +131,10 @@ fun LochSshNavHost() {
         }
         composable(
             Routes.TERMINAL,
-            arguments = listOf(navArgument("hostId") { type = NavType.LongType })
+            arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
         ) { entry ->
             TerminalScreen(
-                hostId = entry.arguments?.getLong("hostId") ?: -1L,
+                sessionId = entry.arguments?.getLong("sessionId") ?: -1L,
                 onBack = { navController.popBackStack() }
             )
         }

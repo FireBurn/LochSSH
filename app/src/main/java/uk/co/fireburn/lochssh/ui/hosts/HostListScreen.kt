@@ -11,13 +11,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
 import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -41,7 +42,7 @@ import uk.co.fireburn.lochssh.data.db.SshHostEntity
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HostListScreen(
-    onOpenTerminal: (Long) -> Unit,
+    onOpenSession: (Long, Long) -> Unit,
     onEdit: (Long) -> Unit,
     onNew: () -> Unit,
     onIdentities: () -> Unit,
@@ -52,6 +53,7 @@ fun HostListScreen(
         emptyList(),
         LocalLifecycleOwner.current.lifecycle
     )
+    val sessions by viewModel.sessions.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -78,10 +80,43 @@ fun HostListScreen(
             contentPadding = PaddingValues(12.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            if (sessions.isNotEmpty()) {
+                item(key = "sessions") {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text("Open sessions", style = MaterialTheme.typography.titleSmall)
+                        sessions.forEach { session ->
+                            Card(
+                                onClick = { onOpenSession(session.hostId, session.id) },
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Row(
+                                    modifier = Modifier.padding(12.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(session.hostName)
+                                        Text(
+                                            session.error ?: "Connected",
+                                            style = MaterialTheme.typography.bodySmall
+                                        )
+                                    }
+                                    Text("Resume", style = MaterialTheme.typography.labelLarge)
+                                    if (session.manager == null) {
+                                        IconButton(onClick = { viewModel.dismissSession(session.id) }) {
+                                            Icon(Icons.Filled.Close, contentDescription = "Dismiss")
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        Text("Hosts", style = MaterialTheme.typography.titleSmall)
+                    }
+                }
+            }
             items(hosts, key = { it.id }) { host ->
                 HostRow(
                     host = host,
-                    onClick = { onOpenTerminal(host.id) },
+                    onClick = { onOpenSession(host.id, viewModel.newSessionId()) },
                     onEdit = { onEdit(host.id) },
                     onDuplicate = { viewModel.duplicateHost(host.id) },
                     onDelete = { viewModel.deleteHost(host.id) }
