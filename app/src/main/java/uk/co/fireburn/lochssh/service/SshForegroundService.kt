@@ -132,7 +132,7 @@ class SshForegroundService : Service() {
 
     private fun showNotification(title: String, text: String) {
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_nessi_placeholder)
+            .setSmallIcon(R.drawable.ic_notification)
             .setContentTitle(title)
             .setContentText(text)
             .setOngoing(true)

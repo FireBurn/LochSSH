@@ -10,9 +10,10 @@
     <application
         android:name=".LochSSHApplication"
         android:allowBackup="false"
-        android:icon="@drawable/ic_nessi_placeholder"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
         android:label="LochSSH"
-        android:theme="@android:style/Theme.Material.NoActionBar">
+        android:theme="@style/Theme.LochSSH">
 
         <activity
             android:name=".MainActivity"

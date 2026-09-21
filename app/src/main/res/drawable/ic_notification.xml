@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Status bar icons are masked to their alpha, so this is a flat silhouette. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+    <group
+        android:scaleX="0.46"
+        android:scaleY="0.46"
+        android:translateX="1.5"
+        android:translateY="2.2">
+        <path
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="4.6"
+            android:strokeLineCap="round"
+            android:pathData="M23.6,36 C24.6,29 24.4,21 22,16 C21.2,14.3 19.8,13.2 18,13" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M12.2,11.8 A4.6,3.4 0 1 1 20.8,11.8 A4.6,3.4 0 1 1 12.2,11.8 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M13.6,9.8 C11,10.6 9.6,12 9.8,13.2 C10,14.2 11.6,14.6 13.8,14.4 C15,14.3 16,13.6 16,12.4 C16,11 14.8,9.5 13.6,9.8 Z" />
+        <path
+            android:fillColor="#FFFFFF"
+            android:pathData="M26.5,36 C27.2,29 30.4,26.6 33.2,27.8 C35.4,28.8 36.4,31.6 36.4,36 Z" />
+    </group>
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.7"
+        android:strokeLineCap="round"
+        android:pathData="M2.6,19.4 C6,17.9 9,20.2 12.4,18.9 C15.5,17.7 18.4,19.2 21.4,18.4" />
+</vector>
