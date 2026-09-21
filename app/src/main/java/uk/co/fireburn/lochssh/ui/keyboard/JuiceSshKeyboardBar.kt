@@ -59,10 +59,10 @@ fun JuiceSshKeyboardBar(
             Key("HOME", Modifier.weight(1f)) { emit(TerminalKey.Home) }
             Key("END", Modifier.weight(1f)) { emit(TerminalKey.End) }
             Key("PGUP", Modifier.weight(1f)) { emit(TerminalKey.PgUp) }
+            Key("Aa+", Modifier.weight(1f)) { onFontSizeChange(1) }
             Key("FN", Modifier.weight(1f), active = modifiers.fn) {
                 modifiers.fn = !modifiers.fn
             }
-            Key("Aa+", Modifier.weight(1f)) { onFontSizeChange(1) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Key("TAB", Modifier.weight(1f)) { emit(TerminalKey.Tab) }
@@ -75,14 +75,14 @@ fun JuiceSshKeyboardBar(
             Key("◄", Modifier.weight(1f)) { emit(TerminalKey.Arrow('D')) }
             Key("▼", Modifier.weight(1f)) { emit(TerminalKey.Arrow('B')) }
             Key("►", Modifier.weight(1f)) { emit(TerminalKey.Arrow('C')) }
-            Key("⌫", Modifier.weight(1f)) { emit(TerminalKey.Backspace) }
+            Key("DEL", Modifier.weight(1f)) { emit(TerminalKey.Del) }
             Key("PGDN", Modifier.weight(1f)) { emit(TerminalKey.PgDn) }
+            Key("Aa-", Modifier.weight(1f)) { onFontSizeChange(-1) }
             IconKey(
                 painter = painterResource(R.drawable.ic_keyboard),
                 contentDescription = "Show or hide the keyboard",
                 modifier = Modifier.weight(1f)
             ) { emit(TerminalKey.ImeToggle) }
-            Key("Aa-", Modifier.weight(1f)) { onFontSizeChange(-1) }
         }
     }
 }
