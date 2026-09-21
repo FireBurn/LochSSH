@@ -59,6 +59,7 @@ fun TerminalScreen(
     val imm = remember {
         context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     }
+    val modifiers = remember { TerminalModifiers() }
     var imeVisible by remember { mutableStateOf(false) }
     var imeEditText by remember { mutableStateOf<TerminalEditText?>(null) }
 
@@ -122,11 +123,17 @@ fun TerminalScreen(
                 )
             }
             TerminalImeInput(
-                onText = { manager?.write(ImeKeyEncoder.encodeText(it)) },
+                onText = {
+                    manager?.write(
+                        ImeKeyEncoder.encodeText(it, modifiers.ctrl, modifiers.alt)
+                    )
+                    modifiers.clear()
+                },
                 onKey = { key ->
-                    val bytes = ImeKeyEncoder.encode(key)
+                    val bytes = ImeKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt)
                     if (bytes != null) {
                         manager?.write(bytes)
+                        modifiers.clear()
                         true
                     } else {
                         false
@@ -140,6 +147,7 @@ fun TerminalScreen(
                 onReady = { imeEditText = it }
             )
             JuiceSshKeyboardBar(
+                modifiers = modifiers,
                 onSend = { manager?.write(it) },
                 onFontSizeChange = { viewModel.changeFontSize(it) },
                 onImeToggle = {

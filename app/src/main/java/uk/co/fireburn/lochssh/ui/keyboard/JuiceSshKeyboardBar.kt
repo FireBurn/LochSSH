@@ -27,24 +27,23 @@ import androidx.compose.ui.unit.sp
 import uk.co.fireburn.lochssh.R
 import uk.co.fireburn.lochssh.ui.terminal.TerminalKey
 import uk.co.fireburn.lochssh.ui.terminal.TerminalKeyEncoder
+import uk.co.fireburn.lochssh.ui.terminal.TerminalModifiers
 
 @Composable
 fun JuiceSshKeyboardBar(
+    modifiers: TerminalModifiers,
     onSend: (ByteArray) -> Unit,
     onImeToggle: () -> Unit,
     onFontSizeChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    var ctrl by remember { mutableStateOf(false) }
-    var alt by remember { mutableStateOf(false) }
-    var fn by remember { mutableStateOf(false) }
-
     fun emit(key: TerminalKey) {
         if (key == TerminalKey.ImeToggle) {
             onImeToggle()
             return
         }
-        TerminalKeyEncoder.encode(key, ctrl, alt, fn)?.let(onSend)
+        TerminalKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt, modifiers.fn)?.let(onSend)
+        modifiers.clear()
     }
 
     Column(
@@ -60,17 +59,23 @@ fun JuiceSshKeyboardBar(
             Key("HOME", Modifier.weight(1f)) { emit(TerminalKey.Home) }
             Key("END", Modifier.weight(1f)) { emit(TerminalKey.End) }
             Key("PGUP", Modifier.weight(1f)) { emit(TerminalKey.PgUp) }
-            Key("FN", Modifier.weight(1f), active = fn) { fn = !fn }
+            Key("FN", Modifier.weight(1f), active = modifiers.fn) {
+                modifiers.fn = !modifiers.fn
+            }
             Key("Aa+", Modifier.weight(1f)) { onFontSizeChange(1) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Key("TAB", Modifier.weight(1f)) { emit(TerminalKey.Tab) }
-            Key("CTRL", Modifier.weight(1f), active = ctrl) { ctrl = !ctrl }
-            Key("ALT", Modifier.weight(1f), active = alt) { alt = !alt }
+            Key("CTRL", Modifier.weight(1f), active = modifiers.ctrl) {
+                modifiers.ctrl = !modifiers.ctrl
+            }
+            Key("ALT", Modifier.weight(1f), active = modifiers.alt) {
+                modifiers.alt = !modifiers.alt
+            }
             Key("◄", Modifier.weight(1f)) { emit(TerminalKey.Arrow('D')) }
             Key("▼", Modifier.weight(1f)) { emit(TerminalKey.Arrow('B')) }
             Key("►", Modifier.weight(1f)) { emit(TerminalKey.Arrow('C')) }
-            Key("DEL", Modifier.weight(1f)) { emit(TerminalKey.Del) }
+            Key("⌫", Modifier.weight(1f)) { emit(TerminalKey.Backspace) }
             Key("PGDN", Modifier.weight(1f)) { emit(TerminalKey.PgDn) }
             IconKey(
                 painter = painterResource(R.drawable.ic_keyboard),

@@ -84,10 +84,10 @@ fun TerminalImeInput(
 
 // Encodes IME/hardware key events as terminal byte sequences.
 object ImeKeyEncoder {
-    fun encode(event: KeyEvent): ByteArray? {
+    fun encode(event: KeyEvent, latchedCtrl: Boolean = false, latchedAlt: Boolean = false): ByteArray? {
         if (event.action != KeyEvent.ACTION_DOWN) return null
-        val ctrl = event.isCtrlPressed
-        val alt = event.isAltPressed
+        val ctrl = event.isCtrlPressed || latchedCtrl
+        val alt = event.isAltPressed || latchedAlt
         val code = event.keyCode
 
         if (ctrl) {
@@ -120,8 +120,15 @@ object ImeKeyEncoder {
         return null
     }
 
-    fun encodeText(text: String): ByteArray =
-        text.replace('\n', '\r').toByteArray(Charsets.UTF_8)
+    fun encodeText(text: String, ctrl: Boolean = false, alt: Boolean = false): ByteArray {
+        if (ctrl && text.length == 1) {
+            val c = text.lowercase().single()
+            if (c in 'a'..'z') return byteArrayOf((c.code - 96).toByte())
+            if (c == ' ') return byteArrayOf(0)
+        }
+        val bytes = text.replace('\n', '\r').toByteArray(Charsets.UTF_8)
+        return if (alt) byteArrayOf(0x1B.toByte()) + bytes else bytes
+    }
 
     private fun arrow(final: Char, ctrl: Boolean, alt: Boolean): ByteArray {
         val mod = (if (ctrl) 4 else 0) + (if (alt) 2 else 0)
