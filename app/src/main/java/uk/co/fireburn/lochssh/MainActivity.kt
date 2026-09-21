@@ -91,8 +91,12 @@ fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>) {
     NavHost(navController = navController, startDestination = Routes.HOSTS) {
         composable(Routes.HOSTS) {
             HostListScreen(
-                onOpenSession = { hostId, sessionId ->
+                onNewSession = { hostId, sessionId ->
                     SshForegroundService.start(context, hostId, sessionId)
+                    navController.navigate(Routes.terminal(sessionId))
+                },
+                // Resuming only opens the screen again; the session is already up.
+                onResumeSession = { sessionId ->
                     navController.navigate(Routes.terminal(sessionId))
                 },
                 onEdit = { id -> navController.navigate(Routes.hostEditor(id)) },

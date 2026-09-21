@@ -42,7 +42,8 @@ import uk.co.fireburn.lochssh.data.db.SshHostEntity
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HostListScreen(
-    onOpenSession: (Long, Long) -> Unit,
+    onNewSession: (Long, Long) -> Unit,
+    onResumeSession: (Long) -> Unit,
     onEdit: (Long) -> Unit,
     onNew: () -> Unit,
     onIdentities: () -> Unit,
@@ -86,7 +87,7 @@ fun HostListScreen(
                         Text("Open sessions", style = MaterialTheme.typography.titleSmall)
                         sessions.forEach { session ->
                             Card(
-                                onClick = { onOpenSession(session.hostId, session.id) },
+                                onClick = { onResumeSession(session.id) },
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Row(
@@ -116,7 +117,7 @@ fun HostListScreen(
             items(hosts, key = { it.id }) { host ->
                 HostRow(
                     host = host,
-                    onClick = { onOpenSession(host.id, viewModel.newSessionId()) },
+                    onClick = { onNewSession(host.id, viewModel.newSessionId()) },
                     onEdit = { onEdit(host.id) },
                     onDuplicate = { viewModel.duplicateHost(host.id) },
                     onDelete = { viewModel.deleteHost(host.id) }
