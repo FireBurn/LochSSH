@@ -9,7 +9,8 @@ class WindowTitleScanner(private val onTitle: (String) -> Unit) {
 
     private var state = State.TEXT
     private val param = StringBuilder()
-    private val body = StringBuilder()
+    // Kept as bytes: titles carry UTF-8, so they can only be decoded once whole.
+    private val body = java.io.ByteArrayOutputStream()
 
     fun feed(bytes: ByteArray, length: Int) {
         for (i in 0 until length) feed(bytes[i].toInt() and 0xFF)
@@ -21,7 +22,7 @@ class WindowTitleScanner(private val onTitle: (String) -> Unit) {
             State.ESCAPE -> {
                 state = if (b == OSC) State.PARAM else State.TEXT
                 param.setLength(0)
-                body.setLength(0)
+                body.reset()
             }
             State.PARAM -> when {
                 b == ';'.code -> state = if (param.toString() in HANDLED) State.BODY else State.TEXT
@@ -31,8 +32,8 @@ class WindowTitleScanner(private val onTitle: (String) -> Unit) {
             State.BODY -> when {
                 b == BEL -> finish()
                 b == ESC -> state = State.BODY_ESCAPE
-                body.length >= MAX_LENGTH -> state = State.TEXT
-                else -> body.append(b.toChar())
+                body.size() >= MAX_LENGTH -> state = State.TEXT
+                else -> body.write(b)
             }
             // A body can also end with ST, which is ESC followed by a backslash.
             State.BODY_ESCAPE -> if (b == '\\'.code) finish() else state = State.TEXT
@@ -40,7 +41,7 @@ class WindowTitleScanner(private val onTitle: (String) -> Unit) {
     }
 
     private fun finish() {
-        val raw = body.toString()
+        val raw = String(body.toByteArray(), Charsets.UTF_8)
         val value = if (param.toString() == SHELL_INTEGRATION) describe(raw) else raw.trim()
         state = State.TEXT
         if (!value.isNullOrBlank()) onTitle(value)
