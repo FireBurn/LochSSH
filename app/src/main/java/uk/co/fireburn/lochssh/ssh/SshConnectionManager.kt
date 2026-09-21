@@ -8,9 +8,10 @@ import com.jcraft.jsch.Session
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.io.PipedInputStream
-import java.io.PipedOutputStream
+import java.io.OutputStream
 import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 import kotlin.concurrent.thread
 
 class SshConnectionManager(
@@ -26,8 +27,9 @@ class SshConnectionManager(
     private var session: Session? = null
     private var channel: ChannelShell? = null
     private var readerThread: Thread? = null
-    private val pipedOut = PipedOutputStream()
-    private val pipedIn = PipedInputStream(pipedOut, 64 * 1024)
+    private var remoteOut: OutputStream? = null
+    // Writes go over the socket, so they must not run on the caller's thread.
+    private var writer: ExecutorService? = null
     private val outputListeners = CopyOnWriteArrayList<OutputListener>()
     // Retained so a listener attached after output has started (the UI polls for
     // the manager) can replay what it missed, e.g. the first shell prompt.
@@ -96,13 +98,16 @@ class SshConnectionManager(
         ch.setPty(true)
         ch.setPtyType(PTY_TYPE, config.initialCols, config.initialRows, 0, 0)
         ch.setEnv("TERM", PTY_TYPE)
-        ch.setInputStream(pipedIn)
+        // Both streams have to be taken before connect, or jsch wires up its
+        // own and the keyboard has nothing to write to.
+        val inStream = ch.inputStream
+        remoteOut = ch.outputStream
         ch.connect(CHANNEL_TIMEOUT_MS)
         channel = ch
+        writer = Executors.newSingleThreadExecutor { r -> Thread(r, "ssh-writer") }
         running = true
 
         readerThread = thread(name = "ssh-reader") {
-            val inStream = ch.getInputStream()
             val buffer = ByteArray(READ_BUFFER_SIZE)
             while (running) {
                 val read = inStream.read(buffer)
@@ -122,16 +127,28 @@ class SshConnectionManager(
     }
 
     fun write(bytes: ByteArray) {
-        try {
-            pipedOut.write(bytes)
-            pipedOut.flush()
-        } catch (_: Exception) {
+        val out = remoteOut ?: return
+        val copy = bytes.copyOf()
+        writer?.execute {
+            try {
+                out.write(copy)
+                out.flush()
+            } catch (e: Exception) {
+                Log.w(TAG, "Write to ${config.host} failed", e)
+            }
         }
     }
 
     // Sends the SSH window-change request; the remote side raises SIGWINCH.
     fun resize(cols: Int, rows: Int) {
-        channel?.setPtySize(cols, rows, 0, 0)
+        val ch = channel ?: return
+        writer?.execute {
+            try {
+                ch.setPtySize(cols, rows, 0, 0)
+            } catch (e: Exception) {
+                Log.w(TAG, "Window change for ${config.host} failed", e)
+            }
+        }
     }
 
     // Pasted or generated keys are written to app-private storage so the
@@ -175,17 +192,19 @@ class SshConnectionManager(
     @Synchronized
     fun disconnect() {
         running = false
-        try {
-            channel?.disconnect()
-        } catch (_: Exception) {
-        }
-        try {
-            session?.disconnect()
-        } catch (_: Exception) {
-        }
-        try {
-            pipedOut.close()
-        } catch (_: Exception) {
+        val ch = channel
+        val s = session
+        val out = remoteOut
+        channel = null
+        session = null
+        remoteOut = null
+        writer?.shutdownNow()
+        writer = null
+        // Closing sends packets, so it cannot run on the caller's thread either.
+        thread(name = "ssh-disconnect") {
+            runCatching { out?.close() }
+            runCatching { ch?.disconnect() }
+            runCatching { s?.disconnect() }
         }
         synchronized(outputLock) {
             outputHistory.reset()
@@ -196,9 +215,15 @@ class SshConnectionManager(
 
     private fun setupForwards(s: Session) {
         for (f in config.forwards) {
-            when (f.type) {
-                ForwardTypes.LOCAL -> s.setPortForwardingL(f.localPort, f.remoteHost, f.remotePort)
-                ForwardTypes.REMOTE -> s.setPortForwardingR(f.remotePort, LOCAL_LOOPBACK, f.localPort)
+            try {
+                when (f.type) {
+                    ForwardTypes.LOCAL ->
+                        Log.i(TAG, "local forward ${f.localPort} -> ${f.remoteHost}:${f.remotePort} bound to ${s.setPortForwardingL(f.localPort, f.remoteHost, f.remotePort)}")
+                    ForwardTypes.REMOTE ->
+                        Log.i(TAG, "remote forward ${f.remotePort} -> ${f.localPort} rc=${s.setPortForwardingR(f.remotePort, LOCAL_LOOPBACK, f.localPort)}")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "forward ${f.type} ${f.localPort} failed", e)
             }
         }
     }
@@ -211,5 +236,6 @@ class SshConnectionManager(
         private const val PTY_TYPE = "xterm-256color"
         private const val LOCAL_LOOPBACK = "127.0.0.1"
         private const val HISTORY_CAP = 1024 * 1024
+        private const val TAG = "LochSSH"
     }
 }
