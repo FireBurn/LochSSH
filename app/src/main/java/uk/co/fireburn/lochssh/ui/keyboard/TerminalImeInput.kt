@@ -18,6 +18,23 @@ class TerminalEditText(context: Context) : EditText(context) {
     var onKey: ((KeyEvent) -> Boolean)? = null
     var onDelete: ((Int) -> Unit)? = null
 
+    // Keys the terminal took on the way down, so their release is not passed on
+    // either. Anything else, the back key included, is left alone.
+    private val claimed = mutableSetOf<Int>()
+
+    override fun onKeyDown(keyCode: Int, event: KeyEvent): Boolean {
+        if (onKey?.invoke(event) == true) {
+            claimed.add(keyCode)
+            return true
+        }
+        return super.onKeyDown(keyCode, event)
+    }
+
+    override fun onKeyUp(keyCode: Int, event: KeyEvent): Boolean {
+        if (claimed.remove(keyCode)) return true
+        return super.onKeyUp(keyCode, event)
+    }
+
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
         return object : BaseInputConnection(this, false) {
             override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
@@ -48,8 +65,10 @@ fun TerminalImeInput(
     AndroidView(
         factory = { context ->
             TerminalEditText(context).apply {
+                // The password variation stops the keyboard composing words,
+                // so every character arrives as it is typed.
                 inputType = InputType.TYPE_CLASS_TEXT or
-                    InputType.TYPE_TEXT_FLAG_MULTI_LINE or
+                    InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD or
                     InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS
                 onReady(this)
             }

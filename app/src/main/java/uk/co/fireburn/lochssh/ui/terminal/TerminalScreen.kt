@@ -8,7 +8,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
@@ -86,6 +91,9 @@ fun TerminalScreen(
     }
 
     Scaffold(
+        // Only the top inset: the content pads itself against whichever of the
+        // keyboard or the navigation bar is taller, so the bar sits on the keyboard.
+        contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             TopAppBar(
                 title = { Text(viewModel.hostName.ifBlank { "Terminal" }) },
@@ -106,7 +114,7 @@ fun TerminalScreen(
         Column(
             modifier = Modifier
                 .padding(padding)
-                .imePadding()
+                .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
         ) {
             val error = errorState.value
             if (error != null && manager == null) {
