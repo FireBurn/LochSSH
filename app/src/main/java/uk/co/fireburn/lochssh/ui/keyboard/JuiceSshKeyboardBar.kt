@@ -32,6 +32,7 @@ import uk.co.fireburn.lochssh.ui.terminal.TerminalKeyEncoder
 fun JuiceSshKeyboardBar(
     onSend: (ByteArray) -> Unit,
     onImeToggle: () -> Unit,
+    onFontSizeChange: (Int) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var ctrl by remember { mutableStateOf(false) }
@@ -60,6 +61,7 @@ fun JuiceSshKeyboardBar(
             Key("END", Modifier.weight(1f)) { emit(TerminalKey.End) }
             Key("PGUP", Modifier.weight(1f)) { emit(TerminalKey.PgUp) }
             Key("FN", Modifier.weight(1f), active = fn) { fn = !fn }
+            Key("Aa+", Modifier.weight(1f)) { onFontSizeChange(1) }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
             Key("TAB", Modifier.weight(1f)) { emit(TerminalKey.Tab) }
@@ -75,6 +77,7 @@ fun JuiceSshKeyboardBar(
                 contentDescription = "Show or hide the keyboard",
                 modifier = Modifier.weight(1f)
             ) { emit(TerminalKey.ImeToggle) }
+            Key("Aa-", Modifier.weight(1f)) { onFontSizeChange(-1) }
         }
     }
 }
