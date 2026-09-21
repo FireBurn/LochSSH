@@ -17,8 +17,11 @@ import kotlin.concurrent.thread
 class SshConnectionManager(
     private val context: Context,
     private val config: SshConnectionConfig,
+    private val onTitle: (String) -> Unit = {},
     private val onExit: (code: Int) -> Unit
 ) {
+
+    private val titleScanner = WindowTitleScanner(onTitle)
     fun interface OutputListener {
         // bytes is an internal buffer, copy it before keeping it.
         fun onOutput(bytes: ByteArray, length: Int)
@@ -113,6 +116,7 @@ class SshConnectionManager(
                 val read = inStream.read(buffer)
                 if (read == -1) break
                 if (read > 0) {
+                    titleScanner.feed(buffer, read)
                     synchronized(outputLock) {
                         appendHistory(buffer, read)
                         outputListeners.forEach { it.onOutput(buffer, read) }

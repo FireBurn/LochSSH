@@ -15,8 +15,12 @@ class SessionRegistry @Inject constructor() {
         val hostId: Long,
         val hostName: String,
         val manager: SshConnectionManager? = null,
-        val error: String? = null
+        val error: String? = null,
+        val title: String? = null
     ) {
+        // What a terminal would put on the tab, falling back to the host.
+        val label: String get() = title?.takeIf { it.isNotBlank() } ?: hostName
+
         val isConnected: Boolean get() = manager?.isConnected == true
     }
 
@@ -32,6 +36,10 @@ class SessionRegistry @Inject constructor() {
 
     fun connected(id: Long, manager: SshConnectionManager) = update(id) {
         it?.copy(manager = manager, error = null)
+    }
+
+    fun titled(id: Long, title: String) = update(id) {
+        if (it?.title == title) null else it?.copy(title = title)
     }
 
     fun failed(id: Long, message: String) = update(id) {

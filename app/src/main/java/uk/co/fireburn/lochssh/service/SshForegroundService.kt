@@ -105,7 +105,11 @@ class SshForegroundService : Service() {
                 }
             )
 
-            val manager = SshConnectionManager(this@SshForegroundService, config) { code ->
+            val manager = SshConnectionManager(
+                context = this@SshForegroundService,
+                config = config,
+                onTitle = { title -> scope.launch { onSessionTitle(sessionId, title) } }
+            ) { code ->
                 scope.launch { onSessionExit(sessionId, code) }
             }
             try {
@@ -120,6 +124,14 @@ class SshForegroundService : Service() {
             registry.connected(sessionId, manager)
             showSessionNotification(sessionId, host.name, "Connected to ${host.host}")
             updateSummary()
+        }
+    }
+
+    private fun onSessionTitle(sessionId: Long, title: String) {
+        registry.titled(sessionId, title)
+        val session = registry.find(sessionId) ?: return
+        if (managers.containsKey(sessionId)) {
+            showSessionNotification(sessionId, session.label, "Connected to ${session.hostName}")
         }
     }
 

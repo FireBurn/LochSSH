@@ -94,7 +94,7 @@ fun HostListScreen(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
-                                        Text(session.hostName)
+                                        Text(session.label)
                                         Text(
                                             session.error ?: "Connected",
                                             style = MaterialTheme.typography.bodySmall

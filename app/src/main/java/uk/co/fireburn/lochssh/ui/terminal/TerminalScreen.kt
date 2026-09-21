@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -74,7 +75,13 @@ fun TerminalScreen(
         contentWindowInsets = WindowInsets.statusBars,
         topBar = {
             TopAppBar(
-                title = { Text(session?.hostName?.ifBlank { null } ?: "Terminal") },
+                title = {
+                    Text(
+                        session?.label?.ifBlank { null } ?: "Terminal",
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
