@@ -25,6 +25,7 @@ import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
+import kotlinx.coroutines.delay
 import uk.co.fireburn.lochssh.R
 import uk.co.fireburn.lochssh.ssh.SshConnectionManager
 
@@ -41,6 +42,7 @@ private val Cursor = Color(0xFFE9C46A)
 private const val MIN_COLS = 20
 private const val MIN_ROWS = 5
 private const val REF_RUN = 64
+private const val RESIZE_DELAY_MS = 150L
 
 private class CellMetrics(val width: Float, val height: Float, val baseline: Float)
 
@@ -72,9 +74,11 @@ fun TerminalView(
 
     LaunchedEffect(Unit) { onBuffer(buffer) }
 
-    // Fit the grid to the canvas and tell the remote side about it.
+    // Fit the grid to the canvas and tell the remote side about it. Held back a
+    // moment so a run of font size taps sends one size, not one for each tap.
     LaunchedEffect(canvasSize, metrics, manager) {
         if (canvasSize.width == 0 || canvasSize.height == 0) return@LaunchedEffect
+        delay(RESIZE_DELAY_MS)
         val cols = (canvasSize.width / metrics.width).toInt().coerceAtLeast(MIN_COLS)
         val rows = (canvasSize.height / metrics.height).toInt().coerceAtLeast(MIN_ROWS)
         buffer.resize(cols, rows)

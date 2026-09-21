@@ -105,7 +105,10 @@ class SshConnectionManager(
         // own and the keyboard has nothing to write to.
         val inStream = ch.inputStream
         remoteOut = ch.outputStream
-        ch.connect(CHANNEL_TIMEOUT_MS)
+        // Deliberately no timeout: jsch asks for a reply to every channel request
+        // when one is set, and the window change request never gets one, so each
+        // resize would block until it gave up.
+        ch.connect()
         channel = ch
         writer = Executors.newSingleThreadExecutor { r -> Thread(r, "ssh-writer") }
         running = true
@@ -234,7 +237,6 @@ class SshConnectionManager(
 
     companion object {
         private const val CONNECT_TIMEOUT_MS = 15000
-        private const val CHANNEL_TIMEOUT_MS = 10000
         private const val READ_BUFFER_SIZE = 8192
         private const val CHANNEL_SHELL = "shell"
         private const val PTY_TYPE = "xterm-256color"
