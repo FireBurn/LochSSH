@@ -1,0 +1,43 @@
+Last login: Mon Sep 21 16:10:51 BST 2026 from 137.220.119.72 on ssh
+]3008;start=6f2f1fc4-9d4e-4be1-8ac2-983efd43397b;type=shell;machineid=486b03bbd0d29d9b2cfd8e6100000029;user=fireburn;hostname=axion.fireburn.co.uk;bootid=e763583d-c880-4976-bd07-18093ef8cd37;pid=23768;cwd=/home/fireburn\[?2004h[01;32mfireburn@axion[01;34m ~ $[00m less /etc/services
+[?2004l]3008;start=550678a1-5cc9-4ca5-b3a6-ad64087c00d9;type=command;machineid=486b03bbd0d29d9b2cfd8e6100000029;user=fireburn;hostname=axion.fireburn.co.uk;bootid=e763583d-c880-4976-bd07-18093ef8cd37;pid=23768;cwd=/home/fireburn\[?1049h[22;0;0t[29;1H[?1h=# /etc/services[m
+#[m
+# Network services, Internet style[m
+#[m
+# Note that it is presently the policy of I[m ANA to assign a single well-known[m
+# port number for both TCP and UDP; hence, [m most entries here have two entries[m
+# even if the protocol doesn't support UDP [m operations.[m
+#[m
+# Some References:[m
+# http://www.iana.org/assignments/port-numb[m ers[m
+# http://www.freebsd.org/cgi/cvsweb.cgi/src[m /etc/services[m
+#[m
+# Each line describes one service, and is o[m f the form:[m
+# service-name  port/protocol  [aliases ...[m ]   [# comment][m
+#[m
+# See services(5) for more info.[m
+#[m
+[m
+#[m
+# IANA Assignments [Well Known Ports][m
+# The Well Known Ports are assigned by the [m [7m/etc/services lines 1-21/1196 2%[27m[K[KIANA and on most systems can[m
+# only be used by system (or root) processe[m s or by programs executed by[m
+# privileged users.[m
+# The range for assigned ports managed by t[m he IANA is 0-1023.[m
+#[m
+tcpmux          1/tcp                      [m         # TCP port service multiplexer[m
+tcpmux          1/udp[m
+compressnet     2/tcp                      [m         # Management Utility[m
+compressnet     2/udp[m
+compressnet     3/tcp                      [m         # Compression Process[m
+compressnet     3/udp[m
+rje             5/tcp                      [m         # Remote Job Entry[m
+rje             5/udp[m
+echo            7/tcp                      [m         # Echo[m
+echo            7/udp[m
+discard         9/tcp           sink null  [m         # Discard[m
+discard         9/udp           sink null[m
+systat          11/tcp          users      [m         # Active Users[m
+systat          11/udp          users[m
+[7m/etc/services lines 21-39/1196 3%[27m[K[K[?1l>[?1049l[23;0;0t]3008;end=550678a1-5cc9-4ca5-b3a6-ad64087c00d9;exit=success\]3008;start=6f2f1fc4-9d4e-4be1-8ac2-983efd43397b;type=shell;machineid=486b03bbd0d29d9b2cfd8e6100000029;user=fireburn;hostname=axion.fireburn.co.uk;bootid=e763583d-c880-4976-bd07-18093ef8cd37;pid=23768;cwd=/home/fireburn\[?2004h[01;32mfireburn@axion[01;34m ~ $[00m exit
+[?2004l]3008;start=616da453-156c-48d0-a240-5e5df3c65047;type=command;machineid=486b03bbd0d29d9b2cfd8e6100000029;user=fireburn;hostname=axion.fireburn.co.uk;bootid=e763583d-c880-4976-bd07-18093ef8cd37;pid=23768;cwd=/home/fireburn\logout

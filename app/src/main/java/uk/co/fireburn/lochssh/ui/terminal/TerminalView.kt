@@ -113,43 +113,81 @@ private fun DrawScope.drawTerminal(
 
         for (row in 0 until rows) {
             val y = row * metrics.height
-            var col = 0
-            while (col < buffer.cols) {
-                val cell = buffer.cellAt(row, col)
-                if (cell.ch == ' ') {
-                    col++
-                    continue
-                }
-                val runStart = col
-                while (
-                    col < buffer.cols &&
-                    buffer.cellAt(row, col).ch != ' ' &&
-                    buffer.cellAt(row, col).fg == cell.fg &&
-                    buffer.cellAt(row, col).bold == cell.bold
-                ) {
-                    col++
-                }
-                drawText(
-                    textMeasurer,
-                    buffer.rowText(row, runStart, col),
-                    Offset(runStart * metrics.width, y),
-                    style.copy(
-                        fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
-                        color = Color(cell.fg)
-                    )
-                )
-            }
+            drawCellBackgrounds(buffer, row, y, metrics)
+            drawRowText(buffer, row, y, textMeasurer, style, metrics)
         }
 
-        val cursorRow = buffer.cursorRow.coerceIn(0, buffer.rows - 1)
-        val cursorCol = buffer.cursorCol.coerceIn(0, buffer.cols - 1)
-        if (cursorRow < rows) {
-            val origin = Offset(cursorCol * metrics.width, cursorRow * metrics.height)
-            drawRect(Cursor, topLeft = origin, size = Size(metrics.width, metrics.height))
-            val under = buffer.cellAt(cursorRow, cursorCol).ch
-            if (under != ' ') {
-                drawText(textMeasurer, under.toString(), origin, style.copy(color = Background))
+        if (buffer.cursorVisible) {
+            val cursorRow = buffer.cursorRow.coerceIn(0, buffer.rows - 1)
+            val cursorCol = buffer.cursorCol.coerceIn(0, buffer.cols - 1)
+            if (cursorRow < rows) {
+                val origin = Offset(cursorCol * metrics.width, cursorRow * metrics.height)
+                drawRect(Cursor, topLeft = origin, size = Size(metrics.width, metrics.height))
+                val under = buffer.cellAt(cursorRow, cursorCol).ch
+                if (under != ' ') {
+                    drawText(textMeasurer, under.toString(), origin, style.copy(color = Background))
+                }
             }
         }
+    }
+}
+
+// Painted first so text lands on top of it.
+private fun DrawScope.drawCellBackgrounds(
+    buffer: TerminalBuffer,
+    row: Int,
+    y: Float,
+    metrics: CellMetrics
+) {
+    var col = 0
+    while (col < buffer.cols) {
+        val colour = buffer.cellAt(row, col).bg
+        if (colour == TerminalBuffer.DEFAULT_BG) {
+            col++
+            continue
+        }
+        val start = col
+        while (col < buffer.cols && buffer.cellAt(row, col).bg == colour) col++
+        drawRect(
+            Color(colour),
+            topLeft = Offset(start * metrics.width, y),
+            size = Size((col - start) * metrics.width, metrics.height)
+        )
+    }
+}
+
+private fun DrawScope.drawRowText(
+    buffer: TerminalBuffer,
+    row: Int,
+    y: Float,
+    textMeasurer: TextMeasurer,
+    style: TextStyle,
+    metrics: CellMetrics
+) {
+    var col = 0
+    while (col < buffer.cols) {
+        val cell = buffer.cellAt(row, col)
+        if (cell.ch == ' ') {
+            col++
+            continue
+        }
+        val runStart = col
+        while (
+            col < buffer.cols &&
+            buffer.cellAt(row, col).ch != ' ' &&
+            buffer.cellAt(row, col).fg == cell.fg &&
+            buffer.cellAt(row, col).bold == cell.bold
+        ) {
+            col++
+        }
+        drawText(
+            textMeasurer,
+            buffer.rowText(row, runStart, col),
+            Offset(runStart * metrics.width, y),
+            style.copy(
+                fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
+                color = Color(cell.fg)
+            )
+        )
     }
 }
