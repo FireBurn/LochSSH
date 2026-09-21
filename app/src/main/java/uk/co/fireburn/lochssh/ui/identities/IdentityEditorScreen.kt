@@ -1,6 +1,8 @@
 package uk.co.fireburn.lochssh.ui.identities
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -82,7 +84,7 @@ fun IdentityEditorScreen(
                         enabled = name.isNotBlank(),
                         onClick = {
                             viewModel.save(name, username, authType, keySource, keyPath, keyMaterial, secret)
-                            onBack()
+                                .invokeOnCompletion { onBack() }
                         }
                     ) { Text("Save") }
                 }
@@ -92,6 +94,7 @@ fun IdentityEditorScreen(
         Column(
             modifier = Modifier
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {

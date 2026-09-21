@@ -48,52 +48,50 @@ class IdentityEditorViewModel @Inject constructor(
         keyPath: String,
         keyMaterial: String,
         secret: String
-    ) {
-        viewModelScope.launch {
-            val existing = identity
+    ) = viewModelScope.launch {
+        val existing = identity
 
-            val secretRef = when {
-                secret.isNotBlank() -> {
-                    val r = existing?.secretRef ?: secrets.newReference()
-                    secrets.putSecret(r, secret)
+        val secretRef = when {
+            secret.isNotBlank() -> {
+                val r = existing?.secretRef ?: secrets.newReference()
+                secrets.putSecret(r, secret)
+                r
+            }
+            else -> existing?.secretRef
+        }
+
+        var keyPathFinal: String? = null
+        var keyMaterialRefFinal: String? = null
+        if (authType == AuthTypes.PUBLIC_KEY && keySource == KeySources.PASTE) {
+            keyMaterialRefFinal = when {
+                keyMaterial.isNotBlank() -> {
+                    val r = existing?.keyMaterialRef ?: secrets.newReference()
+                    secrets.putSecret(r, keyMaterial)
                     r
                 }
-                else -> existing?.secretRef
+                else -> existing?.keyMaterialRef
             }
-
-            var keyPathFinal: String? = null
-            var keyMaterialRefFinal: String? = null
-            if (authType == AuthTypes.PUBLIC_KEY && keySource == KeySources.PASTE) {
-                keyMaterialRefFinal = when {
-                    keyMaterial.isNotBlank() -> {
-                        val r = existing?.keyMaterialRef ?: secrets.newReference()
-                        secrets.putSecret(r, keyMaterial)
-                        r
-                    }
-                    else -> existing?.keyMaterialRef
-                }
-                existing?.keyMaterialRef?.let { if (it != keyMaterialRefFinal) secrets.deleteSecret(it) }
-            } else if (authType == AuthTypes.PUBLIC_KEY) {
-                keyPathFinal = keyPath.ifBlank { null }
-                existing?.keyMaterialRef?.let { secrets.deleteSecret(it) }
-            }
-
-            val entity = existing?.copy(
-                name = name,
-                username = username,
-                authType = authType,
-                keyPath = keyPathFinal,
-                keyMaterialRef = keyMaterialRefFinal,
-                secretRef = secretRef
-            ) ?: IdentityEntity(
-                name = name,
-                username = username,
-                authType = authType,
-                keyPath = keyPathFinal,
-                keyMaterialRef = keyMaterialRefFinal,
-                secretRef = secretRef
-            )
-            if (existing != null) identityDao.update(entity) else identityDao.insert(entity)
+            existing?.keyMaterialRef?.let { if (it != keyMaterialRefFinal) secrets.deleteSecret(it) }
+        } else if (authType == AuthTypes.PUBLIC_KEY) {
+            keyPathFinal = keyPath.ifBlank { null }
+            existing?.keyMaterialRef?.let { secrets.deleteSecret(it) }
         }
+
+        val entity = existing?.copy(
+            name = name,
+            username = username,
+            authType = authType,
+            keyPath = keyPathFinal,
+            keyMaterialRef = keyMaterialRefFinal,
+            secretRef = secretRef
+        ) ?: IdentityEntity(
+            name = name,
+            username = username,
+            authType = authType,
+            keyPath = keyPathFinal,
+            keyMaterialRef = keyMaterialRefFinal,
+            secretRef = secretRef
+        )
+        if (existing != null) identityDao.update(entity) else identityDao.insert(entity)
     }
 }

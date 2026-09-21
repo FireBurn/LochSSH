@@ -52,8 +52,8 @@ class HostEditorViewModel @Inject constructor(
         )
     }
 
-    fun removeForward(forward: PortForwardEntity) {
-        forwards = forwards.filter { it.id != forward.id }
+    fun removeForward(index: Int) {
+        forwards = forwards.filterIndexed { i, _ -> i != index }
     }
 
     fun save(
@@ -63,34 +63,32 @@ class HostEditorViewModel @Inject constructor(
         keepAlive: String,
         group: String,
         identityId: Long?
-    ) {
-        viewModelScope.launch {
-            val existing = host
-            val entity = existing?.copy(
-                name = name,
-                host = hostName,
-                port = port.toIntOrNull() ?: 22,
-                keepAliveSeconds = keepAlive.toIntOrNull() ?: 30,
-                group = group,
-                identityId = identityId
-            ) ?: SshHostEntity(
-                name = name,
-                host = hostName,
-                port = port.toIntOrNull() ?: 22,
-                keepAliveSeconds = keepAlive.toIntOrNull() ?: 30,
-                group = group,
-                identityId = identityId
-            )
-            val hostId = if (existing != null) {
-                hostDao.update(entity)
-                existing.id
-            } else {
-                hostDao.insert(entity)
-            }
-            portForwardDao.deleteByHost(hostId)
-            forwards.forEach { f ->
-                portForwardDao.insert(f.copy(id = 0, hostId = hostId))
-            }
+    ) = viewModelScope.launch {
+        val existing = host
+        val entity = existing?.copy(
+            name = name,
+            host = hostName,
+            port = port.toIntOrNull() ?: 22,
+            keepAliveSeconds = keepAlive.toIntOrNull() ?: 30,
+            group = group,
+            identityId = identityId
+        ) ?: SshHostEntity(
+            name = name,
+            host = hostName,
+            port = port.toIntOrNull() ?: 22,
+            keepAliveSeconds = keepAlive.toIntOrNull() ?: 30,
+            group = group,
+            identityId = identityId
+        )
+        val hostId = if (existing != null) {
+            hostDao.update(entity)
+            existing.id
+        } else {
+            hostDao.insert(entity)
+        }
+        portForwardDao.deleteByHost(hostId)
+        forwards.forEach { f ->
+            portForwardDao.insert(f.copy(id = 0, hostId = hostId))
         }
     }
 }

@@ -1,6 +1,8 @@
 package uk.co.fireburn.lochssh.ui.hosts
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -94,7 +96,7 @@ fun HostEditorScreen(
                         enabled = canSave,
                         onClick = {
                             viewModel.save(name, host, port, keepAlive, group, identityId)
-                            onBack()
+                                .invokeOnCompletion { onBack() }
                         }
                     ) { Text("Save") }
                 }
@@ -104,6 +106,7 @@ fun HostEditorScreen(
         Column(
             modifier = Modifier
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -169,7 +172,7 @@ fun HostEditorScreen(
             }
 
             Text("Tunnels", style = MaterialTheme.typography.titleSmall)
-            forwards.forEach { f ->
+            forwards.forEachIndexed { index, f ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth()
@@ -179,7 +182,7 @@ fun HostEditorScreen(
                         modifier = Modifier.weight(1f),
                         style = MaterialTheme.typography.bodyMedium
                     )
-                    IconButton(onClick = { viewModel.removeForward(f) }) {
+                    IconButton(onClick = { viewModel.removeForward(index) }) {
                         Icon(Icons.Filled.Delete, contentDescription = "Remove tunnel")
                     }
                 }
