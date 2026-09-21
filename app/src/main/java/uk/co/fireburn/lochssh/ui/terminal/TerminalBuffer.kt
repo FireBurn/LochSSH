@@ -31,9 +31,17 @@ class TerminalBuffer(
     private var utf8Remaining = 0
     private var utf8Code = 0
 
+    // The reader thread feeds while the UI thread draws, so both sides take
+    // this lock; readers take it once per frame through read().
+    private val lock = Any()
+
+    fun <R> read(block: () -> R): R = synchronized(lock) { block() }
+
     fun feed(bytes: ByteArray, length: Int) {
-        for (i in 0 until length) feedByte(bytes[i].toInt() and 0xFF)
-        version++
+        synchronized(lock) {
+            for (i in 0 until length) feedByte(bytes[i].toInt() and 0xFF)
+            version++
+        }
     }
 
     fun cellAt(row: Int, col: Int): Cell = grid[row][col]
@@ -46,24 +54,29 @@ class TerminalBuffer(
 
     fun resize(newCols: Int, newRows: Int) {
         if (newCols <= 0 || newRows <= 0) return
-        if (newCols == cols && newRows == rows) return
-        val newGrid = Array(newRows) { Array(newCols) { Cell(' ', DEFAULT_FG, false) } }
-        for (r in 0 until minOf(rows, newRows)) {
-            for (c in 0 until minOf(cols, newCols)) newGrid[r][c] = grid[r][c]
+        synchronized(lock) {
+            if (newCols == cols && newRows == rows) return
+            val newGrid = Array(newRows) { Array(newCols) { Cell(' ', DEFAULT_FG, false) } }
+            for (r in 0 until minOf(rows, newRows)) {
+                for (c in 0 until minOf(cols, newCols)) newGrid[r][c] = grid[r][c]
+            }
+            grid = newGrid
+            cols = newCols
+            rows = newRows
+            cursorRow = cursorRow.coerceIn(0, newRows - 1)
+            cursorCol = cursorCol.coerceIn(0, newCols - 1)
+            version++
         }
-        grid = newGrid
-        cols = newCols
-        rows = newRows
-        cursorRow = cursorRow.coerceIn(0, newRows - 1)
-        cursorCol = cursorCol.coerceIn(0, newCols - 1)
-        version++
     }
 
     private fun feedByte(b: Int) {
         when {
             inOsc -> when {
                 b == 0x07 -> inOsc = false
-                b == 0x1B -> inOsc = false // ST start, backslash ignored
+                b == 0x1B -> {
+                    inOsc = false
+                    inEscape = true
+                }
                 else -> Unit
             }
             inCsi -> when {
@@ -75,10 +88,13 @@ class TerminalBuffer(
                 b >= 0x20 -> csiParams.append(b.toChar())
                 else -> Unit
             }
-            inEscape -> when {
-                b == '['.code -> inCsi = true
-                b == 0x5D -> inOsc = true // ']'
-                else -> inEscape = false
+            inEscape -> {
+                inEscape = false
+                when (b) {
+                    '['.code -> inCsi = true
+                    ']'.code -> inOsc = true
+                    else -> Unit
+                }
             }
             b == 0x1B -> inEscape = true
             else -> controlOrPrint(b)
@@ -92,6 +108,7 @@ class TerminalBuffer(
             0x09 -> cursorCol = ((cursorCol / 8 + 1) * 8).coerceAtMost(cols - 1)
             0x0A -> lineFeed()
             0x0D -> cursorCol = 0
+            in 0x00..0x1F -> Unit
             else -> printable(b)
         }
     }
@@ -121,14 +138,20 @@ class TerminalBuffer(
     }
 
     private fun putChar(c: Char) {
-        if (cursorCol >= cols) lineFeed()
+        if (cursorCol >= cols) {
+            cursorCol = 0
+            lineFeed()
+        }
         grid[cursorRow][cursorCol] = Cell(c, fg, bold)
         cursorCol++
     }
 
     private fun lineFeed() {
         cursorRow++
-        if (cursorRow >= rows) scroll()
+        if (cursorRow >= rows) {
+            cursorRow = rows - 1
+            scroll()
+        }
     }
 
     private fun scroll() {
@@ -223,8 +246,8 @@ class TerminalBuffer(
     private fun clearLine(mode: Int) {
         val blank = Cell(' ', DEFAULT_FG, false)
         when (mode) {
-            0 -> for (c in cursorCol until cols) grid[cursorRow][c] = blank
-            1 -> for (c in 0..cursorCol.coerceAtLeast(0)) grid[cursorRow][c] = blank
+            0 -> for (c in cursorCol.coerceIn(0, cols) until cols) grid[cursorRow][c] = blank
+            1 -> for (c in 0..cursorCol.coerceIn(0, cols - 1)) grid[cursorRow][c] = blank
             else -> for (c in 0 until cols) grid[cursorRow][c] = blank
         }
     }
@@ -232,7 +255,7 @@ class TerminalBuffer(
     private fun blankRow() = Array(cols) { Cell(' ', DEFAULT_FG, false) }
 
     companion object {
-        const val DEFAULT_FG = 0xFFCCCCCC.toInt()
+        const val DEFAULT_FG = 0xFFE0E1DD.toInt()
 
         val ANSI_COLORS = intArrayOf(
             0xFF000000.toInt(), 0xFFCC0000.toInt(), 0xFF00CC00.toInt(), 0xFFCCCC00.toInt(),
