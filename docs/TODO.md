@@ -46,13 +46,19 @@ This list reflects the current app and the project conversations. The older
 - Add an SFTP browser with upload and download.
 - Add saved command snippets and a connection history.
 - Add jump hosts and SSH-agent forwarding.
+- Add terminal themes, font choices, URL opening, and saved session transcripts.
+- Add local shell sessions, homescreen shortcuts, and an app lock.
+- Add IPv6 connection tests, proxy settings, and external-keyboard shortcuts.
+- Add port knocking and a lightweight remote performance view.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
-  behavior. Do not present it as a small SSH toggle.
-- Decide whether Telnet, serial connections, sync, and split terminals fit
-  LochSSH before adding them. They extend beyond the original SSH spec.
+  behavior. Implement it as a separate session type.
+- Add Telnet, serial connections, split terminals, and opt-in encrypted
+  backup/sync. These need separate protocol and data-handling designs.
 
 ConnectBot's [SSH library](https://github.com/connectbot/cbssh) lists local,
 remote, and dynamic forwarding. [Termius for Android](https://www.termius.com/free-ssh-client-for-android)
-lists SSH, SFTP, Mosh, Telnet, and serial connections. The original LochSSH
-spec also calls for dynamic forwarding, automatic commands, and a customizable
-keyboard.
+lists SSH, SFTP, Mosh, Telnet, and serial connections. [Sonelli's JuiceSSH repositories](https://github.com/sonelli)
+include Mosh, port-knocking, performance-monitor, and plugin code. The
+[JuiceSSH plugin library](https://github.com/Sonelli/juicessh-pluginlibrary)
+includes an SFTP client API. The original LochSSH spec also calls for a
+customizable keyboard.
