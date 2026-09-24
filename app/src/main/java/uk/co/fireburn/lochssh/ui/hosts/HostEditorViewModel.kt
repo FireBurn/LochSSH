@@ -72,27 +72,31 @@ class HostEditorViewModel @Inject constructor(
         port: String,
         keepAlive: String,
         group: String,
-        identityId: Long?
+        identityId: Long?,
+        autoCommand: String
     ) = viewModelScope.launch {
         val existing = host
         val validPort = port.toIntOrNull()?.takeIf { it in 1..65535 }
             ?: throw IllegalArgumentException("Port must be between 1 and 65535")
         val validKeepAlive = keepAlive.toIntOrNull()?.takeIf { it >= 0 }
             ?: throw IllegalArgumentException("Keep-alive must not be negative")
+        require(autoCommand.none { it == '\n' || it == '\r' }) { "Command must be one line" }
         val entity = existing?.copy(
             name = name,
             host = hostName,
             port = validPort,
             keepAliveSeconds = validKeepAlive,
             group = group,
-            identityId = identityId
+            identityId = identityId,
+            autoCommand = autoCommand
         ) ?: SshHostEntity(
             name = name,
             host = hostName,
             port = validPort,
             keepAliveSeconds = validKeepAlive,
             group = group,
-            identityId = identityId
+            identityId = identityId,
+            autoCommand = autoCommand
         )
         database.withTransaction {
             val hostId = if (existing != null) {

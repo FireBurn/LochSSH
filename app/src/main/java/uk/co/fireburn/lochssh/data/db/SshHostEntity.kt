@@ -18,5 +18,6 @@ data class SshHostEntity(
     val port: Int = 22,
     @ColumnInfo(name = "identity_id") val identityId: Long? = null,
     val keepAliveSeconds: Int = 30,
-    val group: String = ""
+    val group: String = "",
+    @ColumnInfo(name = "auto_command", defaultValue = "''") val autoCommand: String = ""
 )

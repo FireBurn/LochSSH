@@ -17,6 +17,7 @@ data class SshConnectionConfig(
     val keyMaterial: String?,
     val keyPassphrase: String?,
     val keepAliveSeconds: Int,
+    val autoCommand: String = "",
     val initialCols: Int = 80,
     val initialRows: Int = 24,
     val forwards: List<PortForwardSpec> = emptyList()

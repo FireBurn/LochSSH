@@ -100,6 +100,7 @@ class SshForegroundService : Service() {
                 keyMaterial = keyMaterial,
                 keyPassphrase = if (identity?.authType == AuthTypes.PUBLIC_KEY) secret else null,
                 keepAliveSeconds = host.keepAliveSeconds,
+                autoCommand = host.autoCommand,
                 forwards = portForwardDao.getByHost(hostId).map {
                     PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
                 }

@@ -114,6 +114,9 @@ class SshConnectionManager(
         channel = ch
         writer = Executors.newSingleThreadExecutor { r -> Thread(r, "ssh-writer") }
         running = true
+        if (config.autoCommand.isNotBlank()) {
+            write((config.autoCommand + "\n").toByteArray(Charsets.UTF_8))
+        }
 
         readerThread = thread(name = "ssh-reader") {
             val buffer = ByteArray(READ_BUFFER_SIZE)

@@ -59,6 +59,7 @@ fun HostEditorScreen(
     var port by remember { mutableStateOf("22") }
     var keepAlive by remember { mutableStateOf("30") }
     var group by remember { mutableStateOf("") }
+    var autoCommand by remember { mutableStateOf("") }
     var identityId by remember { mutableStateOf<Long?>(null) }
     var identityMenu by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
@@ -78,14 +79,16 @@ fun HostEditorScreen(
             port = it.port.toString()
             keepAlive = it.keepAliveSeconds.toString()
             group = it.group
+            autoCommand = it.autoCommand
             identityId = it.identityId
         }
     }
 
     val validPort = port.toIntOrNull() in 1..65535
     val validKeepAlive = keepAlive.toIntOrNull()?.let { it >= 0 } == true
+    val validCommand = autoCommand.none { it == '\n' || it == '\r' }
     val canSave = viewModel.loaded && !saving && name.isNotBlank() && host.isNotBlank() &&
-        validPort && validKeepAlive
+        validPort && validKeepAlive && validCommand
     val minListenPort = if (draftType == ForwardTypes.REMOTE) 1 else 1024
     val validDraftLocal = draftLocal.toIntOrNull() in minListenPort..65535
     val validDraftRemote = draftType == ForwardTypes.DYNAMIC ||
@@ -108,7 +111,7 @@ fun HostEditorScreen(
                         onClick = {
                             saving = true
                             saveError = null
-                            viewModel.save(name, host, port, keepAlive, group, identityId)
+                            viewModel.save(name, host, port, keepAlive, group, identityId, autoCommand)
                                 .invokeOnCompletion { cause ->
                                     saving = false
                                     if (cause == null) onBack()
@@ -168,6 +171,15 @@ fun HostEditorScreen(
                 value = group,
                 onValueChange = { group = it },
                 label = { Text("Group") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth()
+            )
+            OutlinedTextField(
+                value = autoCommand,
+                onValueChange = { autoCommand = it },
+                label = { Text("Run on connect") },
+                supportingText = { Text("Example: tmux attach || tmux new") },
+                isError = !validCommand,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
             )

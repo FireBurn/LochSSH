@@ -30,7 +30,8 @@ This list reflects the current app and the project conversations. The older
 - Test SOCKS5 forwarding through a live SSH server on a device. The listener,
   editor, and protocol tests exist, but no end-to-end Android tunnel run has
   been recorded. Surface tunnel bind and connection failures in the UI.
-- Add a per-host command to run on connect, including a `tmux` option.
+- Verify command-on-connect on a device, including the 2→3 database migration
+  for existing hosts and a `tmux attach || tmux new` command.
 - Let users customize the terminal key bar. Modifier latching and the DEL key
   exist, but the layout is fixed.
 - Add terminal selection, copy, paste, and scrollback. The current terminal draws
