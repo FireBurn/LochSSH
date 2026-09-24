@@ -86,6 +86,12 @@ fun HostEditorScreen(
     val validKeepAlive = keepAlive.toIntOrNull()?.let { it >= 0 } == true
     val canSave = viewModel.loaded && !saving && name.isNotBlank() && host.isNotBlank() &&
         validPort && validKeepAlive
+    val minListenPort = if (draftType == ForwardTypes.REMOTE) 1 else 1024
+    val validDraftLocal = draftLocal.toIntOrNull() in minListenPort..65535
+    val validDraftRemote = draftType == ForwardTypes.DYNAMIC ||
+        draftRemote.toIntOrNull() in 1..65535
+    val validDraftHost = draftType != ForwardTypes.LOCAL || draftRemoteHost.isNotBlank()
+    val canAddTunnel = validDraftLocal && validDraftRemote && validDraftHost
 
     Scaffold(
         topBar = {
@@ -215,40 +221,58 @@ fun HostEditorScreen(
                         onClick = { draftType = ForwardTypes.REMOTE },
                         label = { Text("Remote") }
                     )
+                    FilterChip(
+                        selected = draftType == ForwardTypes.DYNAMIC,
+                        onClick = { draftType = ForwardTypes.DYNAMIC },
+                        label = { Text("SOCKS5") }
+                    )
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     OutlinedTextField(
                         value = draftLocal,
                         onValueChange = { draftLocal = it },
-                        label = { Text("Local port") },
+                        label = { Text(if (draftType == ForwardTypes.REMOTE) "Local service port" else "Listen port") },
+                        isError = draftLocal.isNotEmpty() && !validDraftLocal,
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f)
                     )
+                    if (draftType != ForwardTypes.DYNAMIC) {
+                        OutlinedTextField(
+                            value = draftRemote,
+                            onValueChange = { draftRemote = it },
+                            label = { Text(if (draftType == ForwardTypes.REMOTE) "Server port" else "Destination port") },
+                            isError = draftRemote.isNotEmpty() && !validDraftRemote,
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+                if (draftType == ForwardTypes.LOCAL) {
                     OutlinedTextField(
-                        value = draftRemote,
-                        onValueChange = { draftRemote = it },
-                        label = { Text("Remote port") },
+                        value = draftRemoteHost,
+                        onValueChange = { draftRemoteHost = it },
+                        label = { Text("Destination host") },
                         singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(1f)
+                        modifier = Modifier.fillMaxWidth()
                     )
                 }
-                OutlinedTextField(
-                    value = draftRemoteHost,
-                    onValueChange = { draftRemoteHost = it },
-                    label = { Text("Remote host") },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth()
-                )
+                if (draftType == ForwardTypes.DYNAMIC) {
+                    Text("The SOCKS5 listener is available to other apps on this device.")
+                }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    TextButton(onClick = {
-                        viewModel.addForward(draftType, draftLocal, draftRemoteHost, draftRemote)
-                        draftLocal = ""
-                        draftRemote = ""
-                        draftRemoteHost = "localhost"
-                        adding = false
-                    }) { Text("Add") }
+                    TextButton(
+                        enabled = canAddTunnel,
+                        onClick = {
+                            if (viewModel.addForward(draftType, draftLocal, draftRemoteHost, draftRemote)) {
+                                draftLocal = ""
+                                draftRemote = ""
+                                draftRemoteHost = "localhost"
+                                adding = false
+                            }
+                        }
+                    ) { Text("Add") }
                     TextButton(onClick = { adding = false }) { Text("Cancel") }
                 }
             } else {
@@ -258,9 +282,9 @@ fun HostEditorScreen(
     }
 }
 
-private fun tunnelLabel(f: PortForwardEntity): String =
-    if (f.type == ForwardTypes.LOCAL) {
-        "Local ${f.localPort} → ${f.remoteHost}:${f.remotePort}"
-    } else {
-        "Remote ${f.remotePort} → local ${f.localPort}"
-    }
+private fun tunnelLabel(f: PortForwardEntity): String = when (f.type) {
+    ForwardTypes.LOCAL -> "Local ${f.localPort} → ${f.remoteHost}:${f.remotePort}"
+    ForwardTypes.REMOTE -> "Remote ${f.remotePort} → local ${f.localPort}"
+    ForwardTypes.DYNAMIC -> "SOCKS5 localhost:${f.localPort}"
+    else -> "Unknown tunnel"
+}

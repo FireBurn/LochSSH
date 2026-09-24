@@ -39,6 +39,7 @@ class SshConnectionManager(
     private val outputLock = Any()
     private val outputHistory = ByteArrayOutputStream()
     private var tempKeyFile: File? = null
+    private val dynamicForwards = mutableListOf<Socks5Forwarder>()
     @Volatile
     private var running = false
 
@@ -208,6 +209,8 @@ class SshConnectionManager(
         remoteOut = null
         writer?.shutdownNow()
         writer = null
+        dynamicForwards.forEach { it.stop() }
+        dynamicForwards.clear()
         // Closing sends packets, so it cannot run on the caller's thread either.
         thread(name = "ssh-disconnect") {
             runCatching { out?.close() }
@@ -229,6 +232,12 @@ class SshConnectionManager(
                         Log.i(TAG, "local forward ${f.localPort} -> ${f.remoteHost}:${f.remotePort} bound to ${s.setPortForwardingL(f.localPort, f.remoteHost, f.remotePort)}")
                     ForwardTypes.REMOTE ->
                         Log.i(TAG, "remote forward ${f.remotePort} -> ${f.localPort} rc=${s.setPortForwardingR(f.remotePort, LOCAL_LOOPBACK, f.localPort)}")
+                    ForwardTypes.DYNAMIC -> {
+                        val forwarder = Socks5Forwarder(s, f.localPort)
+                        forwarder.start()
+                        dynamicForwards += forwarder
+                        Log.i(TAG, "SOCKS5 forward listening on localhost:${f.localPort}")
+                    }
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "forward ${f.type} ${f.localPort} failed", e)

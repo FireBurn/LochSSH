@@ -9,6 +9,7 @@ import androidx.room.withTransaction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
+import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import uk.co.fireburn.lochssh.data.db.IdentityDao
 import uk.co.fireburn.lochssh.data.db.IdentityEntity
 import uk.co.fireburn.lochssh.data.db.LochSshDatabase
@@ -42,17 +43,23 @@ class HostEditorViewModel @Inject constructor(
         }
     }
 
-    fun addForward(type: String, localPort: String, remoteHost: String, remotePort: String) {
-        val lp = localPort.toIntOrNull() ?: return
-        val rp = remotePort.toIntOrNull() ?: return
-        if (remoteHost.isBlank()) return
+    fun addForward(type: String, localPort: String, remoteHost: String, remotePort: String): Boolean {
+        val lp = localPort.toIntOrNull() ?: return false
+        val rp = if (type == ForwardTypes.DYNAMIC) 0 else remotePort.toIntOrNull() ?: return false
+        val minLocalPort = if (type == ForwardTypes.REMOTE) 1 else 1024
+        if (lp !in minLocalPort..65535 ||
+            (type != ForwardTypes.DYNAMIC && rp !in 1..65535) ||
+            (type == ForwardTypes.LOCAL && remoteHost.isBlank()) ||
+            type !in listOf(ForwardTypes.LOCAL, ForwardTypes.REMOTE, ForwardTypes.DYNAMIC)
+        ) return false
         forwards = forwards + PortForwardEntity(
             hostId = 0,
             type = type,
             localPort = lp,
-            remoteHost = remoteHost,
+            remoteHost = if (type == ForwardTypes.LOCAL) remoteHost else "",
             remotePort = rp
         )
+        return true
     }
 
     fun removeForward(index: Int) {

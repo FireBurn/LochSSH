@@ -27,8 +27,9 @@ This list reflects the current app and the project conversations. The older
 
 ## Complete the original app spec
 
-- Add dynamic SOCKS5 forwarding and validate local listener ports in the editor.
-  Local and remote forwarding exist; dynamic forwarding does not.
+- Test SOCKS5 forwarding through a live SSH server on a device. The listener,
+  editor, and protocol tests exist, but no end-to-end Android tunnel run has
+  been recorded. Surface tunnel bind and connection failures in the UI.
 - Add a per-host command to run on connect, including a `tmux` option.
 - Let users customize the terminal key bar. Modifier latching and the DEL key
   exist, but the layout is fixed.

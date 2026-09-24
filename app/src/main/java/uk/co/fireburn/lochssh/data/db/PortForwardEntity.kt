@@ -7,6 +7,7 @@ import androidx.room.PrimaryKey
 object ForwardTypes {
     const val LOCAL = "LOCAL"
     const val REMOTE = "REMOTE"
+    const val DYNAMIC = "DYNAMIC"
 }
 
 @Entity(tableName = "port_forwards")
