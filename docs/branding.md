@@ -7,9 +7,12 @@
 | Dark Loch Navy | `#0D1B2A` | Background, dark surfaces |
 | Emerald Pine | `#1B4332` | Water, primary brand fill |
 | Highland Amber | `#E9C46A` | Prompt marks, accents, active keys |
-| Mist Gray | `#E0E1DD` | Nessy, foreground text |
+| Mist Gray | `#E0E1DD` | Foreground text |
 
 Defined as resources in `res/values/colors.xml`.
+
+The current Nessy icon is traced from the amber Gemini artwork. It uses amber
+for the creature, green for the small prompt mark, and dark green for the water.
 
 ## Assets
 
