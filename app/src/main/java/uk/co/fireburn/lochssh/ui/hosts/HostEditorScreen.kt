@@ -61,6 +61,8 @@ fun HostEditorScreen(
     var group by remember { mutableStateOf("") }
     var identityId by remember { mutableStateOf<Long?>(null) }
     var identityMenu by remember { mutableStateOf(false) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
 
     var adding by remember { mutableStateOf(false) }
     var draftType by remember { mutableStateOf(ForwardTypes.LOCAL) }
@@ -80,7 +82,10 @@ fun HostEditorScreen(
         }
     }
 
-    val canSave = name.isNotBlank() && host.isNotBlank()
+    val validPort = port.toIntOrNull() in 1..65535
+    val validKeepAlive = keepAlive.toIntOrNull()?.let { it >= 0 } == true
+    val canSave = viewModel.loaded && !saving && name.isNotBlank() && host.isNotBlank() &&
+        validPort && validKeepAlive
 
     Scaffold(
         topBar = {
@@ -95,8 +100,14 @@ fun HostEditorScreen(
                     TextButton(
                         enabled = canSave,
                         onClick = {
+                            saving = true
+                            saveError = null
                             viewModel.save(name, host, port, keepAlive, group, identityId)
-                                .invokeOnCompletion { onBack() }
+                                .invokeOnCompletion { cause ->
+                                    saving = false
+                                    if (cause == null) onBack()
+                                    else saveError = cause.message ?: "Could not save host"
+                                }
                         }
                     ) { Text("Save") }
                 }
@@ -110,6 +121,9 @@ fun HostEditorScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            saveError?.let {
+                Text(it, color = MaterialTheme.colorScheme.error)
+            }
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
@@ -129,6 +143,7 @@ fun HostEditorScreen(
                     value = port,
                     onValueChange = { port = it },
                     label = { Text("Port") },
+                    isError = port.isNotEmpty() && !validPort,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f)
@@ -137,6 +152,7 @@ fun HostEditorScreen(
                     value = keepAlive,
                     onValueChange = { keepAlive = it },
                     label = { Text("Keep-alive (s)") },
+                    isError = keepAlive.isNotEmpty() && !validKeepAlive,
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f)

@@ -57,6 +57,8 @@ fun IdentityEditorScreen(
     var generatedKey by remember { mutableStateOf<GeneratedKey?>(null) }
     var showPubKey by remember { mutableStateOf(false) }
     var genError by remember { mutableStateOf<String?>(null) }
+    var saveError by remember { mutableStateOf<String?>(null) }
+    var saving by remember { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
 
     LaunchedEffect(viewModel.loaded) {
@@ -81,10 +83,16 @@ fun IdentityEditorScreen(
                 },
                 actions = {
                     TextButton(
-                        enabled = name.isNotBlank(),
+                        enabled = viewModel.loaded && !saving && name.isNotBlank(),
                         onClick = {
+                            saving = true
+                            saveError = null
                             viewModel.save(name, username, authType, keySource, keyPath, keyMaterial, secret)
-                                .invokeOnCompletion { onBack() }
+                                .invokeOnCompletion { cause ->
+                                    saving = false
+                                    if (cause == null) onBack()
+                                    else saveError = cause.message ?: "Could not save identity"
+                                }
                         }
                     ) { Text("Save") }
                 }
@@ -98,6 +106,9 @@ fun IdentityEditorScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            saveError?.let {
+                Text(it, color = MaterialTheme.colorScheme.error)
+            }
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
