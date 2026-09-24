@@ -60,6 +60,7 @@ class SshConnectionManager(
     @Synchronized
     fun connect() {
         val jsch = JSch()
+        jsch.setHostKeyRepository(HostKeyTrust.repository(context))
         jsch.setInstanceLogger(object : com.jcraft.jsch.Logger {
             override fun isEnabled(level: Int) = level >= com.jcraft.jsch.Logger.INFO
             override fun log(level: Int, message: String) {
@@ -76,7 +77,7 @@ class SshConnectionManager(
         val s = jsch.getSession(config.username, config.host, config.port)
         s.setServerAliveInterval(config.keepAliveSeconds.coerceAtLeast(5) * 1000)
         s.setServerAliveCountMax(3)
-        s.setConfig("StrictHostKeyChecking", "accept-new")
+        s.setConfig("StrictHostKeyChecking", "yes")
         s.setConfig(
             "server_host_key",
             "ssh-ed25519,ecdsa-sha2-nistp256,rsa-sha2-512,rsa-sha2-256,ssh-rsa"

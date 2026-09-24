@@ -5,9 +5,9 @@ This list reflects the current app and the project conversations. The older
 
 ## Fix before wider use
 
-- Store and check host keys across connections. `SshConnectionManager` uses
-  `accept-new` but does not give JSch a persistent known-hosts file. A changed
-  key must be rejected and shown to the user, not accepted as a new host.
+- Add a screen for reviewing and removing saved host keys. First-use keys are
+  now stored and changed keys are rejected, but users cannot inspect a saved
+  fingerprint or accept an intentional server key rotation in the app.
 - Make host and forward edits atomic. `HostEditorViewModel.save` updates the host,
   deletes its forwards, then inserts replacements in separate database calls.
   A failed insert can leave a partial configuration. Apply the same rule to host
