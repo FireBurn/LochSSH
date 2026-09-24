@@ -8,10 +8,8 @@ This list reflects the current app and the project conversations. The older
 - Add a screen for reviewing and removing saved host keys. First-use keys are
   now stored and changed keys are rejected, but users cannot inspect a saved
   fingerprint or accept an intentional server key rotation in the app.
-- Make host and forward edits atomic. `HostEditorViewModel.save` updates the host,
-  deletes its forwards, then inserts replacements in separate database calls.
-  A failed insert can leave a partial configuration. Apply the same rule to host
-  duplication and deletion.
+- Show failures from host duplication and deletion in the host list. These writes
+  are atomic now, but a storage error is still only visible in the system log.
 - Preserve identity secrets if a database save fails. `IdentityEditorViewModel`
   deletes old key material before updating its row. Test switching key sources,
   failed saves, and deletion of unused secrets.

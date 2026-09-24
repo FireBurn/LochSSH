@@ -5,11 +5,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.room.withTransaction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import uk.co.fireburn.lochssh.data.db.IdentityDao
 import uk.co.fireburn.lochssh.data.db.IdentityEntity
+import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 import uk.co.fireburn.lochssh.data.db.PortForwardDao
 import uk.co.fireburn.lochssh.data.db.PortForwardEntity
 import uk.co.fireburn.lochssh.data.db.SshHostDao
@@ -20,7 +22,8 @@ import javax.inject.Inject
 class HostEditorViewModel @Inject constructor(
     private val hostDao: SshHostDao,
     private val identityDao: IdentityDao,
-    private val portForwardDao: PortForwardDao
+    private val portForwardDao: PortForwardDao,
+    private val database: LochSshDatabase
 ) : ViewModel() {
 
     val identities: Flow<List<IdentityEntity>> = identityDao.observeAll()
@@ -65,30 +68,36 @@ class HostEditorViewModel @Inject constructor(
         identityId: Long?
     ) = viewModelScope.launch {
         val existing = host
+        val validPort = port.toIntOrNull()?.takeIf { it in 1..65535 }
+            ?: throw IllegalArgumentException("Port must be between 1 and 65535")
+        val validKeepAlive = keepAlive.toIntOrNull()?.takeIf { it >= 0 }
+            ?: throw IllegalArgumentException("Keep-alive must not be negative")
         val entity = existing?.copy(
             name = name,
             host = hostName,
-            port = port.toIntOrNull() ?: 22,
-            keepAliveSeconds = keepAlive.toIntOrNull() ?: 30,
+            port = validPort,
+            keepAliveSeconds = validKeepAlive,
             group = group,
             identityId = identityId
         ) ?: SshHostEntity(
             name = name,
             host = hostName,
-            port = port.toIntOrNull() ?: 22,
-            keepAliveSeconds = keepAlive.toIntOrNull() ?: 30,
+            port = validPort,
+            keepAliveSeconds = validKeepAlive,
             group = group,
             identityId = identityId
         )
-        val hostId = if (existing != null) {
-            hostDao.update(entity)
-            existing.id
-        } else {
-            hostDao.insert(entity)
-        }
-        portForwardDao.deleteByHost(hostId)
-        forwards.forEach { f ->
-            portForwardDao.insert(f.copy(id = 0, hostId = hostId))
+        database.withTransaction {
+            val hostId = if (existing != null) {
+                hostDao.update(entity)
+                existing.id
+            } else {
+                hostDao.insert(entity)
+            }
+            portForwardDao.deleteByHost(hostId)
+            forwards.forEach { f ->
+                portForwardDao.insert(f.copy(id = 0, hostId = hostId))
+            }
         }
     }
 }
