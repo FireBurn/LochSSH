@@ -27,8 +27,8 @@ This list reflects the current app and the project conversations. The older
 
 ## Complete the original app spec
 
-- Test SOCKS5 forwarding through a live SSH server on a device. The listener,
-  editor, and protocol tests exist, but no end-to-end Android tunnel run has
+- Test SOCKS5 forwarding through a live SSH server on a device. A JVM-side
+  loopback test passed through a real SSH session, but no Android tunnel run has
   been recorded. Surface tunnel bind and connection failures in the UI.
 - Verify command-on-connect on a device, including the 2→3 database migration
   for existing hosts and a `tmux attach || tmux new` command.

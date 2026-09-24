@@ -15,6 +15,7 @@ import kotlin.concurrent.thread
 
 internal class Socks5Forwarder(private val session: Session, port: Int) {
     private val server = ServerSocket(port, 16, InetAddress.getByName("127.0.0.1"))
+    val listenPort: Int get() = server.localPort
     private val slots = Semaphore(16)
     private val clients = ConcurrentHashMap.newKeySet<Socket>()
     private val channels = ConcurrentHashMap.newKeySet<ChannelDirectTCPIP>()
