@@ -5,6 +5,7 @@ import android.content.SharedPreferences
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
 import dagger.hilt.android.qualifiers.ApplicationContext
+import java.io.IOException
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -29,13 +30,17 @@ class EncryptedStorageManager @Inject constructor(
     fun newReference(): String = UUID.randomUUID().toString()
 
     fun putSecret(reference: String, value: String) {
-        prefs.edit().putString(reference, value).apply()
+        if (!prefs.edit().putString(reference, value).commit()) {
+            throw IOException("Could not save secret")
+        }
     }
 
     fun getSecret(reference: String): String? = prefs.getString(reference, null)
 
     fun deleteSecret(reference: String) {
-        prefs.edit().remove(reference).apply()
+        if (!prefs.edit().remove(reference).commit()) {
+            throw IOException("Could not remove secret")
+        }
     }
 
     companion object {

@@ -6,7 +6,10 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uk.co.fireburn.lochssh.data.EncryptedStorageManager
 import uk.co.fireburn.lochssh.data.db.AuthTypes
 import uk.co.fireburn.lochssh.data.db.IdentityDao
@@ -50,48 +53,56 @@ class IdentityEditorViewModel @Inject constructor(
         secret: String
     ) = viewModelScope.launch {
         val existing = identity
-
-        val secretRef = when {
-            secret.isNotBlank() -> {
-                val r = existing?.secretRef ?: secrets.newReference()
-                secrets.putSecret(r, secret)
-                r
+        withContext(Dispatchers.IO + NonCancellable) {
+            val created = mutableListOf<String>()
+            fun saveNew(value: String): String {
+                val ref = secrets.newReference()
+                created += ref
+                secrets.putSecret(ref, value)
+                return ref
             }
-            else -> existing?.secretRef
-        }
 
-        var keyPathFinal: String? = null
-        var keyMaterialRefFinal: String? = null
-        if (authType == AuthTypes.PUBLIC_KEY && keySource == KeySources.PASTE) {
-            keyMaterialRefFinal = when {
-                keyMaterial.isNotBlank() -> {
-                    val r = existing?.keyMaterialRef ?: secrets.newReference()
-                    secrets.putSecret(r, keyMaterial)
-                    r
+            try {
+                val secretRef = when {
+                    authType == AuthTypes.NONE -> null
+                    secret.isNotBlank() -> saveNew(secret)
+                    existing?.authType == authType -> existing.secretRef
+                    else -> null
                 }
-                else -> existing?.keyMaterialRef
-            }
-            existing?.keyMaterialRef?.let { if (it != keyMaterialRefFinal) secrets.deleteSecret(it) }
-        } else if (authType == AuthTypes.PUBLIC_KEY) {
-            keyPathFinal = keyPath.ifBlank { null }
-            existing?.keyMaterialRef?.let { secrets.deleteSecret(it) }
-        }
+                val pasted = authType == AuthTypes.PUBLIC_KEY && keySource == KeySources.PASTE
+                val keyMaterialRef = when {
+                    !pasted -> null
+                    keyMaterial.isNotBlank() -> saveNew(keyMaterial)
+                    else -> existing?.keyMaterialRef
+                }
+                val keyPathFinal = if (authType == AuthTypes.PUBLIC_KEY && !pasted) {
+                    keyPath.ifBlank { null }
+                } else null
 
-        val entity = existing?.copy(
-            name = name,
-            username = username,
-            authType = authType,
-            keyPath = keyPathFinal,
-            keyMaterialRef = keyMaterialRefFinal,
-            secretRef = secretRef
-        ) ?: IdentityEntity(
-            name = name,
-            username = username,
-            authType = authType,
-            keyPath = keyPathFinal,
-            keyMaterialRef = keyMaterialRefFinal,
-            secretRef = secretRef
-        )
-        if (existing != null) identityDao.update(entity) else identityDao.insert(entity)
+                val entity = existing?.copy(
+                    name = name,
+                    username = username,
+                    authType = authType,
+                    keyPath = keyPathFinal,
+                    keyMaterialRef = keyMaterialRef,
+                    secretRef = secretRef
+                ) ?: IdentityEntity(
+                    name = name,
+                    username = username,
+                    authType = authType,
+                    keyPath = keyPathFinal,
+                    keyMaterialRef = keyMaterialRef,
+                    secretRef = secretRef
+                )
+                if (existing != null) identityDao.update(entity) else identityDao.insert(entity)
+
+                listOfNotNull(existing?.secretRef, existing?.keyMaterialRef)
+                    .filter { it != secretRef && it != keyMaterialRef }
+                    .forEach { runCatching { secrets.deleteSecret(it) } }
+            } catch (e: Exception) {
+                created.forEach { runCatching { secrets.deleteSecret(it) } }
+                throw e
+            }
+        }
     }
 }

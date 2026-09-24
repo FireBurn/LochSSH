@@ -10,9 +10,9 @@ This list reflects the current app and the project conversations. The older
   fingerprint or accept an intentional server key rotation in the app.
 - Show failures from host duplication and deletion in the host list. These writes
   are atomic now, but a storage error is still only visible in the system log.
-- Preserve identity secrets if a database save fails. `IdentityEditorViewModel`
-  deletes old key material before updating its row. Test switching key sources,
-  failed saves, and deletion of unused secrets.
+- Add device tests for identity changes and failures. The editor now saves new
+  secrets before updating the row and removes old secrets afterward, but this
+  needs tests for key-source switches, failed writes, and cleanup failures.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen
