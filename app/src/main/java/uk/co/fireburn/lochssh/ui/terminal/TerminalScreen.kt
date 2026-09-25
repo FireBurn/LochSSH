@@ -63,11 +63,16 @@ fun TerminalScreen(
     val modifiers = remember { TerminalModifiers() }
     var imeVisible by remember { mutableStateOf(false) }
     var imeEditText by remember { mutableStateOf<TerminalEditText?>(null) }
+    var hadSession by remember(sessionId) { mutableStateOf(false) }
 
     val session by viewModel.session.collectAsStateWithLifecycle()
     val manager = session?.manager
 
     LaunchedEffect(sessionId) { viewModel.load(sessionId) }
+    LaunchedEffect(sessionId, session?.id) {
+        if (session != null) hadSession = true
+        else if (hadSession) onBack()
+    }
 
     Scaffold(
         // Only the top inset: the content pads itself against whichever of the

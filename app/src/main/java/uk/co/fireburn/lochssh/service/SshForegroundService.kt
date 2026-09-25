@@ -67,7 +67,7 @@ class SshForegroundService : Service() {
         startForegroundSummary()
 
         if (intent?.action == ACTION_DISCONNECT) {
-            endSession(intent.getLongExtra(EXTRA_SESSION_ID, -1L), null)
+            endSession(intent.getLongExtra(EXTRA_SESSION_ID, -1L))
             return Service.START_NOT_STICKY
         }
 
@@ -138,16 +138,12 @@ class SshForegroundService : Service() {
 
     private fun onSessionExit(sessionId: Long, code: Int) {
         Log.i(TAG, "Session $sessionId exited with code $code")
-        endSession(sessionId, "Connection closed (exit code $code)")
+        endSession(sessionId)
     }
 
-    private fun endSession(sessionId: Long, message: String?) {
+    private fun endSession(sessionId: Long) {
         managers.remove(sessionId)?.disconnect()
-        if (message == null) {
-            registry.remove(sessionId)
-        } else {
-            registry.failed(sessionId, message)
-        }
+        registry.remove(sessionId)
         NotificationManagerCompat.from(this).cancel(sessionNotificationId(sessionId))
         stopIfIdle()
     }
