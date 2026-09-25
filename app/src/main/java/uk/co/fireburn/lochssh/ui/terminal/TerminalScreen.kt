@@ -2,8 +2,11 @@ package uk.co.fireburn.lochssh.ui.terminal
 
 import android.content.Context
 import android.content.Intent
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
@@ -19,8 +22,11 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -64,15 +70,52 @@ fun TerminalScreen(
     val imm = remember {
         context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     }
+    val clipboard = remember {
+        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    }
     val modifiers = remember { TerminalModifiers() }
     var imeVisible by remember { mutableStateOf(false) }
     var imeEditText by remember { mutableStateOf<TerminalEditText?>(null) }
     var hadSession by remember(sessionId) { mutableStateOf(false) }
     var scrollbackOffset by remember(sessionId) { mutableIntStateOf(0) }
     var liveRequest by remember(sessionId) { mutableIntStateOf(0) }
+    var selectionClearKey by remember(sessionId) { mutableIntStateOf(0) }
+    var selectedText by remember(sessionId) { mutableStateOf<String?>(null) }
+    var terminalBuffer by remember(sessionId) { mutableStateOf<TerminalBuffer?>(null) }
+    var pendingPaste by remember(sessionId) { mutableStateOf<String?>(null) }
+    var moreOpen by remember { mutableStateOf(false) }
 
     val session by viewModel.session.collectAsStateWithLifecycle()
     val manager = session?.manager
+
+    fun sendPaste(text: String) {
+        val target = manager ?: return
+        val content = ImeKeyEncoder.encodeText(text.replace("\r\n", "\n"))
+        val bytes = if (terminalBuffer?.let { it.read { it.bracketedPaste } } == true) {
+            "\u001B[200~".toByteArray() + content + "\u001B[201~".toByteArray()
+        } else content
+        target.write(bytes)
+        liveRequest++
+        selectionClearKey++
+        selectedText = null
+    }
+
+    pendingPaste?.let { text ->
+        AlertDialog(
+            onDismissRequest = { pendingPaste = null },
+            title = { Text("Paste multiple lines?") },
+            text = { Text("Line breaks may run commands on the remote system.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    sendPaste(text)
+                    pendingPaste = null
+                }) { Text("Paste") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingPaste = null }) { Text("Cancel") }
+            }
+        )
+    }
 
     session?.remoteOptions?.let { options ->
         AlertDialog(
@@ -141,7 +184,49 @@ fun TerminalScreen(
                         TextButton(onClick = { liveRequest++ }) { Text("Live") }
                     }
                     if (manager != null) {
-                        TextButton(onClick = viewModel::checkRemoteSessions) { Text("Sessions") }
+                        Box {
+                            IconButton(onClick = { moreOpen = true }) {
+                                Icon(Icons.Filled.MoreVert, contentDescription = "Terminal actions")
+                            }
+                            DropdownMenu(
+                                expanded = moreOpen,
+                                onDismissRequest = { moreOpen = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Remote sessions") },
+                                    onClick = {
+                                        moreOpen = false
+                                        viewModel.checkRemoteSessions()
+                                    }
+                                )
+                                if (selectedText != null) {
+                                    DropdownMenuItem(
+                                        text = { Text("Copy selection") },
+                                        onClick = {
+                                            clipboard.setPrimaryClip(
+                                                ClipData.newPlainText("Terminal text", selectedText.orEmpty())
+                                            )
+                                            selectionClearKey++
+                                            selectedText = null
+                                            moreOpen = false
+                                        }
+                                    )
+                                }
+                                DropdownMenuItem(
+                                    text = { Text("Paste") },
+                                    onClick = {
+                                        moreOpen = false
+                                        val text = clipboard.primaryClip?.getItemAt(0)
+                                            ?.coerceToText(context)?.toString().orEmpty()
+                                        if (text.contains('\n') || text.contains('\r')) {
+                                            pendingPaste = text
+                                        } else if (text.isNotEmpty()) {
+                                            sendPaste(text)
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     }
                     TextButton(onClick = {
                         SshForegroundService.disconnect(context, sessionId)
@@ -180,7 +265,10 @@ fun TerminalScreen(
                     manager = manager,
                     fontSize = fontSize.sp,
                     scrollToLiveKey = liveRequest,
+                    clearSelectionKey = selectionClearKey,
                     onScrollOffsetChanged = { scrollbackOffset = it },
+                    onSelectionChanged = { selectedText = it?.takeIf { text -> text.isNotEmpty() } },
+                    onBuffer = { terminalBuffer = it },
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
@@ -188,16 +276,22 @@ fun TerminalScreen(
             }
             TerminalImeInput(
                 onText = {
-                    liveRequest++
-                    manager?.write(
-                        ImeKeyEncoder.encodeText(it, modifiers.ctrl, modifiers.alt)
-                    )
+                    if (it.contains('\n') || it.contains('\r')) {
+                        pendingPaste = it
+                    } else {
+                        liveRequest++
+                        selectionClearKey++
+                        manager?.write(
+                            ImeKeyEncoder.encodeText(it, modifiers.ctrl, modifiers.alt)
+                        )
+                    }
                     modifiers.clear()
                 },
                 onKey = { key ->
                     val bytes = ImeKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt)
                     if (bytes != null) {
                         liveRequest++
+                        selectionClearKey++
                         manager?.write(bytes)
                         modifiers.clear()
                         true
@@ -207,6 +301,7 @@ fun TerminalScreen(
                 },
                 onDelete = { n ->
                     liveRequest++
+                    selectionClearKey++
                     manager?.write(ByteArray(n) { 0x7F })
                 },
                 modifier = Modifier
@@ -219,6 +314,7 @@ fun TerminalScreen(
                 modifiers = modifiers,
                 onSend = {
                     liveRequest++
+                    selectionClearKey++
                     manager?.write(it)
                 },
                 onFontSizeChange = { viewModel.changeFontSize(it) },

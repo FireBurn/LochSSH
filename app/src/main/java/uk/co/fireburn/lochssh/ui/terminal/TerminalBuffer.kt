@@ -6,6 +6,7 @@ class TerminalBuffer(
     var rows: Int
 ) {
     data class Cell(val ch: Char, val fg: Int, val bg: Int, val bold: Boolean)
+    data class Point(val row: Int, val col: Int)
 
     private var grid = blankGrid(cols, rows)
     private val history = ArrayDeque<Array<Cell>>()
@@ -20,6 +21,8 @@ class TerminalBuffer(
     var cursorRow = 0
         private set
     var cursorVisible = true
+        private set
+    var bracketedPaste = false
         private set
     var version = 0
         private set
@@ -83,6 +86,16 @@ class TerminalBuffer(
         val sb = StringBuilder(end - start)
         for (c in start until end) sb.append(visibleCellAt(row, c, scrollOffset).ch)
         return sb.toString()
+    }
+
+    fun selectedText(start: Point, end: Point, scrollOffset: Int): String {
+        val first = minOf(start, end, compareBy(Point::row, Point::col))
+        val last = maxOf(start, end, compareBy(Point::row, Point::col))
+        return (first.row..last.row).joinToString("\n") { row ->
+            val from = if (row == first.row) first.col else 0
+            val until = if (row == last.row) last.col + 1 else cols
+            visibleRowText(row, from, until, scrollOffset).trimEnd()
+        }
     }
 
     fun rowText(row: Int, start: Int, end: Int): String {
@@ -356,6 +369,7 @@ class TerminalBuffer(
         for (mode in parts) {
             when (mode) {
                 25 -> cursorVisible = enable
+                2004 -> bracketedPaste = enable
                 // Full screen programs swap to their own screen and back.
                 47, 1047, 1049 -> if (enable) enterAlternateScreen() else leaveAlternateScreen()
             }

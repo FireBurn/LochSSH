@@ -38,9 +38,9 @@ This list reflects the current app and the project conversations. The older
   including the 2→3 and 3→4 database migrations for existing hosts.
 - Let users customize the terminal key bar. Modifier latching and the DEL key
   exist, but the layout is fixed.
-- Add terminal selection, copy, and paste. The terminal now keeps bounded
-  normal-screen scrollback and supports swipe review; device gesture checks
-  and selection controls are still needed.
+- Check terminal scrollback, long-press selection, copy, and paste gestures on a
+  device. The current build keeps bounded normal-screen history and confirms
+  multi-line paste; the interaction has not been tested on a phone.
 - Finish private-key support and tests for imported RSA, Ed25519, ECDSA, and
   PKCS#8 keys, including passphrase handling.
 - Confirm the foreground service and battery settings on supported Android

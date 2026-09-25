@@ -2,6 +2,7 @@ package uk.co.fireburn.lochssh.ui.terminal
 
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -40,6 +41,7 @@ private val TerminalFont = FontFamily(
 
 private val Background = Color(0xFF0D1B2A)
 private val Cursor = Color(0xFFE9C46A)
+private val SelectionColour = Color(0x8855A878)
 
 private const val MIN_COLS = 20
 private const val MIN_ROWS = 5
@@ -47,6 +49,7 @@ private const val REF_RUN = 64
 private const val RESIZE_DELAY_MS = 150L
 
 private class CellMetrics(val width: Float, val height: Float, val baseline: Float)
+private data class Selection(val start: TerminalBuffer.Point, val end: TerminalBuffer.Point)
 
 @Composable
 fun TerminalView(
@@ -54,12 +57,15 @@ fun TerminalView(
     manager: SshConnectionManager? = null,
     fontSize: TextUnit = 14.sp,
     scrollToLiveKey: Int = 0,
+    clearSelectionKey: Int = 0,
     onScrollOffsetChanged: (Int) -> Unit = {},
+    onSelectionChanged: (String?) -> Unit = {},
     onBuffer: (TerminalBuffer) -> Unit = {}
 ) {
-    val buffer = remember { TerminalBuffer(MIN_COLS, MIN_ROWS) }
-    val frame = remember { mutableIntStateOf(0) }
-    val scrollOffset = remember { mutableIntStateOf(0) }
+    val buffer = remember(manager) { TerminalBuffer(MIN_COLS, MIN_ROWS) }
+    val frame = remember(buffer) { mutableIntStateOf(0) }
+    val scrollOffset = remember(buffer) { mutableIntStateOf(0) }
+    var selection by remember(buffer) { mutableStateOf<Selection?>(null) }
     val textMeasurer = rememberTextMeasurer()
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
@@ -77,10 +83,14 @@ fun TerminalView(
         )
     }
 
-    LaunchedEffect(Unit) { onBuffer(buffer) }
+    LaunchedEffect(buffer) { onBuffer(buffer) }
     LaunchedEffect(manager) { scrollOffset.intValue = 0 }
     LaunchedEffect(scrollToLiveKey) { scrollOffset.intValue = 0 }
     LaunchedEffect(scrollOffset.intValue) { onScrollOffsetChanged(scrollOffset.intValue) }
+    LaunchedEffect(clearSelectionKey, buffer, scrollOffset.intValue) {
+        selection = null
+        onSelectionChanged(null)
+    }
 
     // Fit the grid to the canvas and tell the remote side about it. Held back a
     // moment so a run of font size taps sends one size, not one for each tap.
@@ -134,12 +144,46 @@ fun TerminalView(
                     }
                 )
             }
+            .pointerInput(metrics.width, metrics.height, buffer) {
+                detectDragGesturesAfterLongPress(
+                    onDragStart = { position ->
+                        val point = pointAt(position, metrics, buffer)
+                        selection = Selection(point, point)
+                        onSelectionChanged(null)
+                    },
+                    onDragEnd = {
+                        selection?.let { selected ->
+                            onSelectionChanged(buffer.read {
+                                buffer.selectedText(
+                                    selected.start, selected.end, scrollOffset.intValue
+                                )
+                            })
+                        }
+                    },
+                    onDragCancel = {
+                        selection = null
+                        onSelectionChanged(null)
+                    },
+                    onDrag = { change, _ ->
+                        change.consume()
+                        selection = selection?.copy(end = pointAt(change.position, metrics, buffer))
+                    }
+                )
+            }
     ) {
         // Read in the draw lambda: the root layer observes reads made while
         // drawing, so the canvas invalidates on every output chunk.
         frame.intValue
-        drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue)
+        drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue, selection)
     }
+}
+
+private fun pointAt(position: Offset, metrics: CellMetrics, buffer: TerminalBuffer):
+    TerminalBuffer.Point = buffer.read {
+    TerminalBuffer.Point(
+        (position.y / metrics.height).toInt().coerceIn(0, buffer.rows - 1),
+        (position.x / metrics.width).toInt().coerceIn(0, buffer.cols - 1)
+    )
 }
 
 private fun DrawScope.drawTerminal(
@@ -147,7 +191,8 @@ private fun DrawScope.drawTerminal(
     textMeasurer: TextMeasurer,
     style: TextStyle,
     metrics: CellMetrics,
-    scrollOffset: Int
+    scrollOffset: Int,
+    selection: Selection?
 ) {
     drawRect(Background)
     buffer.read {
@@ -157,6 +202,7 @@ private fun DrawScope.drawTerminal(
         for (row in 0 until rows) {
             val y = row * metrics.height
             drawCellBackgrounds(buffer, row, y, metrics, scrollOffset)
+            if (selection != null) drawSelection(row, selection, buffer.cols, y, metrics)
             drawRowText(buffer, row, y, textMeasurer, style, metrics, scrollOffset)
         }
 
@@ -173,6 +219,25 @@ private fun DrawScope.drawTerminal(
             }
         }
     }
+}
+
+private fun DrawScope.drawSelection(
+    row: Int,
+    selection: Selection,
+    cols: Int,
+    y: Float,
+    metrics: CellMetrics
+) {
+    val first = minOf(selection.start, selection.end, compareBy(TerminalBuffer.Point::row, TerminalBuffer.Point::col))
+    val last = maxOf(selection.start, selection.end, compareBy(TerminalBuffer.Point::row, TerminalBuffer.Point::col))
+    if (row !in first.row..last.row) return
+    val from = if (row == first.row) first.col else 0
+    val until = if (row == last.row) last.col + 1 else cols
+    drawRect(
+        SelectionColour,
+        topLeft = Offset(from * metrics.width, y),
+        size = Size((until - from) * metrics.width, metrics.height)
+    )
 }
 
 // Painted first so text lands on top of it.

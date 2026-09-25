@@ -204,4 +204,24 @@ class TerminalBufferTest {
         assertEquals("two", buffer.line(0))
         assertEquals("three", buffer.line(1))
     }
+
+    @Test
+    fun selectedTextUsesTheVisibleScrollbackRows() {
+        val buffer = buffer(cols = 8, rows = 2)
+        buffer.feed("one\r\ntwo\r\nthree")
+
+        val first = TerminalBuffer.Point(0, 1)
+        val last = TerminalBuffer.Point(1, 2)
+        assertEquals("ne\ntwo", buffer.selectedText(first, last, 1))
+        assertEquals("ne\ntwo", buffer.selectedText(last, first, 1))
+    }
+
+    @Test
+    fun bracketedPasteModeFollowsRemoteRequests() {
+        val buffer = buffer()
+        buffer.feed("\u001B[?2004h")
+        assertEquals(true, buffer.bracketedPaste)
+        buffer.feed("\u001B[?2004l")
+        assertEquals(false, buffer.bracketedPaste)
+    }
 }
