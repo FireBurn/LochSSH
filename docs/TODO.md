@@ -5,9 +5,8 @@ This list reflects the current app and the project conversations. The older
 
 ## Fix before wider use
 
-- Add a screen for reviewing and removing saved host keys. First-use keys are
-  now stored and changed keys are rejected, but users cannot inspect a saved
-  fingerprint or accept an intentional server key rotation in the app.
+- Check host-key review and removal on a device, including a changed server key.
+  The app now lists fingerprints and removes a selected key after confirmation.
 - Show failures from host duplication and deletion in the host list. These writes
   are atomic now, but a storage error is still only visible in the system log.
 - Add device tests for identity changes and failures. The editor now saves new
@@ -19,11 +18,11 @@ This list reflects the current app and the project conversations. The older
   output, and session title errors; subsequent commits addressed some of these,
   but there is no device regression run for the current build.
 - Resolve Android Ed25519 without relying on local JSch JARs. PR
-  [mwiede/jsch#1160](https://github.com/mwiede/jsch/pull/1160) has a requested
-  architecture change. Android CI passes with a test-installed Ed25519 provider,
-  but stock emulator images still skip signing. The reviewer suggested a separate
-  Android artifact. Keep the app's local JARs until released replacements are
-  installed.
+  [mwiede/jsch#1160](https://github.com/mwiede/jsch/pull/1160) now adds a separate
+  Android artifact and passes Android emulator CI and the SonarCloud quality gate.
+  Stock emulator images still lack imported-key Ed25519 signing, so that test
+  needs a provider installed for coverage. Wait for maintainer review and a
+  published release before replacing the app's local JARs.
 
 ## Complete the original app spec
 

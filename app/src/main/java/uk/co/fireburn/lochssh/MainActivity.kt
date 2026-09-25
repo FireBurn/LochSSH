@@ -25,6 +25,7 @@ import uk.co.fireburn.lochssh.ui.hosts.HostListScreen
 import uk.co.fireburn.lochssh.ui.identities.IdentityEditorScreen
 import uk.co.fireburn.lochssh.ui.identities.IdentityListScreen
 import uk.co.fireburn.lochssh.ui.settings.SettingsScreen
+import uk.co.fireburn.lochssh.ui.settings.HostKeysScreen
 import uk.co.fireburn.lochssh.ui.terminal.TerminalScreen
 import uk.co.fireburn.lochssh.ui.theme.LochSSHTheme
 
@@ -36,6 +37,7 @@ object Routes {
     const val IDENTITY_EDITOR = "identity_editor?id={id}"
     fun identityEditor(id: Long) = "identity_editor?id=$id"
     const val SETTINGS = "settings"
+    const val HOST_KEYS = "host_keys"
     const val TERMINAL = "terminal?sessionId={sessionId}"
     fun terminal(sessionId: Long) = "terminal?sessionId=$sessionId"
 }
@@ -131,7 +133,13 @@ fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>) {
             )
         }
         composable(Routes.SETTINGS) {
-            SettingsScreen(onBack = { navController.popBackStack() })
+            SettingsScreen(
+                onBack = { navController.popBackStack() },
+                onHostKeys = { navController.navigate(Routes.HOST_KEYS) }
+            )
+        }
+        composable(Routes.HOST_KEYS) {
+            HostKeysScreen(onBack = { navController.popBackStack() })
         }
         composable(
             Routes.TERMINAL,

@@ -14,19 +14,65 @@ object HostKeyTrust {
     @Synchronized
     fun repository(context: Context): HostKeyRepository =
         store ?: PersistentHostKeys(File(context.filesDir, "known_hosts")).also { store = it }
+
+    fun saved(context: Context): List<SavedHostKey> =
+        (repository(context) as PersistentHostKeys).saved()
+
+    fun remove(context: Context, key: SavedHostKey) =
+        (repository(context) as PersistentHostKeys).removeSaved(key)
+
+    @Synchronized
+    fun clear(context: Context) {
+        store?.clear() ?: PersistentHostKeys(File(context.filesDir, "known_hosts")).clear()
+    }
 }
 
+data class SavedHostKey(
+    val host: String,
+    val type: String,
+    val fingerprint: String,
+    val key: String
+)
+
 internal class PersistentHostKeys(private val file: File) : HostKeyRepository {
-    private val backing: HostKeyRepository
+    private var backing: HostKeyRepository
     private var usable = true
 
     init {
         if (!file.exists() && !file.createNewFile() && !file.exists()) {
             throw IOException("Could not create known hosts file")
         }
-        val jsch = JSch()
-        jsch.setKnownHosts(file.absolutePath)
-        backing = jsch.hostKeyRepository
+        backing = reload()
+    }
+
+    private fun reload(): HostKeyRepository =
+        JSch().apply { setKnownHosts(file.absolutePath) }.hostKeyRepository
+
+    @Synchronized
+    fun saved(): List<SavedHostKey> = backing.hostKey.map { key ->
+        SavedHostKey(key.host, key.type, key.getFingerPrint(JSch()), key.key)
+    }
+
+    @Synchronized
+    fun removeSaved(key: SavedHostKey) {
+        val match = backing.hostKey.firstOrNull {
+            it.host == key.host && it.type == key.type && it.key == key.key
+        } ?: return
+        backing.remove(match.host, match.type, java.util.Base64.getDecoder().decode(match.key))
+        backing = reload()
+        if (backing.hostKey.any {
+                it.host == key.host && it.type == key.type && it.key == key.key
+            }) {
+            throw IOException("Could not remove host key")
+        }
+    }
+
+    @Synchronized
+    fun clear() {
+        if (file.exists() && !file.delete()) throw IOException("Could not clear host keys")
+        if (!file.createNewFile() && !file.exists()) throw IOException("Could not clear host keys")
+        backing = reload()
+        usable = true
     }
 
     @Synchronized
@@ -37,7 +83,7 @@ internal class PersistentHostKeys(private val file: File) : HostKeyRepository {
         if (backing.getHostKey(host, null).isNotEmpty()) return HostKeyRepository.CHANGED
 
         backing.add(HostKey(host, key), null)
-        val saved = JSch().apply { setKnownHosts(file.absolutePath) }.hostKeyRepository
+        val saved = reload()
         if (saved.check(host, key) != HostKeyRepository.OK) {
             usable = false
             throw IOException("Could not save host key")

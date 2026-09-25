@@ -8,6 +8,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.launch
 import uk.co.fireburn.lochssh.data.AppPreferences
 import uk.co.fireburn.lochssh.data.db.LochSshDatabase
+import uk.co.fireburn.lochssh.ssh.HostKeyTrust
 import javax.inject.Inject
 
 @HiltViewModel
@@ -24,6 +25,7 @@ class SettingsViewModel @Inject constructor(
         viewModelScope.launch {
             context.deleteDatabase(LochSshDatabase.NAME)
             context.deleteFile("lochssh_secrets.xml")
+            HostKeyTrust.clear(context)
         }
     }
 }

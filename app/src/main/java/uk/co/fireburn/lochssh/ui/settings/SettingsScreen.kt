@@ -32,6 +32,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onHostKeys: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     var confirmClear by remember { mutableStateOf(false) }
@@ -78,6 +79,12 @@ fun SettingsScreen(
                     TextButton(onClick = { viewModel.changeFontSize(1) }) { Text("Aa+") }
                 }
             }
+            Card(onClick = onHostKeys, modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Saved host keys", style = MaterialTheme.typography.titleMedium)
+                    Text("Review fingerprints or remove a key after a server change")
+                }
+            }
             Card(
                 onClick = { confirmClear = true },
                 modifier = Modifier.fillMaxWidth()
@@ -95,7 +102,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { confirmClear = false },
             title = { Text("Clear all data?") },
-            text = { Text("Hosts, identities and secrets will be removed. Restart the app afterwards.") },
+            text = { Text("Hosts, identities, secrets and saved host keys will be removed. Restart the app afterwards.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.clearAll()
