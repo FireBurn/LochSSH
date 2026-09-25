@@ -16,6 +16,7 @@ import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Card
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -25,6 +26,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -55,6 +57,8 @@ fun HostListScreen(
         LocalLifecycleOwner.current.lifecycle
     )
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
+    var pendingDelete by remember { mutableStateOf<SshHostEntity?>(null) }
 
     Scaffold(
         topBar = {
@@ -120,10 +124,37 @@ fun HostListScreen(
                     onClick = { onNewSession(host.id, viewModel.newSessionId()) },
                     onEdit = { onEdit(host.id) },
                     onDuplicate = { viewModel.duplicateHost(host.id) },
-                    onDelete = { viewModel.deleteHost(host.id) }
+                    onDelete = { pendingDelete = host }
                 )
             }
         }
+    }
+
+    pendingDelete?.let { host ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete ${host.name}?") },
+            text = { Text("This removes the saved host and its port forwards. Open sessions stay connected.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    viewModel.deleteHost(host.id)
+                    pendingDelete = null
+                }) { Text("Delete") }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) { Text("Cancel") }
+            }
+        )
+    }
+    error?.let { message ->
+        AlertDialog(
+            onDismissRequest = viewModel::clearError,
+            title = { Text("Host change failed") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = viewModel::clearError) { Text("OK") }
+            }
+        )
     }
 }
 

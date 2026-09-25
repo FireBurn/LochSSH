@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import uk.co.fireburn.lochssh.data.db.PortForwardDao
 import uk.co.fireburn.lochssh.data.db.LochSshDatabase
@@ -23,6 +25,12 @@ class HostsViewModel @Inject constructor(
 
     val hosts: Flow<List<SshHostEntity>> = hostDao.observeAll()
     val sessions = registry.sessions
+    private val _error = MutableStateFlow<String?>(null)
+    val error = _error.asStateFlow()
+
+    fun clearError() {
+        _error.value = null
+    }
 
     fun newSessionId(): Long = registry.newId()
 
@@ -30,22 +38,29 @@ class HostsViewModel @Inject constructor(
 
     fun duplicateHost(id: Long) {
         viewModelScope.launch {
-            database.withTransaction {
-                val original = hostDao.getById(id) ?: return@withTransaction
-                val newId = hostDao.insert(original.copy(id = 0, name = "${original.name} (copy)"))
-                portForwardDao.getByHost(id).forEach {
-                    portForwardDao.insert(it.copy(id = 0, hostId = newId))
+            runCatching {
+                database.withTransaction {
+                    val original = hostDao.getById(id)
+                        ?: throw IllegalStateException("Host no longer exists")
+                    val newId = hostDao.insert(original.copy(id = 0, name = "${original.name} (copy)"))
+                    portForwardDao.getByHost(id).forEach {
+                        portForwardDao.insert(it.copy(id = 0, hostId = newId))
+                    }
                 }
-            }
+            }.onFailure { _error.value = "Could not duplicate host: ${it.message ?: "storage error"}" }
         }
     }
 
     fun deleteHost(id: Long) {
         viewModelScope.launch {
-            database.withTransaction {
-                portForwardDao.deleteByHost(id)
-                hostDao.getById(id)?.let { hostDao.delete(it) }
-            }
+            runCatching {
+                database.withTransaction {
+                    val host = hostDao.getById(id)
+                        ?: throw IllegalStateException("Host no longer exists")
+                    portForwardDao.deleteByHost(id)
+                    hostDao.delete(host)
+                }
+            }.onFailure { _error.value = "Could not delete host: ${it.message ?: "storage error"}" }
         }
     }
 }

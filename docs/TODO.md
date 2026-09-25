@@ -7,8 +7,8 @@ This list reflects the current app and the project conversations. The older
 
 - Check host-key review and removal on a device, including a changed server key.
   The app now lists fingerprints and removes a selected key after confirmation.
-- Show failures from host duplication and deletion in the host list. These writes
-  are atomic now, but a storage error is still only visible in the system log.
+- Verify host duplication and deletion failures on a device. The host list now
+  shows an error dialog, and deletion requires confirmation.
 - Add device tests for identity changes and failures. The editor now saves new
   secrets before updating the row and removes old secrets afterward, but this
   needs tests for key-source switches, failed writes, and cleanup failures.
