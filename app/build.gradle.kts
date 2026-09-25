@@ -65,8 +65,9 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
 
-    // TEMP: local jsch build with Android Ed25519 fix, revert to libs.jsch after MR
+    // TEMP: local JSch and Android support builds until the upstream release
     implementation(files("libs/jsch-patched.jar"))
+    implementation(files("libs/jsch-android.jar"))
 
     testImplementation(libs.junit)
 }

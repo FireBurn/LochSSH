@@ -6,6 +6,7 @@ import com.jcraft.jsch.ChannelShell
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
+import com.jcraft.jsch.android.AndroidJSch
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -62,6 +63,7 @@ class SshConnectionManager(
 
     @Synchronized
     fun connect() {
+        AndroidJSch.configure()
         val jsch = JSch()
         jsch.setHostKeyRepository(HostKeyTrust.repository(context))
         jsch.setInstanceLogger(object : com.jcraft.jsch.Logger {

@@ -18,11 +18,11 @@ This list reflects the current app and the project conversations. The older
   Claude conversation reported stale text in command history, odd full-screen
   output, and session title errors; subsequent commits addressed some of these,
   but there is no device regression run for the current build.
-- Resolve Android Ed25519 without relying on the current JSch patch. PR
+- Resolve Android Ed25519 without relying on local JSch JARs. PR
   [mwiede/jsch#1160](https://github.com/mwiede/jsch/pull/1160) has a requested
   architecture change. Android CI passes with a test-installed Ed25519 provider,
   but stock emulator images still skip signing. The reviewer suggested a separate
-  Android artifact. Keep the app's patched JAR until a verified replacement is
+  Android artifact. Keep the app's local JARs until released replacements are
   installed.
 
 ## Complete the original app spec
