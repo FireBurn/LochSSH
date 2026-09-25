@@ -25,6 +25,7 @@ import uk.co.fireburn.lochssh.ui.hosts.HostListScreen
 import uk.co.fireburn.lochssh.ui.identities.IdentityEditorScreen
 import uk.co.fireburn.lochssh.ui.identities.IdentityListScreen
 import uk.co.fireburn.lochssh.ui.settings.SettingsScreen
+import uk.co.fireburn.lochssh.ui.settings.ConnectionHistoryScreen
 import uk.co.fireburn.lochssh.ui.settings.HostKeysScreen
 import uk.co.fireburn.lochssh.ui.sftp.SftpScreen
 import uk.co.fireburn.lochssh.ui.terminal.TerminalScreen
@@ -39,6 +40,7 @@ object Routes {
     fun identityEditor(id: Long) = "identity_editor?id=$id"
     const val SETTINGS = "settings"
     const val HOST_KEYS = "host_keys"
+    const val HISTORY = "history"
     const val SFTP = "sftp?sessionId={sessionId}"
     fun sftp(sessionId: Long) = "sftp?sessionId=$sessionId"
     const val TERMINAL = "terminal?sessionId={sessionId}"
@@ -138,8 +140,12 @@ fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>) {
         composable(Routes.SETTINGS) {
             SettingsScreen(
                 onBack = { navController.popBackStack() },
-                onHostKeys = { navController.navigate(Routes.HOST_KEYS) }
+                onHostKeys = { navController.navigate(Routes.HOST_KEYS) },
+                onHistory = { navController.navigate(Routes.HISTORY) }
             )
+        }
+        composable(Routes.HISTORY) {
+            ConnectionHistoryScreen(onBack = { navController.popBackStack() })
         }
         composable(Routes.HOST_KEYS) {
             HostKeysScreen(onBack = { navController.popBackStack() })

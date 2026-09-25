@@ -20,7 +20,9 @@ import dagger.hilt.android.AndroidEntryPoint
 import uk.co.fireburn.lochssh.MainActivity
 import uk.co.fireburn.lochssh.R
 import uk.co.fireburn.lochssh.data.EncryptedStorageManager
+import uk.co.fireburn.lochssh.data.ConnectionHistoryRecorder
 import uk.co.fireburn.lochssh.data.db.AuthTypes
+import uk.co.fireburn.lochssh.data.db.ConnectionStates
 import uk.co.fireburn.lochssh.data.db.IdentityDao
 import uk.co.fireburn.lochssh.data.db.PortForwardDao
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
@@ -32,6 +34,7 @@ import uk.co.fireburn.lochssh.ssh.SessionRegistry
 import uk.co.fireburn.lochssh.ssh.SshConnectionConfig
 import uk.co.fireburn.lochssh.ssh.SshConnectionManager
 import java.util.concurrent.ConcurrentHashMap
+import java.util.UUID
 import javax.inject.Inject
 import kotlin.concurrent.thread
 import kotlinx.coroutines.CoroutineScope
@@ -44,7 +47,7 @@ import kotlinx.coroutines.withContext
 @AndroidEntryPoint
 class SshForegroundService : Service() {
 
-    private class ConnectionAttempt(val sessionId: Long, val hostId: Long) {
+    private class ConnectionAttempt(val sessionId: Long, val hostId: Long, val token: String) {
         @Volatile
         var cancelled = false
         @Volatile
@@ -66,14 +69,18 @@ class SshForegroundService : Service() {
     lateinit var secrets: EncryptedStorageManager
     @Inject
     lateinit var registry: SessionRegistry
+    @Inject
+    lateinit var history: ConnectionHistoryRecorder
 
     private val managers = ConcurrentHashMap<Long, SshConnectionManager>()
+    private val connectedTokens = ConcurrentHashMap<Long, String>()
     private val attempts = ConcurrentHashMap<Long, ConnectionAttempt>()
     private var wakeLock: PowerManager.WakeLock? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate() {
         super.onCreate()
+        history.start()
         createNotificationChannel()
         acquireWakeLock()
     }
@@ -94,8 +101,9 @@ class SshForegroundService : Service() {
             stopIfIdle()
             return Service.START_NOT_STICKY
         }
-        val attempt = ConnectionAttempt(sessionId, hostId)
+        val attempt = ConnectionAttempt(sessionId, hostId, UUID.randomUUID().toString())
         attempts.put(sessionId, attempt)?.let(::cancelAttempt)
+        history.started(attempt.token, hostId)
         registry.opening(sessionId, hostId, "Host")
         scope.launch { connect(attempt) }
         return Service.START_NOT_STICKY
@@ -108,6 +116,7 @@ class SshForegroundService : Service() {
             val host = hostDao.getById(hostId)
             if (host == null) throw IllegalStateException("Host not found")
             if (attempts[sessionId] !== attempt) return
+            history.host(attempt.token, host.name, host.host, host.port)
             registry.opening(sessionId, hostId, host.name)
             // Key loading and the SSH handshake block, so keep them off the main thread.
             val connected = withContext(Dispatchers.IO) {
@@ -158,6 +167,8 @@ class SshForegroundService : Service() {
             }
             attempts.remove(sessionId, attempt)
             managers[sessionId] = connected.manager
+            connectedTokens[sessionId] = attempt.token
+            history.connected(attempt.token)
             registry.connected(sessionId, connected.manager)
             showSessionNotification(sessionId, host.name, "Connected to ${host.host}")
             updateSummary()
@@ -167,6 +178,7 @@ class SshForegroundService : Service() {
         } catch (e: Exception) {
             attempt.manager?.disconnect()
             if (attempts.remove(sessionId, attempt)) {
+                history.finished(attempt.token, ConnectionStates.FAILED)
                 Log.e(TAG, "Connect to host $hostId failed", e)
                 fail(sessionId, e.message ?: e.javaClass.simpleName)
             }
@@ -231,6 +243,7 @@ class SshForegroundService : Service() {
     private fun endSession(sessionId: Long) {
         attempts.remove(sessionId)?.let(::cancelAttempt)
         managers.remove(sessionId)?.disconnect()
+        connectedTokens.remove(sessionId)?.let { history.finished(it, ConnectionStates.ENDED) }
         registry.remove(sessionId)
         NotificationManagerCompat.from(this).cancel(sessionNotificationId(sessionId))
         stopIfIdle()
@@ -256,6 +269,7 @@ class SshForegroundService : Service() {
             attempt.cancelled = true
             attempt.manager
         }
+        history.finished(attempt.token, ConnectionStates.CANCELLED)
         if (manager != null) {
             thread(name = "ssh-cancel") { manager.disconnect() }
         }
@@ -367,6 +381,8 @@ class SshForegroundService : Service() {
         managers.values.forEach { it.disconnect() }
         managers.keys.forEach { registry.remove(it) }
         managers.clear()
+        connectedTokens.values.forEach { history.finished(it, ConnectionStates.ENDED) }
+        connectedTokens.clear()
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null
         scope.cancel()

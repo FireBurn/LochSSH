@@ -33,6 +33,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 fun SettingsScreen(
     onBack: () -> Unit,
     onHostKeys: () -> Unit,
+    onHistory: () -> Unit,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     var confirmClear by remember { mutableStateOf(false) }
@@ -83,6 +84,12 @@ fun SettingsScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Saved host keys", style = MaterialTheme.typography.titleMedium)
                     Text("Review fingerprints or remove a key after a server change")
+                }
+            }
+            Card(onClick = onHistory, modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Connection history", style = MaterialTheme.typography.titleMedium)
+                    Text("Recent connections and their outcomes")
                 }
             }
             Card(
