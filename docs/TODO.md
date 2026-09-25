@@ -15,8 +15,9 @@ This list reflects the current app and the project conversations. The older
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen
-  output, and session title errors; subsequent commits addressed some of these,
-  but there is no device regression run for the current build.
+  output, and session title errors. Unit tests now cover command recall and
+  alternate-screen cursor restoration, but there is no device regression run
+  for the current build.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The current vectors trace that artwork, but the final
   rendered result has not been checked on a device.

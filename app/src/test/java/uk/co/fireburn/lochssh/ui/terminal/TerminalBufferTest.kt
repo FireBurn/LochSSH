@@ -75,6 +75,35 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun combinedPrivateModesSwitchScreensAndCursorVisibility() {
+        val buffer = buffer(cols = 20, rows = 5)
+        buffer.feed("shell")
+        buffer.feed("\u001B[?25l")
+        buffer.feed("\u001B[?25;1049h")
+        assertEquals(true, buffer.cursorVisible)
+        buffer.feed("full screen")
+        assertEquals("full screen", buffer.line(0))
+
+        buffer.feed("\u001B[?1049;25l")
+        assertEquals(false, buffer.cursorVisible)
+        assertEquals("shell", buffer.line(0))
+    }
+
+    @Test
+    fun alternateScreenDoesNotReplaceTheShellSavedCursorOrScrollRegion() {
+        val buffer = buffer(cols = 20, rows = 5)
+        buffer.feed("\u001B[3;4H\u001B7\u001B[2;4r")
+        buffer.feed("\u001B[?1049h\u001B[5;7H\u001B7\u001B[1;2r")
+        buffer.feed("\u001B[?1049l")
+        assertEquals(1 to 0, buffer.cursor)
+
+        buffer.feed("\u001B8")
+        assertEquals(2 to 3, buffer.cursor)
+        buffer.feed("\u001B[4;1H\n")
+        assertEquals(3 to 0, buffer.cursor)
+    }
+
+    @Test
     fun scrollRegionKeepsTheRestOfTheScreenStill() {
         val buffer = buffer(cols = 20, rows = 5)
         for (row in 1..5) {

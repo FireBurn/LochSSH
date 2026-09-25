@@ -31,6 +31,14 @@ class TerminalBuffer(
     private var scrollBottom = rows - 1
 
     private var savedCursor: Triple<Int, Int, Boolean>? = null
+    private data class AlternateState(
+        val row: Int,
+        val col: Int,
+        val top: Int,
+        val bottom: Int,
+        val savedCursor: Triple<Int, Int, Boolean>?
+    )
+    private var alternateState: AlternateState? = null
 
     // Parse state
     private var inEscape = false
@@ -274,27 +282,38 @@ class TerminalBuffer(
     private fun handlePrivateMode(parts: List<Int>, final: Char) {
         if (final != 'h' && final != 'l') return
         val enable = final == 'h'
-        when (parts.getOrNull(0)) {
-            25 -> cursorVisible = enable
-            // Full screen programs swap to their own screen and back.
-            47, 1047, 1049 -> if (enable) enterAlternateScreen() else leaveAlternateScreen()
+        for (mode in parts) {
+            when (mode) {
+                25 -> cursorVisible = enable
+                // Full screen programs swap to their own screen and back.
+                47, 1047, 1049 -> if (enable) enterAlternateScreen() else leaveAlternateScreen()
+            }
         }
     }
 
     private fun enterAlternateScreen() {
         if (savedGrid != null) return
-        saveCursor()
+        alternateState = AlternateState(cursorRow, cursorCol, scrollTop, scrollBottom, savedCursor)
         savedGrid = grid
         grid = blankGrid(cols, rows)
         cursorRow = 0
         cursorCol = 0
+        scrollTop = 0
+        scrollBottom = rows - 1
+        savedCursor = null
     }
 
     private fun leaveAlternateScreen() {
         val restored = savedGrid ?: return
+        val state = alternateState ?: return
         grid = restored
         savedGrid = null
-        restoreCursor()
+        alternateState = null
+        cursorRow = state.row.coerceIn(0, rows - 1)
+        cursorCol = state.col.coerceIn(0, cols - 1)
+        scrollTop = state.top.coerceIn(0, rows - 1)
+        scrollBottom = state.bottom.coerceIn(scrollTop, rows - 1)
+        savedCursor = state.savedCursor
     }
 
     private fun saveCursor() {
