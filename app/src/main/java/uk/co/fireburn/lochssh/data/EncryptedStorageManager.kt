@@ -43,6 +43,12 @@ class EncryptedStorageManager @Inject constructor(
         }
     }
 
+    fun clear() {
+        if (!prefs.edit().clear().commit()) {
+            throw IOException("Could not clear secrets")
+        }
+    }
+
     companion object {
         private const val FILE_NAME = "lochssh_secrets"
     }

@@ -5,8 +5,14 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import uk.co.fireburn.lochssh.data.AppPreferences
+import uk.co.fireburn.lochssh.data.ConnectionHistoryRecorder
+import uk.co.fireburn.lochssh.data.EncryptedStorageManager
 import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 import uk.co.fireburn.lochssh.ssh.HostKeyTrust
 import javax.inject.Inject
@@ -14,18 +20,33 @@ import javax.inject.Inject
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val preferences: AppPreferences
+    private val preferences: AppPreferences,
+    private val database: LochSshDatabase,
+    private val secrets: EncryptedStorageManager,
+    private val history: ConnectionHistoryRecorder
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize
+    private val _error = MutableStateFlow<String?>(null)
+    val error = _error.asStateFlow()
 
     fun changeFontSize(step: Int) = preferences.changeTerminalFontSize(step)
 
     fun clearAll() {
         viewModelScope.launch {
-            context.deleteDatabase(LochSshDatabase.NAME)
-            context.deleteFile("lochssh_secrets.xml")
-            HostKeyTrust.clear(context)
+            runCatching {
+                history.clear()
+                withContext(Dispatchers.IO) {
+                    database.clearAllTables()
+                    secrets.clear()
+                    HostKeyTrust.clear(context)
+                    preferences.reset()
+                }
+            }.onFailure { _error.value = "Could not clear all data: ${it.message ?: "storage error"}" }
         }
+    }
+
+    fun clearError() {
+        _error.value = null
     }
 }

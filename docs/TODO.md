@@ -9,6 +9,8 @@ This list reflects the current app and the project conversations. The older
   The app now lists fingerprints and removes a selected key after confirmation.
 - Verify host duplication and deletion failures on a device. The host list now
   shows an error dialog, and deletion requires confirmation.
+- Check Clear all data on a device. It now clears the open Room database and
+  encrypted preferences instead of deleting an unrelated file path.
 - Add device tests for identity changes and failures. The editor now saves new
   secrets before updating the row and removes old secrets afterward, but this
   needs tests for key-source switches, failed writes, and cleanup failures.

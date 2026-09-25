@@ -38,6 +38,7 @@ fun SettingsScreen(
 ) {
     var confirmClear by remember { mutableStateOf(false) }
     val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
+    val error by viewModel.error.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -109,7 +110,7 @@ fun SettingsScreen(
         AlertDialog(
             onDismissRequest = { confirmClear = false },
             title = { Text("Clear all data?") },
-            text = { Text("Hosts, identities, secrets and saved host keys will be removed. Restart the app afterwards.") },
+            text = { Text("Remove hosts, identities, saved commands, history, secrets, host keys and settings? Open sessions stay connected and may make new history entries.") },
             confirmButton = {
                 TextButton(onClick = {
                     viewModel.clearAll()
@@ -118,6 +119,16 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmClear = false }) { Text("Cancel") }
+            }
+        )
+    }
+    error?.let { message ->
+        AlertDialog(
+            onDismissRequest = viewModel::clearError,
+            title = { Text("Could not clear data") },
+            text = { Text(message) },
+            confirmButton = {
+                TextButton(onClick = viewModel::clearError) { Text("OK") }
             }
         )
     }

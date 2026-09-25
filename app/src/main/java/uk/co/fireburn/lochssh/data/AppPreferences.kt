@@ -1,6 +1,7 @@
 package uk.co.fireburn.lochssh.data
 
 import android.content.Context
+import java.io.IOException
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -26,6 +27,11 @@ class AppPreferences @Inject constructor(
     }
 
     fun changeTerminalFontSize(step: Int) = setTerminalFontSize(_terminalFontSize.value + step)
+
+    fun reset() {
+        if (!prefs.edit().clear().commit()) throw IOException("Could not clear settings")
+        _terminalFontSize.value = DEFAULT_FONT_SIZE
+    }
 
     companion object {
         const val MIN_FONT_SIZE = 8
