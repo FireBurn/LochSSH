@@ -17,9 +17,13 @@ This list reflects the current app and the project conversations. The older
   Claude conversation reported stale text in command history, odd full-screen
   output, and session title errors; subsequent commits addressed some of these,
   but there is no device regression run for the current build.
+- Compare the launcher and splash icons with the amber Nessie Gemini artwork at
+  actual device sizes. The current vectors trace that artwork, but the final
+  rendered result has not been checked on a device.
 - Resolve Android Ed25519 without relying on local JSch JARs. PR
   [mwiede/jsch#1160](https://github.com/mwiede/jsch/pull/1160) now adds a separate
-  Android artifact and passes Android emulator CI and the SonarCloud quality gate.
+  Android artifact and passes Android emulator CI, Maven CI and the SonarCloud
+  quality gate.
   Stock emulator images still lack imported-key Ed25519 signing, so that test
   needs a provider installed for coverage. Wait for maintainer review and a
   published release before replacing the app's local JARs.
