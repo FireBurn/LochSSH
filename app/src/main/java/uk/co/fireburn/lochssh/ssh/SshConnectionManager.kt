@@ -9,7 +9,6 @@ import com.jcraft.jsch.Session
 import com.jcraft.jsch.android.AndroidJSch
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import java.io.ByteArrayOutputStream
-import java.io.File
 import java.io.IOException
 import java.io.OutputStream
 import java.util.concurrent.CopyOnWriteArrayList
@@ -47,7 +46,6 @@ class SshConnectionManager(
     // the manager) can replay what it missed, e.g. the first shell prompt.
     private val outputLock = Any()
     private val outputHistory = ByteArrayOutputStream()
-    private var tempKeyFile: File? = null
     private val dynamicForwards = mutableListOf<Socks5Forwarder>()
     @Volatile
     private var running = false
@@ -78,12 +76,7 @@ class SshConnectionManager(
                 Log.d("LochSSH-jsch", message)
             }
         })
-        try {
-            loadIdentity(jsch)
-        } catch (e: Exception) {
-            deleteTempKey()
-            throw e
-        }
+        IdentityLoader.add(jsch, config.keyPath, config.keyMaterial, config.keyPassphrase)
 
         val s = jsch.getSession(config.username, config.host, config.port)
         s.setServerAliveInterval(config.keepAliveSeconds.coerceAtLeast(5) * 1000)
@@ -230,35 +223,6 @@ class SshConnectionManager(
         }
     }
 
-    // Pasted or generated keys are written to app-private storage so the
-    // classic addIdentity(path) API can load them.
-    private fun loadIdentity(jsch: JSch) {
-        val keyFile = config.keyPath ?: config.keyMaterial?.let { writeTempKey(it) }
-        if (keyFile != null) {
-            val passphrase = config.keyPassphrase
-            if (passphrase.isNullOrBlank()) jsch.addIdentity(keyFile) else jsch.addIdentity(keyFile, passphrase)
-        }
-    }
-
-    private fun writeTempKey(material: String): String {
-        val f = File(context.filesDir, "lochssh_key_${System.nanoTime()}")
-        f.writeText(material)
-        try {
-            f.setReadable(false, true)
-            f.setReadable(true, false)
-            f.setWritable(false, true)
-            f.setWritable(true, false)
-        } catch (_: Exception) {
-        }
-        tempKeyFile = f
-        return f.absolutePath
-    }
-
-    private fun deleteTempKey() {
-        tempKeyFile?.let { runCatching { it.delete() } }
-        tempKeyFile = null
-    }
-
     private fun appendHistory(bytes: ByteArray, length: Int) {
         outputHistory.write(bytes, 0, length)
         if (outputHistory.size() > HISTORY_CAP) {
@@ -291,7 +255,6 @@ class SshConnectionManager(
             outputHistory.reset()
         }
         readerThread = null
-        deleteTempKey()
     }
 
     private fun setupForwards(s: Session) {

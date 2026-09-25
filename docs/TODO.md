@@ -49,9 +49,12 @@ This list reflects the current app and the project conversations. The older
 - Check terminal scrollback, long-press selection, copy, and paste gestures on a
   device. The current build keeps bounded normal-screen history and confirms
   multi-line paste; the interaction has not been tested on a phone.
-- Finish private-key support and tests for imported RSA, Ed25519, ECDSA, and
-  PKCS#8 keys, including passphrase handling. Generated Ed25519 keys now have
-  a JVM format and JSch signing test; verify generation and login on a device.
+- Verify imported RSA, Ed25519, ECDSA, and PKCS#8 keys and passphrases on a
+  device. JVM tests now load and sign with those formats, including encrypted
+  pasted and file-path keys; missing or wrong passphrases fail before login.
+  Pasted keys no longer go through temporary files.
+  Generated Ed25519 keys have a format and JSch signing test, but still need
+  generation and login checks on a device.
 - Confirm the foreground service and battery settings on supported Android
   versions. The service has a wake lock; there is no battery-optimization request.
 
