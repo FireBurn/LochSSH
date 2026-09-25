@@ -1,11 +1,12 @@
 package uk.co.fireburn.lochssh.ssh
 
-import android.util.Base64
 import java.io.ByteArrayOutputStream
 import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.NoSuchAlgorithmException
+import java.security.SecureRandom
 import java.security.interfaces.RSAPublicKey
+import java.util.Base64
 
 data class GeneratedKey(
     val privateKeyPem: String,
@@ -15,15 +16,10 @@ data class GeneratedKey(
 object KeyGenerator {
 
     fun generate(comment: String = "lochssh"): GeneratedKey {
-        val pair: KeyPair = try {
-            KeyPairGenerator.getInstance("Ed25519").generateKeyPair()
+        return try {
+            ed25519(KeyPairGenerator.getInstance("Ed25519").generateKeyPair(), comment)
         } catch (e: NoSuchAlgorithmException) {
-            KeyPairGenerator.getInstance("RSA").apply { initialize(3072) }.generateKeyPair()
-        }
-        return when (pair.public.algorithm) {
-            "Ed25519" -> ed25519(pair, comment)
-            "RSA" -> rsa(pair, comment)
-            else -> throw UnsupportedOperationException("Cannot export ${pair.public.algorithm} key")
+            rsa(KeyPairGenerator.getInstance("RSA").apply { initialize(3072) }.generateKeyPair(), comment)
         }
     }
 
@@ -32,6 +28,14 @@ object KeyGenerator {
             ?: throw UnsupportedOperationException("Public key export not supported")
         val pkcs8 = pair.private.encoded
             ?: throw UnsupportedOperationException("Private key export not supported")
+        val spkiPrefix = byteArrayOf(0x30, 0x2a, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x03, 0x21, 0x00)
+        val pkcs8Prefix = byteArrayOf(0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20)
+        require(spki.size == 44 && spki.copyOfRange(0, 12).contentEquals(spkiPrefix)) {
+            "Unsupported Ed25519 public key encoding"
+        }
+        require(pkcs8.size == 48 && pkcs8.copyOfRange(0, 16).contentEquals(pkcs8Prefix)) {
+            "Unsupported Ed25519 private key encoding"
+        }
         val pubRaw = spki.copyOfRange(12, 44)
         val seed = pkcs8.copyOfRange(16, 48)
         val pubBlob = sshString("ssh-ed25519") + sshString(pubRaw)
@@ -50,16 +54,15 @@ object KeyGenerator {
         )
     }
 
-    // OpenSSH v1 unencrypted format, as produced by ssh-keygen.
     private fun toOpenSshPrivateKey(pubRaw: ByteArray, seed: ByteArray, comment: String): String {
         val pubBlob = sshString("ssh-ed25519") + sshString(pubRaw)
         val priv = ByteArrayOutputStream()
-        val check = (Math.random() * Int.MAX_VALUE).toInt()
+        val check = SecureRandom().nextInt()
         writeUInt32(priv, check)
         writeUInt32(priv, check)
         priv.write(sshString("ssh-ed25519".toByteArray()))
         priv.write(sshString(pubRaw))
-        priv.write(sshString(seed))
+        priv.write(sshString(seed + pubRaw))
         priv.write(sshString(comment.toByteArray()))
         val need = (8 - priv.size() % 8) % 8
         for (i in 1..need) priv.write(i)
@@ -82,11 +85,11 @@ object KeyGenerator {
     }
 
     private fun wrap(label: String, der: ByteArray): String {
-        val b64 = Base64.encodeToString(der, Base64.NO_WRAP).chunked(70).joinToString("\n")
+        val b64 = b64(der).chunked(70).joinToString("\n")
         return "-----BEGIN $label-----\n$b64\n-----END $label-----\n"
     }
 
-    private fun b64(bytes: ByteArray): String = Base64.encodeToString(bytes, Base64.NO_WRAP)
+    private fun b64(bytes: ByteArray): String = Base64.getEncoder().encodeToString(bytes)
 
     private fun sshString(s: String): ByteArray = sshString(s.toByteArray())
 

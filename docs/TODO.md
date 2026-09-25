@@ -48,7 +48,8 @@ This list reflects the current app and the project conversations. The older
   device. The current build keeps bounded normal-screen history and confirms
   multi-line paste; the interaction has not been tested on a phone.
 - Finish private-key support and tests for imported RSA, Ed25519, ECDSA, and
-  PKCS#8 keys, including passphrase handling.
+  PKCS#8 keys, including passphrase handling. Generated Ed25519 keys now have
+  a JVM format and JSch signing test; verify generation and login on a device.
 - Confirm the foreground service and battery settings on supported Android
   versions. The service has a wake lock; there is no battery-optimization request.
 
