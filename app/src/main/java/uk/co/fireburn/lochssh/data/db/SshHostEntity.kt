@@ -10,6 +10,14 @@ object AuthTypes {
     const val NONE = "NONE"
 }
 
+object RemoteSessionModes {
+    const val SHELL = "SHELL"
+    const val ASK = "ASK"
+    const val TMUX = "TMUX"
+    const val SCREEN = "SCREEN"
+    val ALL = listOf(SHELL, ASK, TMUX, SCREEN)
+}
+
 @Entity(tableName = "ssh_hosts")
 data class SshHostEntity(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
@@ -19,5 +27,7 @@ data class SshHostEntity(
     @ColumnInfo(name = "identity_id") val identityId: Long? = null,
     val keepAliveSeconds: Int = 30,
     val group: String = "",
-    @ColumnInfo(name = "auto_command", defaultValue = "''") val autoCommand: String = ""
+    @ColumnInfo(name = "auto_command", defaultValue = "''") val autoCommand: String = "",
+    @ColumnInfo(name = "remote_session_mode", defaultValue = "'SHELL'")
+    val remoteSessionMode: String = RemoteSessionModes.SHELL
 )

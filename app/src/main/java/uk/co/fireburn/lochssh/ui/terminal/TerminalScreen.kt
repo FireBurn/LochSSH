@@ -4,6 +4,8 @@ import android.content.Context
 import android.content.Intent
 import android.view.inputmethod.InputMethodManager
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -43,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import uk.co.fireburn.lochssh.service.SshForegroundService
+import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import uk.co.fireburn.lochssh.ui.keyboard.ImeKeyEncoder
 import uk.co.fireburn.lochssh.ui.keyboard.JuiceSshKeyboardBar
 import uk.co.fireburn.lochssh.ui.keyboard.TerminalEditText
@@ -67,6 +71,44 @@ fun TerminalScreen(
 
     val session by viewModel.session.collectAsStateWithLifecycle()
     val manager = session?.manager
+
+    session?.remoteOptions?.let { options ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissRemoteSessions,
+            title = { Text("Remote sessions") },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    options.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    if (!options.tmuxAvailable && !options.screenAvailable && options.error == null) {
+                        Text("Neither tmux nor Screen is installed on this host.")
+                    }
+                    options.sessions.forEach { entry ->
+                        val tool = if (entry.tool == RemoteSessionModes.TMUX) "tmux" else "Screen"
+                        val state = if (entry.attached) "attached" else "detached"
+                        TextButton(onClick = { viewModel.attachRemoteSession(entry) }) {
+                            Text("$tool: ${entry.name} ($state)")
+                        }
+                    }
+                    if (options.tmuxAvailable) {
+                        TextButton(onClick = { viewModel.createRemoteSession(RemoteSessionModes.TMUX) }) {
+                            Text("New tmux session")
+                        }
+                    }
+                    if (options.screenAvailable) {
+                        TextButton(onClick = { viewModel.createRemoteSession(RemoteSessionModes.SCREEN) }) {
+                            Text("New Screen session")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::dismissRemoteSessions) { Text("Use shell") }
+            }
+        )
+    }
 
     LaunchedEffect(sessionId) { viewModel.load(sessionId) }
     LaunchedEffect(sessionId, session?.id) {
@@ -93,6 +135,9 @@ fun TerminalScreen(
                     }
                 },
                 actions = {
+                    if (manager != null) {
+                        TextButton(onClick = viewModel::checkRemoteSessions) { Text("Sessions") }
+                    }
                     TextButton(onClick = {
                         SshForegroundService.disconnect(context, sessionId)
                         onBack()

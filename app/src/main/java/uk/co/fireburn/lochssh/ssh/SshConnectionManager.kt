@@ -3,11 +3,13 @@ package uk.co.fireburn.lochssh.ssh
 import android.content.Context
 import android.util.Log
 import com.jcraft.jsch.ChannelShell
+import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 import java.io.OutputStream
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
@@ -114,10 +116,6 @@ class SshConnectionManager(
         channel = ch
         writer = Executors.newSingleThreadExecutor { r -> Thread(r, "ssh-writer") }
         running = true
-        if (config.autoCommand.isNotBlank()) {
-            write((config.autoCommand + "\n").toByteArray(Charsets.UTF_8))
-        }
-
         readerThread = thread(name = "ssh-reader") {
             val buffer = ByteArray(READ_BUFFER_SIZE)
             while (running) {
@@ -150,6 +148,53 @@ class SshConnectionManager(
             }
         }
     }
+
+    fun discoverRemoteSessions(): RemoteSessionOptions {
+        val tmuxAvailable = remoteCommand("command -v tmux >/dev/null 2>&1").exitCode == 0
+        val screenAvailable = remoteCommand("command -v screen >/dev/null 2>&1").exitCode == 0
+        val sessions = buildList {
+            if (tmuxAvailable) {
+                addAll(RemoteSessions.parseTmux(
+                    remoteCommand("tmux list-sessions -F '#{session_id}|#{session_name}|#{session_attached}' 2>/dev/null").output
+                ))
+            }
+            if (screenAvailable) {
+                addAll(RemoteSessions.parseScreen(remoteCommand("screen -ls 2>/dev/null").output))
+            }
+        }
+        return RemoteSessionOptions(tmuxAvailable, screenAvailable, sessions)
+    }
+
+    private fun remoteCommand(command: String): RemoteCommandResult {
+        val active = session ?: throw IOException("SSH session closed")
+        val exec = active.openChannel("exec") as ChannelExec
+        val output = ByteArrayOutputStream()
+        val buffer = ByteArray(1024)
+        try {
+            exec.setCommand(command)
+            val input = exec.inputStream
+            exec.connect(3_000)
+            val deadline = System.nanoTime() + 3_000_000_000L
+            while (System.nanoTime() < deadline) {
+                val available = input.available()
+                if (available > 0) {
+                    val remaining = 16_384 - output.size()
+                    if (remaining <= 0) throw IOException("Remote session list is too long")
+                    val count = input.read(buffer, 0, minOf(available, remaining, buffer.size))
+                    if (count > 0) output.write(buffer, 0, count)
+                } else if (exec.isClosed) {
+                    return RemoteCommandResult(exec.exitStatus, output.toString(Charsets.UTF_8.name()))
+                } else {
+                    Thread.sleep(20)
+                }
+            }
+            throw IOException("Remote session check timed out")
+        } finally {
+            exec.disconnect()
+        }
+    }
+
+    private data class RemoteCommandResult(val exitCode: Int, val output: String)
 
     // Sends the SSH window-change request; the remote side raises SIGWINCH.
     fun resize(cols: Int, rows: Int) {

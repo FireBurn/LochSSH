@@ -15,6 +15,7 @@ import uk.co.fireburn.lochssh.data.db.IdentityEntity
 import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 import uk.co.fireburn.lochssh.data.db.PortForwardDao
 import uk.co.fireburn.lochssh.data.db.PortForwardEntity
+import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import uk.co.fireburn.lochssh.data.db.SshHostDao
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
 import javax.inject.Inject
@@ -73,7 +74,8 @@ class HostEditorViewModel @Inject constructor(
         keepAlive: String,
         group: String,
         identityId: Long?,
-        autoCommand: String
+        autoCommand: String,
+        remoteSessionMode: String
     ) = viewModelScope.launch {
         val existing = host
         val validPort = port.toIntOrNull()?.takeIf { it in 1..65535 }
@@ -81,6 +83,7 @@ class HostEditorViewModel @Inject constructor(
         val validKeepAlive = keepAlive.toIntOrNull()?.takeIf { it >= 0 }
             ?: throw IllegalArgumentException("Keep-alive must not be negative")
         require(autoCommand.none { it == '\n' || it == '\r' }) { "Command must be one line" }
+        require(remoteSessionMode in RemoteSessionModes.ALL) { "Choose a remote session option" }
         val entity = existing?.copy(
             name = name,
             host = hostName,
@@ -88,7 +91,8 @@ class HostEditorViewModel @Inject constructor(
             keepAliveSeconds = validKeepAlive,
             group = group,
             identityId = identityId,
-            autoCommand = autoCommand
+            autoCommand = autoCommand,
+            remoteSessionMode = remoteSessionMode
         ) ?: SshHostEntity(
             name = name,
             host = hostName,
@@ -96,7 +100,8 @@ class HostEditorViewModel @Inject constructor(
             keepAliveSeconds = validKeepAlive,
             group = group,
             identityId = identityId,
-            autoCommand = autoCommand
+            autoCommand = autoCommand,
+            remoteSessionMode = remoteSessionMode
         )
         database.withTransaction {
             val hostId = if (existing != null) {

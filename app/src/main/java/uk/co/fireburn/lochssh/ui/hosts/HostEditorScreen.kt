@@ -39,6 +39,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import uk.co.fireburn.lochssh.data.db.PortForwardEntity
+import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +61,7 @@ fun HostEditorScreen(
     var keepAlive by remember { mutableStateOf("30") }
     var group by remember { mutableStateOf("") }
     var autoCommand by remember { mutableStateOf("") }
+    var remoteSessionMode by remember { mutableStateOf(RemoteSessionModes.SHELL) }
     var identityId by remember { mutableStateOf<Long?>(null) }
     var identityMenu by remember { mutableStateOf(false) }
     var saveError by remember { mutableStateOf<String?>(null) }
@@ -80,6 +82,7 @@ fun HostEditorScreen(
             keepAlive = it.keepAliveSeconds.toString()
             group = it.group
             autoCommand = it.autoCommand
+            remoteSessionMode = it.remoteSessionMode
             identityId = it.identityId
         }
     }
@@ -111,7 +114,10 @@ fun HostEditorScreen(
                         onClick = {
                             saving = true
                             saveError = null
-                            viewModel.save(name, host, port, keepAlive, group, identityId, autoCommand)
+                            viewModel.save(
+                                name, host, port, keepAlive, group, identityId,
+                                autoCommand, remoteSessionMode
+                            )
                                 .invokeOnCompletion { cause ->
                                     saving = false
                                     if (cause == null) onBack()
@@ -178,10 +184,42 @@ fun HostEditorScreen(
                 value = autoCommand,
                 onValueChange = { autoCommand = it },
                 label = { Text("Run on connect") },
-                supportingText = { Text("Example: tmux attach || tmux new") },
+                supportingText = { Text("Used when Remote sessions is Shell") },
                 isError = !validCommand,
+                enabled = remoteSessionMode == RemoteSessionModes.SHELL,
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth()
+            )
+            Text("Remote sessions", style = MaterialTheme.typography.titleSmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    RemoteSessionModes.SHELL to "Shell",
+                    RemoteSessionModes.ASK to "Ask"
+                ).forEach { (mode, label) ->
+                    FilterChip(
+                        selected = remoteSessionMode == mode,
+                        onClick = { remoteSessionMode = mode },
+                        label = { Text(label) }
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    RemoteSessionModes.TMUX to "Auto tmux",
+                    RemoteSessionModes.SCREEN to "Auto screen"
+                ).forEach { (mode, label) ->
+                    FilterChip(
+                        selected = remoteSessionMode == mode,
+                        onClick = { remoteSessionMode = mode },
+                        label = { Text(label) }
+                    )
+                }
+            }
+            Text(
+                "Ask lists remote sessions after connecting. Auto tmux resumes or creates " +
+                    "a session named lochssh. Auto screen resumes the first available session " +
+                    "or creates one.",
+                style = MaterialTheme.typography.bodySmall
             )
             OutlinedTextField(
                 value = identities.firstOrNull { it.id == identityId }?.name ?: "None",

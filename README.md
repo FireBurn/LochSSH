@@ -8,7 +8,8 @@ LochSSH is an Android SSH client. It is under active development and is not read
 - Ed25519 key generation where Android supports it, with RSA as a fallback.
 - Multiple SSH terminal sessions and a key bar for terminal controls.
 - Local, remote, and local SOCKS5 port forwarding.
-- A command that runs when a host connects.
+- A command that runs when a host connects, or automatic tmux or Screen startup.
+- A remote tmux and Screen session picker.
 - Saved SSH host keys. The first key is accepted; a changed key blocks later connections.
 
 The first host key is not shown for approval, and there is no in-app way to inspect or remove saved keys yet. Check [the work list](docs/TODO.md) before relying on the app for sensitive connections.
@@ -28,7 +29,7 @@ The app currently includes a patched JSch JAR in `app/libs/` for Android Ed25519
 
 ## Remote tmux and screen
 
-The host editor has a **Run on connect** field. For example, `tmux new-session -A -s main` attaches to a tmux session named `main`, or creates it if needed. This sends a command to the remote shell; LochSSH does not yet find or manage tmux or GNU Screen sessions itself.
+In the host editor, choose **Shell**, **Ask**, **Auto tmux**, or **Auto screen**. Shell opens a normal shell and can run a saved command. Ask checks for tmux and Screen on each connection and offers existing sessions or a new one. Auto tmux attaches to or creates a session named `lochssh`; Auto screen resumes a session or creates one. The terminal's **Sessions** button opens the picker at any time. A normal shell remains available if either program is missing.
 
 ## License
 

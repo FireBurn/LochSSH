@@ -23,8 +23,11 @@ import uk.co.fireburn.lochssh.data.EncryptedStorageManager
 import uk.co.fireburn.lochssh.data.db.AuthTypes
 import uk.co.fireburn.lochssh.data.db.IdentityDao
 import uk.co.fireburn.lochssh.data.db.PortForwardDao
+import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import uk.co.fireburn.lochssh.data.db.SshHostDao
 import uk.co.fireburn.lochssh.ssh.PortForwardSpec
+import uk.co.fireburn.lochssh.ssh.RemoteSessionOptions
+import uk.co.fireburn.lochssh.ssh.RemoteSessions
 import uk.co.fireburn.lochssh.ssh.SessionRegistry
 import uk.co.fireburn.lochssh.ssh.SshConnectionConfig
 import uk.co.fireburn.lochssh.ssh.SshConnectionManager
@@ -101,6 +104,7 @@ class SshForegroundService : Service() {
                 keyPassphrase = if (identity?.authType == AuthTypes.PUBLIC_KEY) secret else null,
                 keepAliveSeconds = host.keepAliveSeconds,
                 autoCommand = host.autoCommand,
+                remoteSessionMode = host.remoteSessionMode,
                 forwards = portForwardDao.getByHost(hostId).map {
                     PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
                 }
@@ -125,6 +129,42 @@ class SshForegroundService : Service() {
             registry.connected(sessionId, manager)
             showSessionNotification(sessionId, host.name, "Connected to ${host.host}")
             updateSummary()
+            startRemoteSession(sessionId, config, manager)
+        }
+    }
+
+    private fun startRemoteSession(
+        sessionId: Long,
+        config: SshConnectionConfig,
+        manager: SshConnectionManager
+    ) {
+        if (config.remoteSessionMode == RemoteSessionModes.SHELL) {
+            if (config.autoCommand.isNotBlank()) {
+                manager.write((config.autoCommand + "\n").toByteArray(Charsets.UTF_8))
+            }
+            return
+        }
+        val options = try {
+            manager.discoverRemoteSessions()
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not check remote sessions", e)
+            RemoteSessionOptions(error = "Could not check remote sessions")
+        }
+        if (managers[sessionId] !== manager) return
+        val command = when (config.remoteSessionMode) {
+            RemoteSessionModes.TMUX -> if (options.tmuxAvailable) RemoteSessions.automatic(RemoteSessionModes.TMUX) else null
+            RemoteSessionModes.SCREEN -> if (options.screenAvailable) RemoteSessions.automatic(RemoteSessionModes.SCREEN) else null
+            else -> null
+        }
+        if (command != null) {
+            manager.write((command + "\n").toByteArray(Charsets.UTF_8))
+        } else {
+            val missing = when (config.remoteSessionMode) {
+                RemoteSessionModes.TMUX -> "tmux is not installed"
+                RemoteSessionModes.SCREEN -> "Screen is not installed"
+                else -> null
+            }
+            registry.offerRemoteSessions(sessionId, options.copy(error = options.error ?: missing))
         }
     }
 

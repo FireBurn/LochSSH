@@ -11,7 +11,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         IdentityEntity::class,
         PortForwardEntity::class
     ],
-    version = 3
+    version = 4
 )
 abstract class LochSshDatabase : RoomDatabase() {
     abstract fun sshHostDao(): SshHostDao
@@ -51,6 +51,12 @@ abstract class LochSshDatabase : RoomDatabase() {
         val MIGRATION_2_3 = object : Migration(2, 3) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE ssh_hosts ADD COLUMN auto_command TEXT NOT NULL DEFAULT ''")
+            }
+        }
+
+        val MIGRATION_3_4 = object : Migration(3, 4) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE ssh_hosts ADD COLUMN remote_session_mode TEXT NOT NULL DEFAULT 'SHELL'")
             }
         }
     }
