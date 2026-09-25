@@ -56,6 +56,13 @@ class IdentityEditorViewModel @Inject constructor(
     ) {
         viewModelScope.launch {
             val existing = identity
+            val inputError = IdentityInput.error(
+                name, username, authType, keySource, keyPath, keyMaterial, secret, existing
+            )
+            if (inputError != null) {
+                onFinished(inputError)
+                return@launch
+            }
             try {
                 withContext(Dispatchers.IO + NonCancellable) {
                     val created = mutableListOf<String>()

@@ -85,6 +85,7 @@ fun IdentityEditorScreen(
                     TextButton(
                         enabled = viewModel.loaded && !saving && name.isNotBlank(),
                         onClick = {
+                            if (saving) return@TextButton
                             saving = true
                             saveError = null
                             viewModel.save(name, username, authType, keySource, keyPath, keyMaterial, secret) { error ->
