@@ -48,7 +48,8 @@ This list reflects the current app and the project conversations. The older
 
 ## Broader SSH-client features
 
-- Add an SFTP browser with upload and download.
+- Check SFTP browsing, upload, download, and overwrite prompts against a live
+  server on a device. The current build uses an extra channel on an open session.
 - Add saved command snippets and a connection history.
 - Add jump hosts and SSH-agent forwarding.
 - Add terminal themes, font choices, URL opening, and saved session transcripts.

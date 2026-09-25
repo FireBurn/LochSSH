@@ -26,6 +26,7 @@ import uk.co.fireburn.lochssh.ui.identities.IdentityEditorScreen
 import uk.co.fireburn.lochssh.ui.identities.IdentityListScreen
 import uk.co.fireburn.lochssh.ui.settings.SettingsScreen
 import uk.co.fireburn.lochssh.ui.settings.HostKeysScreen
+import uk.co.fireburn.lochssh.ui.sftp.SftpScreen
 import uk.co.fireburn.lochssh.ui.terminal.TerminalScreen
 import uk.co.fireburn.lochssh.ui.theme.LochSSHTheme
 
@@ -38,6 +39,8 @@ object Routes {
     fun identityEditor(id: Long) = "identity_editor?id=$id"
     const val SETTINGS = "settings"
     const val HOST_KEYS = "host_keys"
+    const val SFTP = "sftp?sessionId={sessionId}"
+    fun sftp(sessionId: Long) = "sftp?sessionId=$sessionId"
     const val TERMINAL = "terminal?sessionId={sessionId}"
     fun terminal(sessionId: Long) = "terminal?sessionId=$sessionId"
 }
@@ -142,12 +145,22 @@ fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>) {
             HostKeysScreen(onBack = { navController.popBackStack() })
         }
         composable(
+            Routes.SFTP,
+            arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
+        ) { entry ->
+            SftpScreen(
+                sessionId = entry.arguments?.getLong("sessionId") ?: -1L,
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(
             Routes.TERMINAL,
             arguments = listOf(navArgument("sessionId") { type = NavType.LongType })
         ) { entry ->
             TerminalScreen(
                 sessionId = entry.arguments?.getLong("sessionId") ?: -1L,
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onFiles = { navController.navigate(Routes.sftp(entry.arguments?.getLong("sessionId") ?: -1L)) }
             )
         }
     }

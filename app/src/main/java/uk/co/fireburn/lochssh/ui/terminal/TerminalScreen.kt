@@ -63,6 +63,7 @@ import uk.co.fireburn.lochssh.ui.keyboard.TerminalImeInput
 fun TerminalScreen(
     sessionId: Long,
     onBack: () -> Unit,
+    onFiles: () -> Unit,
     viewModel: TerminalViewModel = hiltViewModel()
 ) {
     val context = LocalContext.current
@@ -197,6 +198,13 @@ fun TerminalScreen(
                                     onClick = {
                                         moreOpen = false
                                         viewModel.checkRemoteSessions()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Remote files") },
+                                    onClick = {
+                                        moreOpen = false
+                                        onFiles()
                                     }
                                 )
                                 if (selectedText != null) {

@@ -30,6 +30,7 @@ class SshConnectionManager(
         fun onOutput(bytes: ByteArray, length: Int)
     }
 
+    @Volatile
     private var session: Session? = null
     private var channel: ChannelShell? = null
     private var readerThread: Thread? = null
@@ -149,6 +150,12 @@ class SshConnectionManager(
                 Log.w(TAG, "Write to ${config.host} failed", e)
             }
         }
+    }
+
+    fun sftpBrowser(): SftpBrowser {
+        val active = session?.takeIf { it.isConnected }
+            ?: throw IOException("SSH session closed")
+        return SftpBrowser(active)
     }
 
     fun discoverRemoteSessions(): RemoteSessionOptions {
