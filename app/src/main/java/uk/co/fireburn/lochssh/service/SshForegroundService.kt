@@ -145,7 +145,10 @@ class SshForegroundService : Service() {
                 manager = SshConnectionManager(
                     context = this@SshForegroundService,
                     config = config,
-                    onTitle = { title -> scope.launch { onSessionTitle(sessionId, manager, title) } }
+                    onTitle = { title -> scope.launch { onSessionTitle(sessionId, manager, title) } },
+                    onForwardError = { message ->
+                        scope.launch { onForwardError(sessionId, manager, message) }
+                    }
                 ) { code ->
                     scope.launch { onSessionExit(sessionId, manager, code) }
                 }
@@ -232,6 +235,11 @@ class SshForegroundService : Service() {
         if (managers[sessionId] === manager) {
             showSessionNotification(sessionId, session.label, "Connected to ${session.hostName}")
         }
+    }
+
+    private fun onForwardError(sessionId: Long, manager: SshConnectionManager, message: String) {
+        if (managers[sessionId] !== manager && attempts[sessionId]?.manager !== manager) return
+        registry.addForwardWarning(sessionId, message)
     }
 
     private fun onSessionExit(sessionId: Long, manager: SshConnectionManager, code: Int) {

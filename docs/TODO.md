@@ -36,7 +36,8 @@ This list reflects the current app and the project conversations. The older
 
 - Test SOCKS5 forwarding through a live SSH server on a device. A JVM-side
   loopback test passed through a real SSH session, but no Android tunnel run has
-  been recorded. Surface tunnel bind and connection failures in the UI.
+  been recorded. Bind and proxy connection failures now appear in the terminal;
+  verify those warnings on a device.
 - Verify command-on-connect and tmux/Screen session selection on a device,
   including the 2→3 and 3→4 database migrations for existing hosts.
 - Let users customize the terminal key bar. Modifier latching and the DEL key

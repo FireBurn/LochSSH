@@ -61,6 +61,10 @@ class TerminalViewModel @Inject constructor(
         registry.dismissRemoteSessions(sessionId.value)
     }
 
+    fun dismissForwardWarnings() {
+        registry.dismissForwardWarnings(sessionId.value)
+    }
+
     fun checkRemoteSessions() {
         val id = sessionId.value
         val manager = registry.find(id)?.manager ?: return

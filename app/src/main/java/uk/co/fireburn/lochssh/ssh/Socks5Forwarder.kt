@@ -11,9 +11,14 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.Semaphore
+import java.util.concurrent.atomic.AtomicLong
 import kotlin.concurrent.thread
 
-internal class Socks5Forwarder(private val session: Session, port: Int) {
+internal class Socks5Forwarder(
+    private val session: Session,
+    port: Int,
+    private val onClientError: (String) -> Unit = {}
+) {
     private val server = ServerSocket(port, 16, InetAddress.getByName("127.0.0.1"))
     val listenPort: Int get() = server.localPort
     private val slots = Semaphore(16)
@@ -22,6 +27,7 @@ internal class Socks5Forwarder(private val session: Session, port: Int) {
     private val workers = Executors.newFixedThreadPool(16) { task ->
         Thread(task, "socks5-client").apply { isDaemon = true }
     }
+    private val lastWarningAt = AtomicLong()
     @Volatile private var running = true
 
     fun start() {
@@ -97,6 +103,13 @@ internal class Socks5Forwarder(private val session: Session, port: Int) {
             }
         } catch (e: Exception) {
             Log.w("LochSSH", "SOCKS5 connection failed", e)
+            val now = System.nanoTime()
+            val previous = lastWarningAt.get()
+            if ((previous == 0L || now - previous > 10_000_000_000L) &&
+                lastWarningAt.compareAndSet(previous, now)
+            ) {
+                onClientError("Proxy connection failed: ${e.message ?: e.javaClass.simpleName}")
+            }
             if (channel?.isConnected != true) {
                 runCatching { Socks5Protocol.reply(socket.getOutputStream(), 5) }
             }

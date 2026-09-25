@@ -101,7 +101,9 @@ fun HostListScreen(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(session.label)
                                         Text(
-                                            session.error ?: "Connected",
+                                            session.error ?: if (session.forwardWarnings.isNotEmpty()) {
+                                                "Port forwarding issue"
+                                            } else "Connected",
                                             style = MaterialTheme.typography.bodySmall
                                         )
                                     }

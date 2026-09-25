@@ -134,7 +134,7 @@ fun TerminalScreen(
         )
     }
 
-    session?.remoteOptions?.let { options ->
+    session?.remoteOptions?.takeIf { session?.forwardWarnings.isNullOrEmpty() }?.let { options ->
         AlertDialog(
             onDismissRequest = viewModel::dismissRemoteSessions,
             title = { Text("Remote sessions") },
@@ -168,6 +168,21 @@ fun TerminalScreen(
             },
             confirmButton = {
                 TextButton(onClick = viewModel::dismissRemoteSessions) { Text("Use shell") }
+            }
+        )
+    }
+
+    session?.forwardWarnings?.takeIf { it.isNotEmpty() }?.let { warnings ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissForwardWarnings,
+            title = { Text("Port forwarding issue") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    warnings.forEach { Text(it) }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::dismissForwardWarnings) { Text("OK") }
             }
         )
     }

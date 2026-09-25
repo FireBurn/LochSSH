@@ -17,7 +17,8 @@ class SessionRegistry @Inject constructor() {
         val manager: SshConnectionManager? = null,
         val error: String? = null,
         val title: String? = null,
-        val remoteOptions: RemoteSessionOptions? = null
+        val remoteOptions: RemoteSessionOptions? = null,
+        val forwardWarnings: List<String> = emptyList()
     ) {
         // What a terminal would put on the tab, falling back to the host.
         val label: String get() = title?.takeIf { it.isNotBlank() } ?: hostName
@@ -53,6 +54,15 @@ class SessionRegistry @Inject constructor() {
 
     fun dismissRemoteSessions(id: Long) = update(id) {
         it?.copy(remoteOptions = null)
+    }
+
+    fun addForwardWarning(id: Long, message: String) = update(id) {
+        if (it == null || it.forwardWarnings.lastOrNull() == message) null
+        else it.copy(forwardWarnings = (it.forwardWarnings + message).takeLast(5))
+    }
+
+    fun dismissForwardWarnings(id: Long) = update(id) {
+        it?.copy(forwardWarnings = emptyList())
     }
 
     fun remove(id: Long) {

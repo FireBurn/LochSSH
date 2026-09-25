@@ -22,6 +22,7 @@ class SshConnectionManager(
     private val context: Context,
     private val config: SshConnectionConfig,
     private val onTitle: (String) -> Unit = {},
+    private val onForwardError: (String) -> Unit = {},
     private val onExit: (code: Int) -> Unit
 ) {
 
@@ -302,7 +303,7 @@ class SshConnectionManager(
                     ForwardTypes.REMOTE ->
                         Log.i(TAG, "remote forward ${f.remotePort} -> ${f.localPort} rc=${s.setPortForwardingR(f.remotePort, LOCAL_LOOPBACK, f.localPort)}")
                     ForwardTypes.DYNAMIC -> {
-                        val forwarder = Socks5Forwarder(s, f.localPort)
+                        val forwarder = Socks5Forwarder(s, f.localPort, onForwardError)
                         forwarder.start()
                         dynamicForwards += forwarder
                         Log.i(TAG, "SOCKS5 forward listening on localhost:${f.localPort}")
@@ -310,6 +311,13 @@ class SshConnectionManager(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "forward ${f.type} ${f.localPort} failed", e)
+                val port = if (f.type == ForwardTypes.REMOTE) f.remotePort else f.localPort
+                val place = when (f.type) {
+                    ForwardTypes.REMOTE -> "Remote"
+                    ForwardTypes.DYNAMIC -> "Proxy"
+                    else -> "Local"
+                }
+                onForwardError("$place port $port could not be opened: ${e.message ?: "connection error"}")
             }
         }
     }
