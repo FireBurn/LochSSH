@@ -50,7 +50,8 @@ This list reflects the current app and the project conversations. The older
 
 - Check SFTP browsing, upload, download, and overwrite prompts against a live
   server on a device. The current build uses an extra channel on an open session.
-- Add saved command snippets and a connection history.
+- Check saved-command insert, run, edit, delete, and the 4→5 database migration
+  on a device. Add connection history.
 - Add jump hosts and SSH-agent forwarding.
 - Add terminal themes, font choices, URL opening, and saved session transcripts.
 - Add local shell sessions, homescreen shortcuts, and an app lock.

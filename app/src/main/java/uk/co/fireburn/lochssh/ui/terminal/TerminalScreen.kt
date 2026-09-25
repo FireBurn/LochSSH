@@ -85,8 +85,10 @@ fun TerminalScreen(
     var terminalBuffer by remember(sessionId) { mutableStateOf<TerminalBuffer?>(null) }
     var pendingPaste by remember(sessionId) { mutableStateOf<String?>(null) }
     var moreOpen by remember { mutableStateOf(false) }
+    var savedCommandsOpen by remember { mutableStateOf(false) }
 
     val session by viewModel.session.collectAsStateWithLifecycle()
+    val savedCommands by viewModel.savedCommands.collectAsStateWithLifecycle()
     val manager = session?.manager
 
     fun sendPaste(text: String) {
@@ -115,6 +117,20 @@ fun TerminalScreen(
             dismissButton = {
                 TextButton(onClick = { pendingPaste = null }) { Text("Cancel") }
             }
+        )
+    }
+
+    if (savedCommandsOpen) {
+        SavedCommandsDialog(
+            commands = savedCommands,
+            onSave = viewModel::saveCommand,
+            onDelete = viewModel::deleteCommand,
+            onInsert = ::sendPaste,
+            onRun = { command ->
+                sendPaste(command)
+                manager?.write(byteArrayOf('\n'.code.toByte()))
+            },
+            onClose = { savedCommandsOpen = false }
         )
     }
 
@@ -205,6 +221,13 @@ fun TerminalScreen(
                                     onClick = {
                                         moreOpen = false
                                         onFiles()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Saved commands") },
+                                    onClick = {
+                                        moreOpen = false
+                                        savedCommandsOpen = true
                                     }
                                 )
                                 if (selectedText != null) {

@@ -19,7 +19,8 @@ object DatabaseModule {
             .addMigrations(
                 LochSshDatabase.MIGRATION_1_2,
                 LochSshDatabase.MIGRATION_2_3,
-                LochSshDatabase.MIGRATION_3_4
+                LochSshDatabase.MIGRATION_3_4,
+                LochSshDatabase.MIGRATION_4_5
             )
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()
@@ -32,4 +33,7 @@ object DatabaseModule {
 
     @Provides
     fun providePortForwardDao(db: LochSshDatabase): PortForwardDao = db.portForwardDao()
+
+    @Provides
+    fun provideSavedCommandDao(db: LochSshDatabase): SavedCommandDao = db.savedCommandDao()
 }

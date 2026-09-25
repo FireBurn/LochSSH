@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.stateIn
 import uk.co.fireburn.lochssh.data.AppPreferences
+import uk.co.fireburn.lochssh.data.db.SavedCommandDao
+import uk.co.fireburn.lochssh.data.db.SavedCommandEntity
 import uk.co.fireburn.lochssh.ssh.SessionRegistry
 import uk.co.fireburn.lochssh.ssh.RemoteSessions
 import uk.co.fireburn.lochssh.ssh.RemoteSessionEntry
@@ -20,10 +22,13 @@ import javax.inject.Inject
 @HiltViewModel
 class TerminalViewModel @Inject constructor(
     private val preferences: AppPreferences,
-    private val registry: SessionRegistry
+    private val registry: SessionRegistry,
+    private val savedCommandDao: SavedCommandDao
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize
+    val savedCommands = savedCommandDao.observeAll()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val sessionId = MutableStateFlow(0L)
 
@@ -36,6 +41,21 @@ class TerminalViewModel @Inject constructor(
     }
 
     fun changeFontSize(step: Int) = preferences.changeTerminalFontSize(step)
+
+    fun saveCommand(id: Long, name: String, command: String) {
+        val cleanName = name.trim()
+        val cleanCommand = command.trim()
+        if (cleanName.isEmpty() || cleanCommand.isEmpty() ||
+            cleanCommand.any { it == '\n' || it == '\r' }) return
+        viewModelScope.launch(Dispatchers.IO) {
+            val saved = SavedCommandEntity(id, cleanName, cleanCommand)
+            if (id == 0L) savedCommandDao.insert(saved) else savedCommandDao.update(saved)
+        }
+    }
+
+    fun deleteCommand(command: SavedCommandEntity) {
+        viewModelScope.launch(Dispatchers.IO) { savedCommandDao.delete(command) }
+    }
 
     fun dismissRemoteSessions() {
         registry.dismissRemoteSessions(sessionId.value)
