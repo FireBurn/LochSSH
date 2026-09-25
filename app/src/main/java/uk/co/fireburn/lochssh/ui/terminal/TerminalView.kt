@@ -1,6 +1,7 @@
 package uk.co.fireburn.lochssh.ui.terminal
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -15,6 +16,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
@@ -51,10 +53,13 @@ fun TerminalView(
     modifier: Modifier = Modifier,
     manager: SshConnectionManager? = null,
     fontSize: TextUnit = 14.sp,
+    scrollToLiveKey: Int = 0,
+    onScrollOffsetChanged: (Int) -> Unit = {},
     onBuffer: (TerminalBuffer) -> Unit = {}
 ) {
     val buffer = remember { TerminalBuffer(MIN_COLS, MIN_ROWS) }
     val frame = remember { mutableIntStateOf(0) }
+    val scrollOffset = remember { mutableIntStateOf(0) }
     val textMeasurer = rememberTextMeasurer()
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
@@ -73,6 +78,9 @@ fun TerminalView(
     }
 
     LaunchedEffect(Unit) { onBuffer(buffer) }
+    LaunchedEffect(manager) { scrollOffset.intValue = 0 }
+    LaunchedEffect(scrollToLiveKey) { scrollOffset.intValue = 0 }
+    LaunchedEffect(scrollOffset.intValue) { onScrollOffsetChanged(scrollOffset.intValue) }
 
     // Fit the grid to the canvas and tell the remote side about it. Held back a
     // moment so a run of font size taps sends one size, not one for each tap.
@@ -82,6 +90,9 @@ fun TerminalView(
         val cols = (canvasSize.width / metrics.width).toInt().coerceAtLeast(MIN_COLS)
         val rows = (canvasSize.height / metrics.height).toInt().coerceAtLeast(MIN_ROWS)
         buffer.resize(cols, rows)
+        scrollOffset.intValue = buffer.read {
+            scrollOffset.intValue.coerceAtMost(buffer.scrollbackSize)
+        }
         manager?.resize(cols, rows)
         frame.intValue++
     }
@@ -89,18 +100,45 @@ fun TerminalView(
     DisposableEffect(manager) {
         val m = manager ?: return@DisposableEffect onDispose {}
         val listener = SshConnectionManager.OutputListener { bytes, len ->
+            val before = buffer.read { buffer.totalScrolled }
             buffer.feed(bytes, len)
+            if (scrollOffset.intValue > 0) {
+                val added = buffer.read { (buffer.totalScrolled - before).toInt() }
+                scrollOffset.intValue = buffer.read {
+                    (scrollOffset.intValue + added).coerceAtMost(buffer.scrollbackSize)
+                }
+            }
             frame.intValue++
         }
         m.addOutputListener(listener)
         onDispose { m.removeOutputListener(listener) }
     }
 
-    Canvas(modifier = modifier.onSizeChanged { canvasSize = it }) {
+    Canvas(
+        modifier = modifier
+            .onSizeChanged { canvasSize = it }
+            .pointerInput(metrics.height) {
+                var dragged = 0f
+                detectVerticalDragGestures(
+                    onDragEnd = { dragged = 0f },
+                    onVerticalDrag = { change, amount ->
+                        change.consume()
+                        dragged += amount
+                        val lines = (dragged / metrics.height).toInt()
+                        if (lines != 0) {
+                            scrollOffset.intValue = buffer.read {
+                                (scrollOffset.intValue + lines).coerceIn(0, buffer.scrollbackSize)
+                            }
+                            dragged -= lines * metrics.height
+                        }
+                    }
+                )
+            }
+    ) {
         // Read in the draw lambda: the root layer observes reads made while
         // drawing, so the canvas invalidates on every output chunk.
         frame.intValue
-        drawTerminal(buffer, textMeasurer, style, metrics)
+        drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue)
     }
 }
 
@@ -108,7 +146,8 @@ private fun DrawScope.drawTerminal(
     buffer: TerminalBuffer,
     textMeasurer: TextMeasurer,
     style: TextStyle,
-    metrics: CellMetrics
+    metrics: CellMetrics,
+    scrollOffset: Int
 ) {
     drawRect(Background)
     buffer.read {
@@ -117,11 +156,11 @@ private fun DrawScope.drawTerminal(
 
         for (row in 0 until rows) {
             val y = row * metrics.height
-            drawCellBackgrounds(buffer, row, y, metrics)
-            drawRowText(buffer, row, y, textMeasurer, style, metrics)
+            drawCellBackgrounds(buffer, row, y, metrics, scrollOffset)
+            drawRowText(buffer, row, y, textMeasurer, style, metrics, scrollOffset)
         }
 
-        if (buffer.cursorVisible) {
+        if (buffer.cursorVisible && scrollOffset == 0) {
             val cursorRow = buffer.cursorRow.coerceIn(0, buffer.rows - 1)
             val cursorCol = buffer.cursorCol.coerceIn(0, buffer.cols - 1)
             if (cursorRow < rows) {
@@ -141,17 +180,18 @@ private fun DrawScope.drawCellBackgrounds(
     buffer: TerminalBuffer,
     row: Int,
     y: Float,
-    metrics: CellMetrics
+    metrics: CellMetrics,
+    scrollOffset: Int
 ) {
     var col = 0
     while (col < buffer.cols) {
-        val colour = buffer.cellAt(row, col).bg
+        val colour = buffer.visibleCellAt(row, col, scrollOffset).bg
         if (colour == TerminalBuffer.DEFAULT_BG) {
             col++
             continue
         }
         val start = col
-        while (col < buffer.cols && buffer.cellAt(row, col).bg == colour) col++
+        while (col < buffer.cols && buffer.visibleCellAt(row, col, scrollOffset).bg == colour) col++
         drawRect(
             Color(colour),
             topLeft = Offset(start * metrics.width, y),
@@ -166,11 +206,12 @@ private fun DrawScope.drawRowText(
     y: Float,
     textMeasurer: TextMeasurer,
     style: TextStyle,
-    metrics: CellMetrics
+    metrics: CellMetrics,
+    scrollOffset: Int
 ) {
     var col = 0
     while (col < buffer.cols) {
-        val cell = buffer.cellAt(row, col)
+        val cell = buffer.visibleCellAt(row, col, scrollOffset)
         if (cell.ch == ' ') {
             col++
             continue
@@ -178,15 +219,15 @@ private fun DrawScope.drawRowText(
         val runStart = col
         while (
             col < buffer.cols &&
-            buffer.cellAt(row, col).ch != ' ' &&
-            buffer.cellAt(row, col).fg == cell.fg &&
-            buffer.cellAt(row, col).bold == cell.bold
+            buffer.visibleCellAt(row, col, scrollOffset).ch != ' ' &&
+            buffer.visibleCellAt(row, col, scrollOffset).fg == cell.fg &&
+            buffer.visibleCellAt(row, col, scrollOffset).bold == cell.bold
         ) {
             col++
         }
         drawText(
             textMeasurer,
-            buffer.rowText(row, runStart, col),
+            buffer.visibleRowText(row, runStart, col, scrollOffset),
             Offset(runStart * metrics.width, y),
             style.copy(
                 fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,

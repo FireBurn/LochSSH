@@ -68,6 +68,8 @@ fun TerminalScreen(
     var imeVisible by remember { mutableStateOf(false) }
     var imeEditText by remember { mutableStateOf<TerminalEditText?>(null) }
     var hadSession by remember(sessionId) { mutableStateOf(false) }
+    var scrollbackOffset by remember(sessionId) { mutableIntStateOf(0) }
+    var liveRequest by remember(sessionId) { mutableIntStateOf(0) }
 
     val session by viewModel.session.collectAsStateWithLifecycle()
     val manager = session?.manager
@@ -135,6 +137,9 @@ fun TerminalScreen(
                     }
                 },
                 actions = {
+                    if (scrollbackOffset > 0) {
+                        TextButton(onClick = { liveRequest++ }) { Text("Live") }
+                    }
                     if (manager != null) {
                         TextButton(onClick = viewModel::checkRemoteSessions) { Text("Sessions") }
                     }
@@ -174,6 +179,8 @@ fun TerminalScreen(
                 TerminalView(
                     manager = manager,
                     fontSize = fontSize.sp,
+                    scrollToLiveKey = liveRequest,
+                    onScrollOffsetChanged = { scrollbackOffset = it },
                     modifier = Modifier
                         .weight(1f)
                         .fillMaxWidth()
@@ -181,6 +188,7 @@ fun TerminalScreen(
             }
             TerminalImeInput(
                 onText = {
+                    liveRequest++
                     manager?.write(
                         ImeKeyEncoder.encodeText(it, modifiers.ctrl, modifiers.alt)
                     )
@@ -189,6 +197,7 @@ fun TerminalScreen(
                 onKey = { key ->
                     val bytes = ImeKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt)
                     if (bytes != null) {
+                        liveRequest++
                         manager?.write(bytes)
                         modifiers.clear()
                         true
@@ -196,7 +205,10 @@ fun TerminalScreen(
                         false
                     }
                 },
-                onDelete = { n -> manager?.write(ByteArray(n) { 0x7F }) },
+                onDelete = { n ->
+                    liveRequest++
+                    manager?.write(ByteArray(n) { 0x7F })
+                },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(1.dp)
@@ -205,7 +217,10 @@ fun TerminalScreen(
             )
             JuiceSshKeyboardBar(
                 modifiers = modifiers,
-                onSend = { manager?.write(it) },
+                onSend = {
+                    liveRequest++
+                    manager?.write(it)
+                },
                 onFontSizeChange = { viewModel.changeFontSize(it) },
                 onImeToggle = {
                     val view = imeEditText ?: return@JuiceSshKeyboardBar

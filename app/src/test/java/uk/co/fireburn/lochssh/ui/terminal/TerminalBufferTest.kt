@@ -150,4 +150,58 @@ class TerminalBufferTest {
 
         assertEquals("a   ef", buffer.rowText(0, 0, 6))
     }
+
+    @Test
+    fun normalScreenKeepsScrolledLinesForReview() {
+        val buffer = buffer(cols = 8, rows = 2)
+        buffer.feed("one\r\ntwo\r\nthree")
+
+        assertEquals(1, buffer.scrollbackSize)
+        assertEquals("one", buffer.visibleRowText(0, 0, 8, 1).trimEnd())
+        assertEquals("two", buffer.visibleRowText(1, 0, 8, 1).trimEnd())
+        assertEquals("three", buffer.line(1))
+        buffer.resize(10, 2)
+        assertEquals("one", buffer.visibleRowText(0, 0, 10, 1).trimEnd())
+    }
+
+    @Test
+    fun shrinkingAndGrowingKeepsThePromptAndEarlierRows() {
+        val buffer = buffer(cols = 8, rows = 4)
+        buffer.feed("one\r\ntwo\r\nthree\r\nfour")
+
+        buffer.resize(8, 2)
+        assertEquals("three", buffer.line(0))
+        assertEquals("four", buffer.line(1))
+        assertEquals(2, buffer.scrollbackSize)
+        assertEquals(1 to 4, buffer.cursor)
+
+        buffer.resize(8, 4)
+        assertEquals(listOf("one", "two", "three", "four"), buffer.screen())
+        assertEquals(0, buffer.scrollbackSize)
+        assertEquals(3 to 4, buffer.cursor)
+    }
+
+    @Test
+    fun alternateAndPartialScreensDoNotEnterScrollback() {
+        val buffer = buffer(cols = 8, rows = 3)
+        buffer.feed("shell")
+        buffer.feed("\u001B[?1049h")
+        buffer.feed("one\r\ntwo\r\nthree\r\nfour")
+        buffer.feed("\u001B[?1049l")
+        assertEquals(0, buffer.scrollbackSize)
+
+        buffer.feed("\u001B[2;3r\u001B[3;1H\n")
+        assertEquals(0, buffer.scrollbackSize)
+    }
+
+    @Test
+    fun clearSavedLinesLeavesTheCurrentScreen() {
+        val buffer = buffer(cols = 8, rows = 2)
+        buffer.feed("one\r\ntwo\r\nthree")
+        buffer.feed("\u001B[3J")
+
+        assertEquals(0, buffer.scrollbackSize)
+        assertEquals("two", buffer.line(0))
+        assertEquals("three", buffer.line(1))
+    }
 }

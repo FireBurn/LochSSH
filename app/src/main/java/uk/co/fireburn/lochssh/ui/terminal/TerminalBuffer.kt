@@ -8,6 +8,7 @@ class TerminalBuffer(
     data class Cell(val ch: Char, val fg: Int, val bg: Int, val bold: Boolean)
 
     private var grid = blankGrid(cols, rows)
+    private val history = ArrayDeque<Array<Cell>>()
     private var savedGrid: Array<Array<Cell>>? = null
     private var fg = DEFAULT_FG
     private var bg = DEFAULT_BG
@@ -22,6 +23,11 @@ class TerminalBuffer(
         private set
     var version = 0
         private set
+    var totalScrolled = 0L
+        private set
+
+    val scrollbackSize: Int
+        get() = history.size
 
     val cursor: Pair<Int, Int>
         get() = cursorRow to cursorCol
@@ -67,6 +73,18 @@ class TerminalBuffer(
 
     fun cellAt(row: Int, col: Int): Cell = grid[row][col]
 
+    fun visibleCellAt(row: Int, col: Int, scrollOffset: Int): Cell {
+        val index = history.size - scrollOffset.coerceIn(0, history.size) + row
+        val line = if (index < history.size) history[index] else grid[index - history.size]
+        return line[col]
+    }
+
+    fun visibleRowText(row: Int, start: Int, end: Int, scrollOffset: Int): String {
+        val sb = StringBuilder(end - start)
+        for (c in start until end) sb.append(visibleCellAt(row, c, scrollOffset).ch)
+        return sb.toString()
+    }
+
     fun rowText(row: Int, start: Int, end: Int): String {
         val sb = StringBuilder(end - start)
         for (c in start until end) sb.append(grid[row][c].ch)
@@ -77,23 +95,67 @@ class TerminalBuffer(
         if (newCols <= 0 || newRows <= 0) return
         synchronized(lock) {
             if (newCols == cols && newRows == rows) return
-            grid = copyInto(grid, newCols, newRows)
-            savedGrid = savedGrid?.let { copyInto(it, newCols, newRows) }
+            val oldRows = rows
+            val oldGrid = grid
+            val oldTop = scrollTop
+            val oldBottom = scrollBottom
+            val start = if (newRows < oldRows) {
+                (cursorRow - newRows + 1).coerceIn(0, oldRows - newRows)
+            } else 0
+            if (savedGrid == null) {
+                for (row in 0 until start) appendHistory(oldGrid[row])
+            }
+            val restored = if (savedGrid == null && newRows > oldRows) {
+                List(minOf(newRows - oldRows, history.size)) { history.removeLast() }.asReversed()
+            } else emptyList()
+            grid = copyInto(oldGrid, newCols, newRows, start, restored)
+            val oldSaved = savedGrid
+            if (oldSaved != null) {
+                val state = alternateState
+                val savedStart = if (newRows < oldRows) {
+                    ((state?.row ?: 0) - newRows + 1).coerceIn(0, oldRows - newRows)
+                } else 0
+                savedGrid = copyInto(oldSaved, newCols, newRows, savedStart)
+                alternateState = state?.copy(
+                    row = (state.row - savedStart).coerceIn(0, newRows - 1),
+                    col = state.col.coerceIn(0, newCols - 1),
+                    top = (state.top - savedStart).coerceIn(0, newRows - 1),
+                    bottom = (state.bottom - savedStart).coerceIn(0, newRows - 1)
+                )
+            }
+            val resizedHistory = history.map { row ->
+                Array(newCols) { col -> row.getOrNull(col) ?: blank() }
+            }
+            history.clear()
+            history.addAll(resizedHistory)
             cols = newCols
             rows = newRows
-            scrollTop = scrollTop.coerceIn(0, rows - 1)
-            scrollBottom = scrollBottom.coerceIn(scrollTop, rows - 1)
-            cursorRow = cursorRow.coerceIn(0, newRows - 1)
+            val rowShift = restored.size - start
+            if (oldTop == 0 && oldBottom == oldRows - 1) {
+                scrollTop = 0
+                scrollBottom = newRows - 1
+            } else {
+                scrollTop = (oldTop + rowShift).coerceIn(0, newRows - 1)
+                scrollBottom = (oldBottom + rowShift).coerceIn(scrollTop, newRows - 1)
+            }
+            cursorRow = (cursorRow + rowShift).coerceIn(0, newRows - 1)
             cursorCol = cursorCol.coerceIn(0, newCols - 1)
             version++
         }
     }
 
-    private fun copyInto(source: Array<Array<Cell>>, newCols: Int, newRows: Int):
+    private fun copyInto(
+        source: Array<Array<Cell>>,
+        newCols: Int,
+        newRows: Int,
+        sourceStart: Int,
+        prefix: List<Array<Cell>> = emptyList()
+    ):
         Array<Array<Cell>> {
         val target = blankGrid(newCols, newRows)
-        for (r in 0 until minOf(source.size, newRows)) {
-            for (c in 0 until minOf(source[r].size, newCols)) target[r][c] = source[r][c]
+        val lines = prefix + source.drop(sourceStart)
+        for (r in 0 until minOf(lines.size, newRows)) {
+            for (c in 0 until minOf(lines[r].size, newCols)) target[r][c] = lines[r][c]
         }
         return target
     }
@@ -214,9 +276,18 @@ class TerminalBuffer(
 
     private fun scrollUp(count: Int) {
         repeat(count.coerceAtLeast(1)) {
+            if (scrollTop == 0 && scrollBottom == rows - 1 && savedGrid == null) {
+                appendHistory(grid[0])
+            }
             for (r in scrollTop until scrollBottom) grid[r] = grid[r + 1]
             grid[scrollBottom] = blankRow()
         }
+    }
+
+    private fun appendHistory(row: Array<Cell>) {
+        if (history.size == MAX_SCROLLBACK_ROWS) history.removeFirst()
+        history.addLast(row)
+        totalScrolled++
     }
 
     private fun scrollDown(count: Int) {
@@ -435,9 +506,10 @@ class TerminalBuffer(
                 for (r in 0 until cursorRow) grid[r] = blankRow()
                 clearLine(1)
             }
-            else -> {
+            2 -> {
                 for (r in 0 until rows) grid[r] = blankRow()
             }
+            3 -> history.clear()
         }
     }
 
@@ -452,6 +524,7 @@ class TerminalBuffer(
     private fun blankRow() = Array(cols) { blank() }
 
     companion object {
+        const val MAX_SCROLLBACK_ROWS = 2000
         const val DEFAULT_FG = 0xFFE0E1DD.toInt()
         const val DEFAULT_BG = 0
 
