@@ -14,6 +14,8 @@ This list reflects the current app and the project conversations. The older
 - Add device tests for identity changes and failures. The editor now saves new
   secrets before updating the row and removes old secrets afterward, but this
   needs tests for key-source switches, failed writes, and cleanup failures.
+  Save errors now return to the editor on the UI thread; check the messages on
+  a device.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen

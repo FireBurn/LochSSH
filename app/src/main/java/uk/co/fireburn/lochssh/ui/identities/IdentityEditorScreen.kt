@@ -87,12 +87,10 @@ fun IdentityEditorScreen(
                         onClick = {
                             saving = true
                             saveError = null
-                            viewModel.save(name, username, authType, keySource, keyPath, keyMaterial, secret)
-                                .invokeOnCompletion { cause ->
-                                    saving = false
-                                    if (cause == null) onBack()
-                                    else saveError = cause.message ?: "Could not save identity"
-                                }
+                            viewModel.save(name, username, authType, keySource, keyPath, keyMaterial, secret) { error ->
+                                saving = false
+                                if (error == null) onBack() else saveError = error
+                            }
                         }
                     ) { Text("Save") }
                 }
