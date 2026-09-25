@@ -29,8 +29,9 @@ This list reflects the current app and the project conversations. The older
   Android artifact and passes Android emulator CI, Maven CI and the SonarCloud
   quality gate.
   Stock emulator images still lack imported-key Ed25519 signing, so that test
-  needs a provider installed for coverage. Wait for maintainer review and a
-  published release before replacing the app's local JARs.
+  needs a provider installed for coverage. The release workflow still publishes
+  only the main JAR; agree on Android artifact publishing with the maintainer.
+  Wait for a published release before replacing the app's local JARs.
 
 ## Complete the original app spec
 
