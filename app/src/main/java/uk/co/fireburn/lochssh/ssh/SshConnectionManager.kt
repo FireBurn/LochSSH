@@ -15,6 +15,7 @@ import java.io.OutputStream
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import kotlin.concurrent.thread
 
 class SshConnectionManager(
@@ -32,10 +33,13 @@ class SshConnectionManager(
 
     @Volatile
     private var session: Session? = null
+    @Volatile
     private var channel: ChannelShell? = null
     private var readerThread: Thread? = null
+    @Volatile
     private var remoteOut: OutputStream? = null
     // Writes go over the socket, so they must not run on the caller's thread.
+    @Volatile
     private var writer: ExecutorService? = null
     private val outputListeners = CopyOnWriteArrayList<OutputListener>()
     // Retained so a listener attached after output has started (the UI polls for
@@ -142,13 +146,17 @@ class SshConnectionManager(
     fun write(bytes: ByteArray) {
         val out = remoteOut ?: return
         val copy = bytes.copyOf()
-        writer?.execute {
-            try {
-                out.write(copy)
-                out.flush()
-            } catch (e: Exception) {
-                Log.w(TAG, "Write to ${config.host} failed", e)
+        try {
+            writer?.execute {
+                try {
+                    out.write(copy)
+                    out.flush()
+                } catch (e: Exception) {
+                    Log.w(TAG, "Write to ${config.host} failed", e)
+                }
             }
+        } catch (_: RejectedExecutionException) {
+            // Disconnect closed the writer while this input was being queued.
         }
     }
 
@@ -208,12 +216,16 @@ class SshConnectionManager(
     // Sends the SSH window-change request; the remote side raises SIGWINCH.
     fun resize(cols: Int, rows: Int) {
         val ch = channel ?: return
-        writer?.execute {
-            try {
-                ch.setPtySize(cols, rows, 0, 0)
-            } catch (e: Exception) {
-                Log.w(TAG, "Window change for ${config.host} failed", e)
+        try {
+            writer?.execute {
+                try {
+                    ch.setPtySize(cols, rows, 0, 0)
+                } catch (e: Exception) {
+                    Log.w(TAG, "Window change for ${config.host} failed", e)
+                }
             }
+        } catch (_: RejectedExecutionException) {
+            // Disconnect closed the writer while this resize was being queued.
         }
     }
 

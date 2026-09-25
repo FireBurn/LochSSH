@@ -17,7 +17,8 @@ This list reflects the current app and the project conversations. The older
   Claude conversation reported stale text in command history, odd full-screen
   output, and session title errors. Unit tests now cover command recall and
   alternate-screen cursor restoration, but there is no device regression run
-  for the current build.
+  for the current build. Also verify disconnect during a slow handshake: the
+  service now cancels that attempt before it can appear as an open session.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The current vectors trace that artwork, but the final
   rendered result has not been checked on a device.

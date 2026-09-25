@@ -33,6 +33,7 @@ import uk.co.fireburn.lochssh.ssh.SshConnectionConfig
 import uk.co.fireburn.lochssh.ssh.SshConnectionManager
 import java.util.concurrent.ConcurrentHashMap
 import javax.inject.Inject
+import kotlin.concurrent.thread
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -42,6 +43,18 @@ import kotlinx.coroutines.withContext
 
 @AndroidEntryPoint
 class SshForegroundService : Service() {
+
+    private class ConnectionAttempt(val sessionId: Long, val hostId: Long) {
+        @Volatile
+        var cancelled = false
+        @Volatile
+        var manager: SshConnectionManager? = null
+    }
+
+    private data class ConnectedSession(
+        val manager: SshConnectionManager,
+        val config: SshConnectionConfig
+    )
 
     @Inject
     lateinit var hostDao: SshHostDao
@@ -55,6 +68,7 @@ class SshForegroundService : Service() {
     lateinit var registry: SessionRegistry
 
     private val managers = ConcurrentHashMap<Long, SshConnectionManager>()
+    private val attempts = ConcurrentHashMap<Long, ConnectionAttempt>()
     private var wakeLock: PowerManager.WakeLock? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -80,56 +94,82 @@ class SshForegroundService : Service() {
             stopIfIdle()
             return Service.START_NOT_STICKY
         }
-        scope.launch { connect(sessionId, hostId) }
+        val attempt = ConnectionAttempt(sessionId, hostId)
+        attempts.put(sessionId, attempt)?.let(::cancelAttempt)
+        registry.opening(sessionId, hostId, "Host")
+        scope.launch { connect(attempt) }
         return Service.START_NOT_STICKY
     }
 
-    private suspend fun connect(sessionId: Long, hostId: Long) {
-        val host = hostDao.getById(hostId) ?: return fail(sessionId, "Host not found")
-        registry.opening(sessionId, hostId, host.name)
-        // Key loading and the SSH handshake block, so keep them off the main thread.
-        withContext(Dispatchers.IO) {
-            val identity = host.identityId?.let { identityDao.getById(it) }
-            val secret = identity?.secretRef?.let { secrets.getSecret(it) }
-            val keyMaterial = identity?.keyMaterialRef?.let { secrets.getSecret(it) }
+    private suspend fun connect(attempt: ConnectionAttempt) {
+        val sessionId = attempt.sessionId
+        val hostId = attempt.hostId
+        try {
+            val host = hostDao.getById(hostId)
+            if (host == null) throw IllegalStateException("Host not found")
+            if (attempts[sessionId] !== attempt) return
+            registry.opening(sessionId, hostId, host.name)
+            // Key loading and the SSH handshake block, so keep them off the main thread.
+            val connected = withContext(Dispatchers.IO) {
+                val identity = host.identityId?.let { identityDao.getById(it) }
+                val secret = identity?.secretRef?.let { secrets.getSecret(it) }
+                val keyMaterial = identity?.keyMaterialRef?.let { secrets.getSecret(it) }
 
-            val config = SshConnectionConfig(
-                host = host.host,
-                port = host.port,
-                username = identity?.username ?: "",
-                authType = identity?.authType ?: AuthTypes.NONE,
-                password = if (identity?.authType == AuthTypes.PASSWORD) secret else null,
-                keyPath = identity?.keyPath,
-                keyMaterial = keyMaterial,
-                keyPassphrase = if (identity?.authType == AuthTypes.PUBLIC_KEY) secret else null,
-                keepAliveSeconds = host.keepAliveSeconds,
-                autoCommand = host.autoCommand,
-                remoteSessionMode = host.remoteSessionMode,
-                forwards = portForwardDao.getByHost(hostId).map {
-                    PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
+                val config = SshConnectionConfig(
+                    host = host.host,
+                    port = host.port,
+                    username = identity?.username ?: "",
+                    authType = identity?.authType ?: AuthTypes.NONE,
+                    password = if (identity?.authType == AuthTypes.PASSWORD) secret else null,
+                    keyPath = identity?.keyPath,
+                    keyMaterial = keyMaterial,
+                    keyPassphrase = if (identity?.authType == AuthTypes.PUBLIC_KEY) secret else null,
+                    keepAliveSeconds = host.keepAliveSeconds,
+                    autoCommand = host.autoCommand,
+                    remoteSessionMode = host.remoteSessionMode,
+                    forwards = portForwardDao.getByHost(hostId).map {
+                        PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
+                    }
+                )
+
+                lateinit var manager: SshConnectionManager
+                manager = SshConnectionManager(
+                    context = this@SshForegroundService,
+                    config = config,
+                    onTitle = { title -> scope.launch { onSessionTitle(sessionId, manager, title) } }
+                ) { code ->
+                    scope.launch { onSessionExit(sessionId, manager, code) }
                 }
-            )
-
-            val manager = SshConnectionManager(
-                context = this@SshForegroundService,
-                config = config,
-                onTitle = { title -> scope.launch { onSessionTitle(sessionId, title) } }
-            ) { code ->
-                scope.launch { onSessionExit(sessionId, code) }
-            }
-            try {
+                synchronized(attempt) {
+                    if (attempt.cancelled) return@withContext null
+                    attempt.manager = manager
+                }
                 manager.connect()
-            } catch (e: Exception) {
-                Log.e(TAG, "Connect to ${host.host}:${host.port} as ${config.username} failed", e)
-                manager.disconnect()
-                fail(sessionId, e.message ?: e.javaClass.simpleName)
-                return@withContext
+                if (attempt.cancelled) {
+                    manager.disconnect()
+                    null
+                } else {
+                    ConnectedSession(manager, config)
+                }
             }
-            managers[sessionId] = manager
-            registry.connected(sessionId, manager)
+            if (connected == null || attempts[sessionId] !== attempt || attempt.cancelled) {
+                connected?.manager?.disconnect()
+                return
+            }
+            attempts.remove(sessionId, attempt)
+            managers[sessionId] = connected.manager
+            registry.connected(sessionId, connected.manager)
             showSessionNotification(sessionId, host.name, "Connected to ${host.host}")
             updateSummary()
-            startRemoteSession(sessionId, config, manager)
+            scope.launch(Dispatchers.IO) {
+                startRemoteSession(sessionId, connected.config, connected.manager)
+            }
+        } catch (e: Exception) {
+            attempt.manager?.disconnect()
+            if (attempts.remove(sessionId, attempt)) {
+                Log.e(TAG, "Connect to host $hostId failed", e)
+                fail(sessionId, e.message ?: e.javaClass.simpleName)
+            }
         }
     }
 
@@ -138,6 +178,7 @@ class SshForegroundService : Service() {
         config: SshConnectionConfig,
         manager: SshConnectionManager
     ) {
+        if (managers[sessionId] !== manager) return
         if (config.remoteSessionMode == RemoteSessionModes.SHELL) {
             if (config.autoCommand.isNotBlank()) {
                 manager.write((config.autoCommand + "\n").toByteArray(Charsets.UTF_8))
@@ -164,24 +205,31 @@ class SshForegroundService : Service() {
                 RemoteSessionModes.SCREEN -> "Screen is not installed"
                 else -> null
             }
-            registry.offerRemoteSessions(sessionId, options.copy(error = options.error ?: missing))
+            scope.launch {
+                if (managers[sessionId] === manager) {
+                    registry.offerRemoteSessions(sessionId, options.copy(error = options.error ?: missing))
+                }
+            }
         }
     }
 
-    private fun onSessionTitle(sessionId: Long, title: String) {
+    private fun onSessionTitle(sessionId: Long, manager: SshConnectionManager, title: String) {
+        if (managers[sessionId] !== manager && attempts[sessionId]?.manager !== manager) return
         registry.titled(sessionId, title)
         val session = registry.find(sessionId) ?: return
-        if (managers.containsKey(sessionId)) {
+        if (managers[sessionId] === manager) {
             showSessionNotification(sessionId, session.label, "Connected to ${session.hostName}")
         }
     }
 
-    private fun onSessionExit(sessionId: Long, code: Int) {
+    private fun onSessionExit(sessionId: Long, manager: SshConnectionManager, code: Int) {
+        if (managers[sessionId] !== manager && attempts[sessionId]?.manager !== manager) return
         Log.i(TAG, "Session $sessionId exited with code $code")
         endSession(sessionId)
     }
 
     private fun endSession(sessionId: Long) {
+        attempts.remove(sessionId)?.let(::cancelAttempt)
         managers.remove(sessionId)?.disconnect()
         registry.remove(sessionId)
         NotificationManagerCompat.from(this).cancel(sessionNotificationId(sessionId))
@@ -196,10 +244,20 @@ class SshForegroundService : Service() {
     }
 
     private fun stopIfIdle() {
-        if (managers.isEmpty()) {
+        if (managers.isEmpty() && attempts.isEmpty()) {
             stopSelf()
         } else {
             updateSummary()
+        }
+    }
+
+    private fun cancelAttempt(attempt: ConnectionAttempt) {
+        val manager = synchronized(attempt) {
+            attempt.cancelled = true
+            attempt.manager
+        }
+        if (manager != null) {
+            thread(name = "ssh-cancel") { manager.disconnect() }
         }
     }
 
@@ -304,6 +362,8 @@ class SshForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        attempts.values.forEach(::cancelAttempt)
+        attempts.clear()
         managers.values.forEach { it.disconnect() }
         managers.keys.forEach { registry.remove(it) }
         managers.clear()
