@@ -20,8 +20,8 @@ This list reflects the current app and the project conversations. The older
   but there is no device regression run for the current build.
 - Resolve Android Ed25519 without relying on the current JSch patch. PR
   [mwiede/jsch#1160](https://github.com/mwiede/jsch/pull/1160) has a requested
-  architecture change. Its API 33 and 35 emulator jobs skip signing; the API 36
-  image fails the mandatory signing check. The reviewer suggested a separate
+  architecture change. Android CI passes with a test-installed Ed25519 provider,
+  but stock emulator images still skip signing. The reviewer suggested a separate
   Android artifact. Keep the app's patched JAR until a verified replacement is
   installed.
 
@@ -32,6 +32,8 @@ This list reflects the current app and the project conversations. The older
   been recorded. Surface tunnel bind and connection failures in the UI.
 - Verify command-on-connect on a device, including the 2→3 database migration
   for existing hosts and a `tmux attach || tmux new` command.
+- Consider a remote tmux/screen session picker. Detection would need an explicit
+  remote command and must keep the normal shell available when neither is installed.
 - Let users customize the terminal key bar. Modifier latching and the DEL key
   exist, but the layout is fixed.
 - Add terminal selection, copy, paste, and scrollback. The current terminal draws
