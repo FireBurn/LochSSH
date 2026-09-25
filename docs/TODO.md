@@ -22,8 +22,9 @@ This list reflects the current app and the project conversations. The older
   for the current build. Also verify disconnect during a slow handshake: the
   service now cancels that attempt before it can appear as an open session.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
-  actual device sizes. The current vectors trace that artwork, but the final
-  rendered result has not been checked on a device.
+  actual device sizes. The vectors trace that artwork and the launcher mark was
+  enlarged after a 48-pixel desktop render. The adaptive mask and splash have
+  not been checked on a device.
 - Resolve Android Ed25519 without relying on local JSch JARs. PR
   [mwiede/jsch#1160](https://github.com/mwiede/jsch/pull/1160) now adds a separate
   Android artifact and passes Android emulator CI, Maven CI and the SonarCloud
