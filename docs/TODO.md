@@ -79,6 +79,8 @@ This list reflects the current app and the project conversations. The older
   error paths in the phone UI. Check connection history and the 5→6 migration on a device,
   including failed, cancelled, and interrupted connections.
 - Add jump hosts and SSH-agent forwarding.
+  The [jump-host plan](jump-hosts.md) covers separate identities, server-key
+  checks and connection cleanup. Implementation and two-server tests remain.
 - Check Loch, Black and Paper terminal themes on a device, including existing
   scrollback, inverse text, selection and remote programs with explicit colours.
   Settings changes apply to open terminals; default-colour and inverse-text
