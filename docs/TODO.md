@@ -25,6 +25,8 @@ This list reflects the current app and the project conversations. The older
   alternate-screen cursor restoration, but there is no device regression run
   for the current build. Also verify disconnect during a slow handshake: the
   service now cancels that attempt before it can appear as an open session.
+  Stream read errors now trigger session cleanup; verify loss of connectivity
+  on a device without leaving a dead session listed as open.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have

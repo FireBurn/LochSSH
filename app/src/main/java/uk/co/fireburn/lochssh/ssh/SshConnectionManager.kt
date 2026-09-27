@@ -118,22 +118,24 @@ class SshConnectionManager(
         writer = Executors.newSingleThreadExecutor { r -> Thread(r, "ssh-writer") }
         running = true
         readerThread = thread(name = "ssh-reader") {
-            val buffer = ByteArray(READ_BUFFER_SIZE)
-            while (running) {
-                val read = inStream.read(buffer)
-                if (read == -1) break
-                if (read > 0) {
-                    titleScanner.feed(buffer, read)
+            ShellOutputReader.read(
+                input = inStream,
+                isRunning = { running },
+                onOutput = { buffer, count ->
+                    titleScanner.feed(buffer, count)
                     synchronized(outputLock) {
-                        appendHistory(buffer, read)
-                        outputListeners.forEach { it.onOutput(buffer, read) }
+                        appendHistory(buffer, count)
+                        outputListeners.forEach { it.onOutput(buffer, count) }
+                    }
+                },
+                onStopped = { failure ->
+                    if (running) {
+                        failure?.let { Log.w(TAG, "Read from ${config.host} failed", it) }
+                        running = false
+                        onExit(if (failure == null && ch.isClosed) ch.exitStatus else -1)
                     }
                 }
-            }
-            if (running) {
-                running = false
-                onExit(if (ch.isClosed) ch.exitStatus else -1)
-            }
+            )
         }
     }
 
@@ -287,7 +289,6 @@ class SshConnectionManager(
 
     companion object {
         private const val CONNECT_TIMEOUT_MS = 15000
-        private const val READ_BUFFER_SIZE = 8192
         private const val CHANNEL_SHELL = "shell"
         private const val PTY_TYPE = "xterm-256color"
         private const val LOCAL_LOOPBACK = "127.0.0.1"
