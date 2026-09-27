@@ -23,5 +23,6 @@ data class SshConnectionConfig(
     val remoteSessionMode: String = RemoteSessionModes.SHELL,
     val initialCols: Int = 80,
     val initialRows: Int = 24,
-    val forwards: List<PortForwardSpec> = emptyList()
+    val forwards: List<PortForwardSpec> = emptyList(),
+    val jumpHosts: List<SshConnectionConfig> = emptyList()
 )

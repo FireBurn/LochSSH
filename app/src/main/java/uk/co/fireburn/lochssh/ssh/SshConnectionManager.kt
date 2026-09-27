@@ -33,6 +33,7 @@ class SshConnectionManager(
 
     @Volatile
     private var session: Session? = null
+    private val jumps = mutableListOf<Session>()
     @Volatile
     private var channel: ChannelShell? = null
     private var readerThread: Thread? = null
@@ -68,6 +69,25 @@ class SshConnectionManager(
     @Synchronized
     fun connect() {
         AndroidJSch.configure()
+        require(config.jumpHosts.all { it.jumpHosts.isEmpty() }) { "Jump chain must be resolved before connecting" }
+        var previous: Session? = null
+        for (jumpConfig in config.jumpHosts) {
+            val jump = createSession(jumpConfig)
+            previous?.let { jump.setProxy(JumpHostProxy(it)) }
+            jumps += jump
+            jump.connect(CONNECT_TIMEOUT_MS)
+            previous = jump
+        }
+        val s = createSession(config)
+        previous?.let { s.setProxy(JumpHostProxy(it)) }
+        session = s
+        s.connect(CONNECT_TIMEOUT_MS)
+        setupForwards(s)
+
+        openShell(s)
+    }
+
+    private fun createSession(config: SshConnectionConfig): Session {
         val jsch = JSch()
         jsch.setHostKeyRepository(HostKeyTrust.repository(context))
         jsch.setInstanceLogger(object : com.jcraft.jsch.Logger {
@@ -98,10 +118,10 @@ class SshConnectionManager(
                 "aes256-ctr,aes192-ctr,aes128-ctr"
         )
         config.password?.let { s.setPassword(it) }
-        s.connect(CONNECT_TIMEOUT_MS)
-        session = s
-        setupForwards(s)
+        return s
+    }
 
+    private fun openShell(s: Session) {
         val ch = s.openChannel(CHANNEL_SHELL) as ChannelShell
         ch.setPty(true)
         ch.setPtyType(PTY_TYPE, config.initialCols, config.initialRows, 0, 0)
@@ -240,6 +260,8 @@ class SshConnectionManager(
         val ch = channel
         val s = session
         val out = remoteOut
+        val intermediate = jumps.toList().asReversed()
+        jumps.clear()
         channel = null
         session = null
         remoteOut = null
@@ -252,6 +274,7 @@ class SshConnectionManager(
             runCatching { out?.close() }
             runCatching { ch?.disconnect() }
             runCatching { s?.disconnect() }
+            intermediate.forEach { runCatching { it.disconnect() } }
         }
         synchronized(outputLock) {
             outputHistory.reset()

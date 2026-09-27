@@ -80,7 +80,10 @@ This list reflects the current app and the project conversations. The older
   including failed, cancelled, and interrupted connections.
 - Add jump hosts and SSH-agent forwarding.
   The [jump-host plan](jump-hosts.md) covers separate identities, server-key
-  checks and connection cleanup. Implementation and two-server tests remain.
+  checks and connection cleanup. The transport now carries SSH through
+  direct-tcpip channels; a local nested SSH login and command test passes with
+  strict server-key checks. Saved-host selection, migration, chain resolution,
+  key-review UI and two-server tests remain; jump hosts are not selectable yet.
 - Check Loch, Black and Paper terminal themes on a device, including existing
   scrollback, inverse text, selection and remote programs with explicit colours.
   Settings changes apply to open terminals; default-colour and inverse-text
