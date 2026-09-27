@@ -112,17 +112,16 @@ fun HostEditorScreen(
                     TextButton(
                         enabled = canSave,
                         onClick = {
+                            if (saving) return@TextButton
                             saving = true
                             saveError = null
                             viewModel.save(
                                 name, host, port, keepAlive, group, identityId,
                                 autoCommand, remoteSessionMode
-                            )
-                                .invokeOnCompletion { cause ->
-                                    saving = false
-                                    if (cause == null) onBack()
-                                    else saveError = cause.message ?: "Could not save host"
-                                }
+                            ) { error ->
+                                saving = false
+                                if (error == null) onBack() else saveError = error
+                            }
                         }
                     ) { Text("Save") }
                 }

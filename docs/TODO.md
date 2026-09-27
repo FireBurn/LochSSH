@@ -8,7 +8,8 @@ This list reflects the current app and the project conversations. The older
 - Check host-key review and removal on a device, including a changed server key.
   The app now lists fingerprints and removes a selected key after confirmation.
 - Verify host duplication and deletion failures on a device. The host list now
-  shows an error dialog, and deletion requires confirmation.
+  shows an error dialog, and deletion requires confirmation. Host-editor save
+  errors now return to the UI without escaping the coroutine; test a failed save.
 - Check Clear all data on a device. It now clears the open Room database and
   encrypted preferences instead of deleting an unrelated file path.
 - Add device tests for identity changes and failures. The editor now saves new

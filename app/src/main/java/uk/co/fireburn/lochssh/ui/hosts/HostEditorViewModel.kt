@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
@@ -75,9 +76,35 @@ class HostEditorViewModel @Inject constructor(
         group: String,
         identityId: Long?,
         autoCommand: String,
+        remoteSessionMode: String,
+        onFinished: (String?) -> Unit
+    ) {
+        viewModelScope.launch {
+            val error = try {
+                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode)
+                null
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                e.message ?: "Could not save host"
+            }
+            onFinished(error)
+        }
+    }
+
+    private suspend fun saveHost(
+        name: String,
+        hostName: String,
+        port: String,
+        keepAlive: String,
+        group: String,
+        identityId: Long?,
+        autoCommand: String,
         remoteSessionMode: String
-    ) = viewModelScope.launch {
+    ) {
         val existing = host
+        require(name.isNotBlank()) { "Enter a name" }
+        require(hostName.isNotBlank()) { "Enter a host" }
         val validPort = port.toIntOrNull()?.takeIf { it in 1..65535 }
             ?: throw IllegalArgumentException("Port must be between 1 and 65535")
         val validKeepAlive = keepAlive.toIntOrNull()?.takeIf { it >= 0 }
