@@ -79,7 +79,7 @@ class SshConnectionManager(
         IdentityLoader.add(jsch, config.keyPath, config.keyMaterial, config.keyPassphrase)
 
         val s = jsch.getSession(config.username, config.host, config.port)
-        s.setServerAliveInterval(config.keepAliveSeconds.coerceAtLeast(5) * 1000)
+        s.setServerAliveInterval(KeepAlive.milliseconds(config.keepAliveSeconds))
         s.setServerAliveCountMax(3)
         s.setConfig("StrictHostKeyChecking", "yes")
         s.setConfig(
