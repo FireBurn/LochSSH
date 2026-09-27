@@ -12,6 +12,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -25,8 +26,8 @@ import uk.co.fireburn.lochssh.data.db.SavedCommandEntity
 @Composable
 fun SavedCommandsDialog(
     commands: List<SavedCommandEntity>,
-    onSave: (Long, String, String) -> Unit,
-    onDelete: (SavedCommandEntity) -> Unit,
+    onSave: (Long, String, String, (String?) -> Unit) -> Unit,
+    onDelete: (SavedCommandEntity, (String?) -> Unit) -> Unit,
     onInsert: (String) -> Unit,
     onRun: (String) -> Unit,
     onClose: () -> Unit
@@ -36,23 +37,27 @@ fun SavedCommandsDialog(
     var name by remember { mutableStateOf("") }
     var command by remember { mutableStateOf("") }
     var deleting by remember { mutableStateOf<SavedCommandEntity?>(null) }
+    var busy by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
 
     fun edit(saved: SavedCommandEntity?) {
         editing = saved
         adding = true
         name = saved?.name.orEmpty()
         command = saved?.command.orEmpty()
+        error = null
     }
 
     val valid = name.isNotBlank() && command.isNotBlank() &&
         !command.contains('\n') && !command.contains('\r')
 
     AlertDialog(
-        onDismissRequest = onClose,
+        onDismissRequest = { if (!busy) onClose() },
         title = { Text(if (adding) if (editing == null) "New command" else "Edit command" else "Saved commands") },
         text = {
             if (adding) {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
@@ -98,32 +103,50 @@ fun SavedCommandsDialog(
             if (adding) {
                 TextButton(
                     onClick = {
-                        onSave(editing?.id ?: 0L, name, command)
-                        adding = false
-                        editing = null
+                        busy = true
+                        error = null
+                        onSave(editing?.id ?: 0L, name, command) { failure ->
+                            busy = false
+                            error = failure
+                            if (failure == null) { adding = false; editing = null }
+                        }
                     },
-                    enabled = valid
+                    enabled = valid && !busy
                 ) { Text("Save") }
             } else {
-                TextButton(onClick = { edit(null) }) { Text("Add") }
+                TextButton(onClick = { edit(null) }, enabled = !busy) { Text("Add") }
             }
         },
         dismissButton = {
-            TextButton(onClick = {
+            TextButton(enabled = !busy, onClick = {
                 if (adding) { adding = false; editing = null } else onClose()
             }) { Text(if (adding) "Cancel" else "Close") }
         }
     )
 
+    if (!adding && error != null) {
+        AlertDialog(onDismissRequest = { error = null }, title = { Text("Command not deleted") },
+            text = { Text(error.orEmpty()) }, confirmButton = {
+                TextButton(onClick = { error = null }) { Text("OK") }
+            })
+    }
+
     deleting?.let { saved ->
         AlertDialog(
-            onDismissRequest = { deleting = null },
+            onDismissRequest = { if (!busy) deleting = null },
             title = { Text("Delete ${saved.name}?") },
             confirmButton = {
-                TextButton(onClick = { onDelete(saved); deleting = null }) { Text("Delete") }
+                TextButton(enabled = !busy, onClick = {
+                    busy = true
+                    onDelete(saved) { failure ->
+                        busy = false
+                        error = failure
+                        deleting = null
+                    }
+                }) { Text("Delete") }
             },
             dismissButton = {
-                TextButton(onClick = { deleting = null }) { Text("Cancel") }
+                TextButton(enabled = !busy, onClick = { deleting = null }) { Text("Cancel") }
             }
         )
     }

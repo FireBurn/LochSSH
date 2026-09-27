@@ -74,7 +74,9 @@ This list reflects the current app and the project conversations. The older
 - Check SFTP browsing, upload, download, and overwrite prompts against a live
   server on a device. The current build uses an extra channel on an open session.
 - Check saved-command insert, run, edit, delete, and the 4→5 database migration
-  on a device. Check connection history and the 5→6 migration on a device,
+  on a device. Saves now wait for the database result and retain input on
+  failure; delete failures show an error. Four storage tests pass; check those
+  error paths in the phone UI. Check connection history and the 5→6 migration on a device,
   including failed, cancelled, and interrupted connections.
 - Add jump hosts and SSH-agent forwarding.
 - Check Loch, Black and Paper terminal themes on a device, including existing
