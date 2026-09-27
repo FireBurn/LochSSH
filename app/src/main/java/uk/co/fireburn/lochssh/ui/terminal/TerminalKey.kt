@@ -5,6 +5,7 @@ sealed class TerminalKey {
     data class Arrow(val final: Char) : TerminalKey() // A=up B=down C=right D=left
     data object Esc : TerminalKey()
     data object Tab : TerminalKey()
+    data object Enter : TerminalKey()
     data object Home : TerminalKey()
     data object End : TerminalKey()
     data object PgUp : TerminalKey()
@@ -23,13 +24,19 @@ object TerminalKeyEncoder {
         when (key) {
             is TerminalKey.Text -> {
                 val v = key.value
-                when {
-                    ctrl && v.length == 1 -> {
-                        val c = v.lowercase().single()
-                        if (c in 'a'..'z') byteArrayOf((c.code - 96).toByte()) else null
+                val content = if (ctrl && v.length == 1) {
+                    val c = v.single().uppercaseChar()
+                    when {
+                        c == '?' -> byteArrayOf(0x7F)
+                        c == ' ' -> byteArrayOf(0)
+                        c in '@'..'_' -> byteArrayOf((c.code and 31).toByte())
+                        else -> v.toByteArray()
                     }
-                    fn || alt -> byteArrayOf(0x1B.toByte()) + v.toByteArray()
-                    else -> v.toByteArray()
+                } else v.toByteArray()
+                if (fn || alt) {
+                    byteArrayOf(0x1B.toByte()) + content
+                } else {
+                    content
                 }
             }
             is TerminalKey.Arrow -> {
@@ -39,6 +46,7 @@ object TerminalKeyEncoder {
             }
             TerminalKey.Esc -> byteArrayOf(0x1B.toByte())
             TerminalKey.Tab -> byteArrayOf(0x09)
+            TerminalKey.Enter -> byteArrayOf(0x0D)
             TerminalKey.Home -> seq("H")
             TerminalKey.End -> seq("F")
             TerminalKey.PgUp -> seq("5~")

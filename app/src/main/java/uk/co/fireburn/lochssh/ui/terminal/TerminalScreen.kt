@@ -68,6 +68,7 @@ fun TerminalScreen(
 ) {
     val context = LocalContext.current
     val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
+    val keyboardLayout by viewModel.keyboardLayout.collectAsStateWithLifecycle()
     val imm = remember {
         context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     }
@@ -357,6 +358,7 @@ fun TerminalScreen(
                 onReady = { imeEditText = it }
             )
             JuiceSshKeyboardBar(
+                layout = keyboardLayout,
                 modifiers = modifiers,
                 onSend = {
                     liveRequest++

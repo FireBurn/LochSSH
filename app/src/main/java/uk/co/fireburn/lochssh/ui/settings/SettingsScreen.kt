@@ -1,6 +1,8 @@
 package uk.co.fireburn.lochssh.ui.settings
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -27,6 +29,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import uk.co.fireburn.lochssh.ui.keyboard.KeyboardLayoutEditor
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -37,6 +40,8 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     var confirmClear by remember { mutableStateOf(false) }
+    var editKeyboard by remember { mutableStateOf(false) }
+    val keyboardLayout by viewModel.keyboardLayout.collectAsStateWithLifecycle()
     val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
 
@@ -55,6 +60,7 @@ fun SettingsScreen(
         Column(
             modifier = Modifier
                 .padding(padding)
+                .verticalScroll(rememberScrollState())
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
@@ -79,6 +85,12 @@ fun SettingsScreen(
                     }
                     TextButton(onClick = { viewModel.changeFontSize(-1) }) { Text("Aa-") }
                     TextButton(onClick = { viewModel.changeFontSize(1) }) { Text("Aa+") }
+                }
+            }
+            Card(onClick = { editKeyboard = true }, modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Terminal keyboard", style = MaterialTheme.typography.titleMedium)
+                    Text("Choose keys, change their order and add rows")
                 }
             }
             Card(onClick = onHostKeys, modifier = Modifier.fillMaxWidth()) {
@@ -106,6 +118,12 @@ fun SettingsScreen(
         }
     }
 
+    if (editKeyboard) {
+        KeyboardLayoutEditor(keyboardLayout, onSave = {
+            viewModel.setKeyboardLayout(it)
+            editKeyboard = false
+        }, onDismiss = { editKeyboard = false })
+    }
     if (confirmClear) {
         AlertDialog(
             onDismissRequest = { confirmClear = false },

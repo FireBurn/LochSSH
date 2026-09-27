@@ -46,8 +46,11 @@ This list reflects the current app and the project conversations. The older
   verify those warnings on a device.
 - Verify command-on-connect and tmux/Screen session selection on a device,
   including the 2→3 and 3→4 database migrations for existing hosts.
-- Let users customize the terminal key bar. Modifier latching and the DEL key
-  exist, but the layout is fixed.
+- Check terminal keyboard customization on a device. Settings now supports
+  changing and reordering keys, text keys, adding and removing rows, and reset.
+  Layout and key-encoding unit tests pass; an isolated phone preferences test
+  saves, reloads and resets the layout. Verify the editor and modifier behavior
+  in a live terminal.
 - Check terminal scrollback, long-press selection, copy, and paste gestures on a
   device. The current build keeps bounded normal-screen history and confirms
   multi-line paste; the interaction has not been tested on a phone.

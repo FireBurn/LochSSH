@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uk.co.fireburn.lochssh.data.AppPreferences
+import uk.co.fireburn.lochssh.data.KeyboardLayout
 import uk.co.fireburn.lochssh.data.ConnectionHistoryRecorder
 import uk.co.fireburn.lochssh.data.EncryptedStorageManager
 import uk.co.fireburn.lochssh.data.db.LochSshDatabase
@@ -27,6 +28,8 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize
+    val keyboardLayout = preferences.keyboardLayout
+    fun setKeyboardLayout(layout: KeyboardLayout) = preferences.setKeyboardLayout(layout)
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
 

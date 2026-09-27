@@ -13,10 +13,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
@@ -25,7 +21,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import uk.co.fireburn.lochssh.R
-import uk.co.fireburn.lochssh.ui.terminal.TerminalKey
+import uk.co.fireburn.lochssh.data.KeyboardAction
+import uk.co.fireburn.lochssh.data.KeyboardButton
+import uk.co.fireburn.lochssh.data.KeyboardLayout
 import uk.co.fireburn.lochssh.ui.terminal.TerminalKeyEncoder
 import uk.co.fireburn.lochssh.ui.terminal.TerminalModifiers
 
@@ -35,54 +33,49 @@ fun JuiceSshKeyboardBar(
     onSend: (ByteArray) -> Unit,
     onImeToggle: () -> Unit,
     onFontSizeChange: (Int) -> Unit,
+    layout: KeyboardLayout = KeyboardLayout.DEFAULT,
     modifier: Modifier = Modifier
 ) {
-    fun emit(key: TerminalKey) {
-        if (key == TerminalKey.ImeToggle) {
-            onImeToggle()
-            return
+    fun emit(button: KeyboardButton) {
+        when (button.action) {
+            KeyboardAction.CTRL -> modifiers.ctrl = !modifiers.ctrl
+            KeyboardAction.ALT -> modifiers.alt = !modifiers.alt
+            KeyboardAction.FN -> modifiers.fn = !modifiers.fn
+            KeyboardAction.KEYBOARD -> onImeToggle()
+            KeyboardAction.FONT_UP -> onFontSizeChange(1)
+            KeyboardAction.FONT_DOWN -> onFontSizeChange(-1)
+            else -> {
+                button.terminalKey()?.let { key ->
+                    TerminalKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt, modifiers.fn)?.let(onSend)
+                }
+                modifiers.clear()
+            }
         }
-        TerminalKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt, modifiers.fn)?.let(onSend)
-        modifiers.clear()
     }
 
     Column(
         modifier = modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Key("ESC", Modifier.weight(1f)) { emit(TerminalKey.Esc) }
-            Key("/", Modifier.weight(1f)) { emit(TerminalKey.Text("/")) }
-            Key("|", Modifier.weight(1f)) { emit(TerminalKey.Text("|")) }
-            Key("-", Modifier.weight(1f)) { emit(TerminalKey.Text("-")) }
-            Key("▲", Modifier.weight(1f)) { emit(TerminalKey.Arrow('A')) }
-            Key("HOME", Modifier.weight(1f)) { emit(TerminalKey.Home) }
-            Key("END", Modifier.weight(1f)) { emit(TerminalKey.End) }
-            Key("PGUP", Modifier.weight(1f)) { emit(TerminalKey.PgUp) }
-            Key("Aa+", Modifier.weight(1f)) { onFontSizeChange(1) }
-            Key("FN", Modifier.weight(1f), active = modifiers.fn) {
-                modifiers.fn = !modifiers.fn
+        layout.rows.forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                row.forEach { button ->
+                    if (button.action == KeyboardAction.KEYBOARD) {
+                        IconKey(
+                            painterResource(R.drawable.ic_keyboard), "Show or hide the keyboard",
+                            Modifier.weight(1f)
+                        ) { emit(button) }
+                    } else {
+                        val active = when (button.action) {
+                            KeyboardAction.CTRL -> modifiers.ctrl
+                            KeyboardAction.ALT -> modifiers.alt
+                            KeyboardAction.FN -> modifiers.fn
+                            else -> false
+                        }
+                        Key(button.label, Modifier.weight(1f), active) { emit(button) }
+                    }
+                }
             }
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Key("TAB", Modifier.weight(1f)) { emit(TerminalKey.Tab) }
-            Key("CTRL", Modifier.weight(1f), active = modifiers.ctrl) {
-                modifiers.ctrl = !modifiers.ctrl
-            }
-            Key("ALT", Modifier.weight(1f), active = modifiers.alt) {
-                modifiers.alt = !modifiers.alt
-            }
-            Key("◄", Modifier.weight(1f)) { emit(TerminalKey.Arrow('D')) }
-            Key("▼", Modifier.weight(1f)) { emit(TerminalKey.Arrow('B')) }
-            Key("►", Modifier.weight(1f)) { emit(TerminalKey.Arrow('C')) }
-            Key("DEL", Modifier.weight(1f)) { emit(TerminalKey.Del) }
-            Key("PGDN", Modifier.weight(1f)) { emit(TerminalKey.PgDn) }
-            Key("Aa-", Modifier.weight(1f)) { onFontSizeChange(-1) }
-            IconKey(
-                painter = painterResource(R.drawable.ic_keyboard),
-                contentDescription = "Show or hide the keyboard",
-                modifier = Modifier.weight(1f)
-            ) { emit(TerminalKey.ImeToggle) }
         }
     }
 }

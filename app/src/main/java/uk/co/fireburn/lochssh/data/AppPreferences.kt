@@ -19,6 +19,14 @@ class AppPreferences @Inject constructor(
     )
     val terminalFontSize: StateFlow<Int> = _terminalFontSize
 
+    private val _keyboardLayout = MutableStateFlow(KeyboardLayout.decode(prefs.getString(KEY_KEYBOARD, null)))
+    val keyboardLayout: StateFlow<KeyboardLayout> = _keyboardLayout
+
+    fun setKeyboardLayout(layout: KeyboardLayout) {
+        prefs.edit().putString(KEY_KEYBOARD, layout.encode()).apply()
+        _keyboardLayout.value = layout
+    }
+
     fun setTerminalFontSize(size: Int) {
         val clamped = size.coerceIn(MIN_FONT_SIZE, MAX_FONT_SIZE)
         if (clamped == _terminalFontSize.value) return
@@ -31,6 +39,7 @@ class AppPreferences @Inject constructor(
     fun reset() {
         if (!prefs.edit().clear().commit()) throw IOException("Could not clear settings")
         _terminalFontSize.value = DEFAULT_FONT_SIZE
+        _keyboardLayout.value = KeyboardLayout.DEFAULT
     }
 
     companion object {
@@ -40,5 +49,6 @@ class AppPreferences @Inject constructor(
 
         private const val FILE_NAME = "lochssh_settings"
         private const val KEY_FONT_SIZE = "terminal_font_size"
+        private const val KEY_KEYBOARD = "keyboard_layout"
     }
 }
