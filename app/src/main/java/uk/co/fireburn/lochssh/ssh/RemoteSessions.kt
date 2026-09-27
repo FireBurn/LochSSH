@@ -18,8 +18,10 @@ data class RemoteSessionOptions(
 
 object RemoteSessions {
     private val tmuxId = Regex("\\$[0-9]+")
-    private val screenId = Regex("[0-9]+\\.[A-Za-z0-9_.-]+")
-    private val screenLine = Regex("^\\s*([0-9]+\\.[A-Za-z0-9_.-]+)\\s+\\((Attached|Detached)\\)")
+    private val screenId = Regex("[0-9]+\\.[^\\x00-\\x1f\\x7f/]+")
+    private val screenStatus = Regex("\\((Attached|Detached|Multi, attached|Multi, detached)\\)\\s*$")
+    private val screenDate = Regex("\\s+\\([0-9][^()]*\\)\\s*$")
+    private val screenDateField = Regex("\\([0-9][^()]*\\)")
 
     fun parseTmux(output: String): List<RemoteSessionEntry> = output.lineSequence().mapNotNull { line ->
         val first = line.indexOf('|')
@@ -27,23 +29,32 @@ object RemoteSessions {
         if (first <= 0 || last <= first || !tmuxId.matches(line.substring(0, first))) {
             return@mapNotNull null
         }
+        val attached = line.substring(last + 1).toIntOrNull()?.takeIf { it >= 0 } ?: return@mapNotNull null
         RemoteSessionEntry(
             RemoteSessionModes.TMUX,
             line.substring(0, first),
             line.substring(first + 1, last).filterNot { it.code < 32 || it.code == 127 },
-            line.substring(last + 1) == "1"
+            attached > 0
         )
     }.toList()
 
     fun parseScreen(output: String): List<RemoteSessionEntry> = output.lineSequence().mapNotNull { line ->
-        val match = screenLine.find(line) ?: return@mapNotNull null
-        val id = match.groupValues[1]
+        val status = screenStatus.find(line) ?: return@mapNotNull null
+        if (status.range.first == 0 || !line[status.range.first - 1].isWhitespace()) return@mapNotNull null
+        val beforeStatus = line.substring(0, status.range.first).trimStart(' ', '\t')
+        val id = if ('\t' in beforeStatus) {
+            val extra = beforeStatus.substringAfter('\t').trim()
+            if (extra.isNotEmpty() && !screenDateField.matches(extra)) return@mapNotNull null
+            beforeStatus.substringBefore('\t')
+        } else {
+            beforeStatus.replace(screenDate, "").trim()
+        }
         if (!screenId.matches(id)) return@mapNotNull null
         RemoteSessionEntry(
             RemoteSessionModes.SCREEN,
             id,
             id.substringAfter('.'),
-            match.groupValues[2] == "Attached"
+            status.groupValues[1] == "Attached" || status.groupValues[1] == "Multi, attached"
         )
     }.toList()
 

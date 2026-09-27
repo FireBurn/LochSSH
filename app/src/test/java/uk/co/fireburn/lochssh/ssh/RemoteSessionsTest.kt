@@ -16,6 +16,13 @@ class RemoteSessionsTest {
     }
 
     @Test
+    fun recognizesTmuxSessionsWithMultipleClients() {
+        assertTrue(RemoteSessions.parseTmux("\$0|work|2\n").single().attached)
+        assertTrue(RemoteSessions.parseTmux("\$0|work|invalid\n").isEmpty())
+        assertTrue(RemoteSessions.parseTmux("\$0|work|-1\n").isEmpty())
+    }
+
+    @Test
     fun readsScreenSessions() {
         val output = """
             There are screens on:
@@ -34,7 +41,41 @@ class RemoteSessionsTest {
     @Test
     fun ignoresUnexpectedIdentifiers() {
         assertTrue(RemoteSessions.parseTmux("bad|work|1\n").isEmpty())
-        assertTrue(RemoteSessions.parseScreen("1234.a;exit  (Detached)").isEmpty())
+        assertTrue(RemoteSessions.parseScreen("1234.a/b  (Detached)").isEmpty())
+        assertTrue(RemoteSessions.parseScreen("1234.a\u001b  (Detached)").isEmpty())
+        assertTrue(RemoteSessions.parseScreen("1234.work  (Dead)").isEmpty())
+        assertTrue(RemoteSessions.parseScreen("1234.work  (Detached) trailing text").isEmpty())
+        assertTrue(RemoteSessions.parseScreen("\t1234.work\tunexpected\t(Detached)").isEmpty())
+    }
+
+    @Test
+    fun readsNamesWithSpacesAndNonAsciiCharacters() {
+        val session = RemoteSessions.parseScreen("\t3313517.lochssh test+é\t(Detached)\r\n").single()
+
+        assertEquals("3313517.lochssh test+é", session.id)
+        assertEquals("lochssh test+é", session.name)
+        assertEquals("1234.work (123)", RemoteSessions.parseScreen("\t1234.work (123)\t(Detached)").single().id)
+    }
+
+    @Test
+    fun readsMultiUserAndDatedListings() {
+        val sessions = RemoteSessions.parseScreen(
+            "\t1234.work\t(Multi, attached)\n" +
+                "\t5678.editor\t(09/27/2026 10:00:00 PM)\t(Multi, detached)\n" +
+                "9012.build  (09/27/2026 10:00:00 PM)  (Detached)\n"
+        )
+
+        assertEquals(3, sessions.size)
+        assertTrue(sessions[0].attached)
+        assertEquals("5678.editor", sessions[1].id)
+        assertEquals("9012.build", sessions[2].id)
+    }
+
+    @Test
+    fun quotesShellCharactersInScreenNames() {
+        val session = RemoteSessions.parseScreen("\t1234.work';echo bad\t(Detached)\n").single()
+
+        assertEquals("screen -r '1234.work'\\'';echo bad'", RemoteSessions.attach(session))
     }
 
     @Test

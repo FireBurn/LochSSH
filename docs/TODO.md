@@ -48,6 +48,9 @@ This list reflects the current app and the project conversations. The older
   verify those warnings on a device.
 - Verify command-on-connect and tmux/Screen session selection on a device,
   including the 2→3 and 3→4 database migrations for existing hosts.
+  Eight unit tests cover session listings and quoted attach commands, including
+  Screen names with spaces and Unicode, multi-user listings, and tmux sessions
+  with several clients. Check these cases in the phone's session picker.
 - Check terminal keyboard customization on a device. Settings now supports
   changing and reordering keys, text keys, adding and removing rows, and reset.
   Layout and key-encoding unit tests pass; an isolated phone preferences test
