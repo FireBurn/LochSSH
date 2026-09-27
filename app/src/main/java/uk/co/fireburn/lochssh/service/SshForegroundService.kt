@@ -27,6 +27,8 @@ import uk.co.fireburn.lochssh.data.db.IdentityDao
 import uk.co.fireburn.lochssh.data.db.PortForwardDao
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import uk.co.fireburn.lochssh.data.db.SshHostDao
+import uk.co.fireburn.lochssh.data.db.SshHostEntity
+import uk.co.fireburn.lochssh.ssh.JumpHostChain
 import uk.co.fireburn.lochssh.ssh.PortForwardSpec
 import uk.co.fireburn.lochssh.ssh.RemoteSessionOptions
 import uk.co.fireburn.lochssh.ssh.RemoteSessions
@@ -120,26 +122,30 @@ class SshForegroundService : Service() {
             registry.opening(sessionId, hostId, host.name)
             // Key loading and the SSH handshake block, so keep them off the main thread.
             val connected = withContext(Dispatchers.IO) {
-                val identity = host.identityId?.let { identityDao.getById(it) }
-                val secret = identity?.secretRef?.let { secrets.getSecret(it) }
-                val keyMaterial = identity?.keyMaterialRef?.let { secrets.getSecret(it) }
+                val jumpHosts = JumpHostChain.resolve(host, hostDao::getById)
+                suspend fun configFor(host: SshHostEntity): SshConnectionConfig {
+                    val identity = host.identityId?.let { identityDao.getById(it) }
+                    val secret = identity?.secretRef?.let { secrets.getSecret(it) }
+                    val keyMaterial = identity?.keyMaterialRef?.let { secrets.getSecret(it) }
 
-                val config = SshConnectionConfig(
-                    host = host.host,
-                    port = host.port,
-                    username = identity?.username ?: "",
-                    authType = identity?.authType ?: AuthTypes.NONE,
-                    password = if (identity?.authType == AuthTypes.PASSWORD) secret else null,
-                    keyPath = identity?.keyPath,
-                    keyMaterial = keyMaterial,
-                    keyPassphrase = if (identity?.authType == AuthTypes.PUBLIC_KEY) secret else null,
-                    keepAliveSeconds = host.keepAliveSeconds,
-                    autoCommand = host.autoCommand,
-                    remoteSessionMode = host.remoteSessionMode,
-                    forwards = portForwardDao.getByHost(hostId).map {
-                        PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
-                    }
-                )
+                    return SshConnectionConfig(
+                        host = host.host,
+                        port = host.port,
+                        username = identity?.username ?: "",
+                        authType = identity?.authType ?: AuthTypes.NONE,
+                        password = if (identity?.authType == AuthTypes.PASSWORD) secret else null,
+                        keyPath = identity?.keyPath,
+                        keyMaterial = keyMaterial,
+                        keyPassphrase = if (identity?.authType == AuthTypes.PUBLIC_KEY) secret else null,
+                        keepAliveSeconds = host.keepAliveSeconds,
+                        autoCommand = host.autoCommand,
+                        remoteSessionMode = host.remoteSessionMode,
+                        forwards = if (host.id == hostId) portForwardDao.getByHost(hostId).map {
+                            PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
+                        } else emptyList()
+                    )
+                }
+                val config = configFor(host).copy(jumpHosts = jumpHosts.map { configFor(it) })
 
                 lateinit var manager: SshConnectionManager
                 manager = SshConnectionManager(

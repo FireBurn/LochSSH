@@ -14,6 +14,8 @@ interface SshHostDao {
 
     @Query("SELECT * FROM ssh_hosts WHERE id = :id")
     suspend fun getById(id: Long): SshHostEntity?
+    @Query("SELECT COUNT(*) FROM ssh_hosts WHERE jump_host_id = :id")
+    suspend fun countUsingJump(id: Long): Int
 
     @Insert
     suspend fun insert(host: SshHostEntity): Long

@@ -29,5 +29,6 @@ data class SshHostEntity(
     val group: String = "",
     @ColumnInfo(name = "auto_command", defaultValue = "''") val autoCommand: String = "",
     @ColumnInfo(name = "remote_session_mode", defaultValue = "'SHELL'")
-    val remoteSessionMode: String = RemoteSessionModes.SHELL
+    val remoteSessionMode: String = RemoteSessionModes.SHELL,
+    @ColumnInfo(name = "jump_host_id", defaultValue = "NULL") val jumpHostId: Long? = null
 )

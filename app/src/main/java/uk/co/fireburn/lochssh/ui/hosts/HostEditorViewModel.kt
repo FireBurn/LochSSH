@@ -21,6 +21,7 @@ import uk.co.fireburn.lochssh.data.db.SshHostDao
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
 import javax.inject.Inject
 import uk.co.fireburn.lochssh.ssh.KeepAlive
+import uk.co.fireburn.lochssh.ssh.JumpHostChain
 
 @HiltViewModel
 class HostEditorViewModel @Inject constructor(
@@ -31,6 +32,7 @@ class HostEditorViewModel @Inject constructor(
 ) : ViewModel() {
 
     val identities: Flow<List<IdentityEntity>> = identityDao.observeAll()
+    val hosts = hostDao.observeAll()
     var host by mutableStateOf<SshHostEntity?>(null)
         private set
     var forwards by mutableStateOf<List<PortForwardEntity>>(emptyList())
@@ -78,11 +80,12 @@ class HostEditorViewModel @Inject constructor(
         identityId: Long?,
         autoCommand: String,
         remoteSessionMode: String,
+        jumpHostId: Long?,
         onFinished: (String?) -> Unit
     ) {
         viewModelScope.launch {
             val error = try {
-                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode)
+                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId)
                 null
             } catch (e: CancellationException) {
                 throw e
@@ -101,7 +104,8 @@ class HostEditorViewModel @Inject constructor(
         group: String,
         identityId: Long?,
         autoCommand: String,
-        remoteSessionMode: String
+        remoteSessionMode: String,
+        jumpHostId: Long?
     ) {
         val existing = host
         require(name.isNotBlank()) { "Enter a name" }
@@ -120,7 +124,8 @@ class HostEditorViewModel @Inject constructor(
             group = group,
             identityId = identityId,
             autoCommand = autoCommand,
-            remoteSessionMode = remoteSessionMode
+            remoteSessionMode = remoteSessionMode,
+            jumpHostId = jumpHostId
         ) ?: SshHostEntity(
             name = name,
             host = hostName,
@@ -129,9 +134,11 @@ class HostEditorViewModel @Inject constructor(
             group = group,
             identityId = identityId,
             autoCommand = autoCommand,
-            remoteSessionMode = remoteSessionMode
+            remoteSessionMode = remoteSessionMode,
+            jumpHostId = jumpHostId
         )
         database.withTransaction {
+            JumpHostChain.resolve(entity, hostDao::getById)
             val hostId = if (existing != null) {
                 hostDao.update(entity)
                 existing.id

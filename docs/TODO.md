@@ -82,8 +82,11 @@ This list reflects the current app and the project conversations. The older
   The [jump-host plan](jump-hosts.md) covers separate identities, server-key
   checks and connection cleanup. The transport now carries SSH through
   direct-tcpip channels; a local nested SSH login and command test passes with
-  strict server-key checks. Saved-host selection, migration, chain resolution,
-  key-review UI and two-server tests remain; jump hosts are not selectable yet.
+  strict server-key checks. The editor now selects a saved jump host; five
+  chain tests reject missing hosts, loops and excessive chain length. An
+  isolated phone test verifies the 6→7 migration and saved jump choices.
+  Check the selector, live connections, key review, cancellation, and
+  two-server tests with separate identities. SSH-agent forwarding remains.
 - Check Loch, Black and Paper terminal themes on a device, including existing
   scrollback, inverse text, selection and remote programs with explicit colours.
   Settings changes apply to open terminals; default-colour and inverse-text

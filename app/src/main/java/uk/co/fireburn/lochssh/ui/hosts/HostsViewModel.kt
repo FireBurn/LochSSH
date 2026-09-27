@@ -57,6 +57,7 @@ class HostsViewModel @Inject constructor(
                 database.withTransaction {
                     val host = hostDao.getById(id)
                         ?: throw IllegalStateException("Host no longer exists")
+                    require(hostDao.countUsingJump(id) == 0) { "This host is used as a jump host. Change those hosts first." }
                     portForwardDao.deleteByHost(id)
                     hostDao.delete(host)
                 }

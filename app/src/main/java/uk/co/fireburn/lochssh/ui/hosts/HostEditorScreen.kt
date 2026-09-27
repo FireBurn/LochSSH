@@ -53,6 +53,9 @@ fun HostEditorScreen(
         LocalLifecycleOwner.current.lifecycle
     )
     val forwards = viewModel.forwards
+    val hosts by viewModel.hosts.collectAsStateWithLifecycle(emptyList())
+    var jumpHostId by remember { mutableStateOf<Long?>(null) }
+    var jumpMenu by remember { mutableStateOf(false) }
     LaunchedEffect(hostId) { viewModel.load(hostId) }
 
     var name by remember { mutableStateOf("") }
@@ -84,6 +87,7 @@ fun HostEditorScreen(
             autoCommand = it.autoCommand
             remoteSessionMode = it.remoteSessionMode
             identityId = it.identityId
+            jumpHostId = it.jumpHostId
         }
     }
 
@@ -117,7 +121,7 @@ fun HostEditorScreen(
                             saveError = null
                             viewModel.save(
                                 name, host, port, keepAlive, group, identityId,
-                                autoCommand, remoteSessionMode
+                                autoCommand, remoteSessionMode, jumpHostId
                             ) { error ->
                                 saving = false
                                 if (error == null) onBack() else saveError = error
@@ -242,6 +246,24 @@ fun HostEditorScreen(
                 }
             }
 
+            OutlinedTextField(
+                value = hosts.firstOrNull { it.id == jumpHostId }?.name
+                    ?: if (jumpHostId == null) "Direct connection" else "Missing jump host",
+                onValueChange = {}, readOnly = true, label = { Text("Jump host") },
+                trailingIcon = {
+                    IconButton(onClick = { jumpMenu = true }) {
+                        Icon(Icons.Outlined.KeyboardArrowDown, contentDescription = "Pick jump host")
+                    }
+                }, modifier = Modifier.fillMaxWidth()
+            )
+            DropdownMenu(expanded = jumpMenu, onDismissRequest = { jumpMenu = false }) {
+                DropdownMenuItem(text = { Text("Direct connection") },
+                    onClick = { jumpHostId = null; jumpMenu = false })
+                hosts.filter { it.id != hostId }.forEach { jump ->
+                    DropdownMenuItem(text = { Text(jump.name) },
+                        onClick = { jumpHostId = jump.id; jumpMenu = false })
+                }
+            }
             Text("Tunnels", style = MaterialTheme.typography.titleSmall)
             forwards.forEachIndexed { index, f ->
                 Row(
