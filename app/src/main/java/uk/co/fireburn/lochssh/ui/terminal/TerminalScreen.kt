@@ -2,6 +2,7 @@ package uk.co.fireburn.lochssh.ui.terminal
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.view.inputmethod.InputMethodManager
@@ -88,6 +89,9 @@ fun TerminalScreen(
     var pendingPaste by remember(sessionId) { mutableStateOf<String?>(null) }
     var moreOpen by remember { mutableStateOf(false) }
     var savedCommandsOpen by remember { mutableStateOf(false) }
+    var pendingLinks by remember(sessionId) { mutableStateOf<List<String>>(emptyList()) }
+    var linkError by remember(sessionId) { mutableStateOf<String?>(null) }
+    val selectedLinks = remember(selectedText) { TerminalLinks.find(selectedText.orEmpty()) }
 
     val session by viewModel.session.collectAsStateWithLifecycle()
     val savedCommands by viewModel.savedCommands.collectAsStateWithLifecycle()
@@ -105,6 +109,34 @@ fun TerminalScreen(
         selectedText = null
     }
 
+    if (pendingLinks.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { pendingLinks = emptyList() },
+            title = { Text("Open link in browser?") },
+            text = {
+                Column(Modifier.verticalScroll(rememberScrollState())) {
+                    pendingLinks.forEach { link ->
+                        TextButton(onClick = {
+                            runCatching {
+                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link)).apply {
+                                    addCategory(Intent.CATEGORY_BROWSABLE)
+                                })
+                            }.onFailure { linkError = "Could not open link: ${it.message ?: "no browser available"}" }
+                            pendingLinks = emptyList()
+                        }) { Text(link) }
+                    }
+                }
+            },
+            confirmButton = {},
+            dismissButton = { TextButton(onClick = { pendingLinks = emptyList() }) { Text("Cancel") } }
+        )
+    }
+    linkError?.let { message ->
+        AlertDialog(onDismissRequest = { linkError = null }, title = { Text("Could not open link") },
+            text = { Text(message) }, confirmButton = {
+                TextButton(onClick = { linkError = null }) { Text("OK") }
+            })
+    }
     pendingPaste?.let { text ->
         AlertDialog(
             onDismissRequest = { pendingPaste = null },
@@ -248,6 +280,12 @@ fun TerminalScreen(
                                     }
                                 )
                                 if (selectedText != null) {
+                                    if (selectedLinks.isNotEmpty()) {
+                                        DropdownMenuItem(text = { Text("Open selected link") }, onClick = {
+                                            pendingLinks = selectedLinks
+                                            moreOpen = false
+                                        })
+                                    }
                                     DropdownMenuItem(
                                         text = { Text("Copy selection") },
                                         onClick = {

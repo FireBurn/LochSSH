@@ -81,7 +81,11 @@ This list reflects the current app and the project conversations. The older
   scrollback, inverse text, selection and remote programs with explicit colours.
   Settings changes apply to open terminals; default-colour and inverse-text
   unit tests pass. An isolated phone preferences test verifies theme persistence
-  and reset. Add font choices, URL opening and saved session transcripts.
+  and reset. Add font choices and saved session transcripts.
+- Check opening links from selected terminal text on a device. The menu lists
+  valid HTTP/HTTPS links for confirmation, rejects credentials and other
+  schemes, and reports browser launch failures. Three parsing tests pass;
+  wrapped links and the selection-to-browser interaction still need checks.
 - Add local shell sessions, homescreen shortcuts, and an app lock.
 - Add IPv6 connection tests, proxy settings, and external-keyboard shortcuts.
   Ctrl punctuation and Alt+Ctrl character encoding now share the on-screen
