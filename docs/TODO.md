@@ -81,7 +81,8 @@ This list reflects the current app and the project conversations. The older
 - Add local shell sessions, homescreen shortcuts, and an app lock.
 - Add IPv6 connection tests, proxy settings, and external-keyboard shortcuts.
   Ctrl punctuation and Alt+Ctrl character encoding now share the on-screen
-  keyboard's encoder; two Android tests pass on the phone. Check physical
+  keyboard's encoder. Hardware F1–F12, Insert, Shift+Tab and modified navigation
+  keys are encoded too; three Android tests pass on the phone. Check physical
   keyboard input and application shortcuts in a live terminal.
 - Add port knocking and a lightweight remote performance view.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding

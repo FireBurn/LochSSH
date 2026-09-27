@@ -91,21 +91,32 @@ object ImeKeyEncoder {
         val ctrl = event.isCtrlPressed || latchedCtrl
         val alt = event.isAltPressed || latchedAlt
         val code = event.keyCode
+        val modifier = 1 + (if (event.isShiftPressed) 1 else 0) +
+            (if (alt) 2 else 0) + (if (ctrl) 4 else 0)
+        if (code in KeyEvent.KEYCODE_F1..KeyEvent.KEYCODE_F12) {
+            val number = code - KeyEvent.KEYCODE_F1
+            if (number < 4) {
+                val final = ('P'.code + number).toChar()
+                return if (modifier == 1) "\u001bO$final".toByteArray() else seq("1;$modifier$final")
+            }
+            return navigation("${listOf(15, 17, 18, 19, 20, 21, 23, 24)[number - 4]}~", modifier)
+        }
 
         when (code) {
             KeyEvent.KEYCODE_ENTER -> return byteArrayOf(0x0D)
             KeyEvent.KEYCODE_DEL -> return byteArrayOf(0x7F)
-            KeyEvent.KEYCODE_TAB -> return byteArrayOf(0x09)
+            KeyEvent.KEYCODE_TAB -> return if (event.isShiftPressed) seq("Z") else byteArrayOf(0x09)
             KeyEvent.KEYCODE_ESCAPE -> return byteArrayOf(0x1B)
-            KeyEvent.KEYCODE_DPAD_UP -> return arrow('A', ctrl, alt)
-            KeyEvent.KEYCODE_DPAD_DOWN -> return arrow('B', ctrl, alt)
-            KeyEvent.KEYCODE_DPAD_LEFT -> return arrow('D', ctrl, alt)
-            KeyEvent.KEYCODE_DPAD_RIGHT -> return arrow('C', ctrl, alt)
-            KeyEvent.KEYCODE_MOVE_HOME -> return seq("H")
-            KeyEvent.KEYCODE_MOVE_END -> return seq("F")
-            KeyEvent.KEYCODE_PAGE_UP -> return seq("5~")
-            KeyEvent.KEYCODE_PAGE_DOWN -> return seq("6~")
-            KeyEvent.KEYCODE_FORWARD_DEL -> return seq("3~")
+            KeyEvent.KEYCODE_DPAD_UP -> return navigation("A", modifier)
+            KeyEvent.KEYCODE_DPAD_DOWN -> return navigation("B", modifier)
+            KeyEvent.KEYCODE_DPAD_LEFT -> return navigation("D", modifier)
+            KeyEvent.KEYCODE_DPAD_RIGHT -> return navigation("C", modifier)
+            KeyEvent.KEYCODE_MOVE_HOME -> return navigation("H", modifier)
+            KeyEvent.KEYCODE_MOVE_END -> return navigation("F", modifier)
+            KeyEvent.KEYCODE_PAGE_UP -> return navigation("5~", modifier)
+            KeyEvent.KEYCODE_PAGE_DOWN -> return navigation("6~", modifier)
+            KeyEvent.KEYCODE_FORWARD_DEL -> return navigation("3~", modifier)
+            KeyEvent.KEYCODE_INSERT -> return navigation("2~", modifier)
         }
 
         val textModifiers = event.metaState and
@@ -123,9 +134,12 @@ object ImeKeyEncoder {
         ))
     }
 
-    private fun arrow(final: Char, ctrl: Boolean, alt: Boolean): ByteArray {
-        val mod = (if (ctrl) 4 else 0) + (if (alt) 2 else 0)
-        val suffix = if (mod == 0) final.toString() else "1;${mod + 1}$final"
+    private fun navigation(key: String, modifier: Int): ByteArray {
+        val suffix = when {
+            modifier == 1 -> key
+            key.endsWith('~') -> "${key.dropLast(1)};$modifier~"
+            else -> "1;$modifier$key"
+        }
         return seq(suffix)
     }
 
