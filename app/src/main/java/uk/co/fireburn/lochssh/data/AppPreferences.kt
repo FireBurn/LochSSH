@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
+import uk.co.fireburn.lochssh.ui.terminal.TerminalTheme
 
 @Singleton
 class AppPreferences @Inject constructor(
@@ -18,6 +19,13 @@ class AppPreferences @Inject constructor(
         prefs.getInt(KEY_FONT_SIZE, DEFAULT_FONT_SIZE).coerceIn(MIN_FONT_SIZE, MAX_FONT_SIZE)
     )
     val terminalFontSize: StateFlow<Int> = _terminalFontSize
+    private val _terminalTheme = MutableStateFlow(TerminalTheme.decode(prefs.getString(KEY_THEME, null)))
+    val terminalTheme: StateFlow<TerminalTheme> = _terminalTheme
+
+    fun setTerminalTheme(theme: TerminalTheme) {
+        prefs.edit().putString(KEY_THEME, theme.name).apply()
+        _terminalTheme.value = theme
+    }
 
     private val _keyboardLayout = MutableStateFlow(KeyboardLayout.decode(prefs.getString(KEY_KEYBOARD, null)))
     val keyboardLayout: StateFlow<KeyboardLayout> = _keyboardLayout
@@ -40,6 +48,7 @@ class AppPreferences @Inject constructor(
         if (!prefs.edit().clear().commit()) throw IOException("Could not clear settings")
         _terminalFontSize.value = DEFAULT_FONT_SIZE
         _keyboardLayout.value = KeyboardLayout.DEFAULT
+        _terminalTheme.value = TerminalTheme.LOCH
     }
 
     companion object {
@@ -50,5 +59,6 @@ class AppPreferences @Inject constructor(
         private const val FILE_NAME = "lochssh_settings"
         private const val KEY_FONT_SIZE = "terminal_font_size"
         private const val KEY_KEYBOARD = "keyboard_layout"
+        private const val KEY_THEME = "terminal_theme"
     }
 }

@@ -77,7 +77,11 @@ This list reflects the current app and the project conversations. The older
   on a device. Check connection history and the 5→6 migration on a device,
   including failed, cancelled, and interrupted connections.
 - Add jump hosts and SSH-agent forwarding.
-- Add terminal themes, font choices, URL opening, and saved session transcripts.
+- Check Loch, Black and Paper terminal themes on a device, including existing
+  scrollback, inverse text, selection and remote programs with explicit colours.
+  Settings changes apply to open terminals; default-colour and inverse-text
+  unit tests pass. An isolated phone preferences test verifies theme persistence
+  and reset. Add font choices, URL opening and saved session transcripts.
 - Add local shell sessions, homescreen shortcuts, and an app lock.
 - Add IPv6 connection tests, proxy settings, and external-keyboard shortcuts.
   Ctrl punctuation and Alt+Ctrl character encoding now share the on-screen

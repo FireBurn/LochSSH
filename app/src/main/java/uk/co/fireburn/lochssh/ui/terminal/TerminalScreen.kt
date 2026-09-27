@@ -68,6 +68,7 @@ fun TerminalScreen(
 ) {
     val context = LocalContext.current
     val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
+    val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
     val keyboardLayout by viewModel.keyboardLayout.collectAsStateWithLifecycle()
     val imm = remember {
         context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
@@ -311,6 +312,7 @@ fun TerminalScreen(
                 TerminalView(
                     manager = manager,
                     fontSize = fontSize.sp,
+                    theme = terminalTheme,
                     scrollToLiveKey = liveRequest,
                     clearSelectionKey = selectionClearKey,
                     onScrollOffsetChanged = { scrollbackOffset = it },

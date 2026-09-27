@@ -27,6 +27,7 @@ class TerminalViewModel @Inject constructor(
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize
+    val terminalTheme = preferences.terminalTheme
     val keyboardLayout = preferences.keyboardLayout
     val savedCommands = savedCommandDao.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

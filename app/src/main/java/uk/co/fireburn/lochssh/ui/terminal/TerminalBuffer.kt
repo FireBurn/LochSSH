@@ -539,7 +539,7 @@ class TerminalBuffer(
 
     companion object {
         const val MAX_SCROLLBACK_ROWS = 2000
-        const val DEFAULT_FG = 0xFFE0E1DD.toInt()
+        const val DEFAULT_FG = 1
         const val DEFAULT_BG = 0
 
         val ANSI_COLORS = intArrayOf(

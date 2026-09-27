@@ -39,8 +39,6 @@ private val TerminalFont = FontFamily(
     Font(R.font.noto_sans_mono_bold, FontWeight.Bold)
 )
 
-private val Background = Color(0xFF0D1B2A)
-private val Cursor = Color(0xFFE9C46A)
 private val SelectionColour = Color(0x8855A878)
 
 private const val MIN_COLS = 20
@@ -56,6 +54,7 @@ fun TerminalView(
     modifier: Modifier = Modifier,
     manager: SshConnectionManager? = null,
     fontSize: TextUnit = 14.sp,
+    theme: TerminalTheme = TerminalTheme.LOCH,
     scrollToLiveKey: Int = 0,
     clearSelectionKey: Int = 0,
     onScrollOffsetChanged: (Int) -> Unit = {},
@@ -174,7 +173,7 @@ fun TerminalView(
         // Read in the draw lambda: the root layer observes reads made while
         // drawing, so the canvas invalidates on every output chunk.
         frame.intValue
-        drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue, selection)
+        drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue, selection, theme)
     }
 }
 
@@ -192,18 +191,19 @@ private fun DrawScope.drawTerminal(
     style: TextStyle,
     metrics: CellMetrics,
     scrollOffset: Int,
-    selection: Selection?
+    selection: Selection?,
+    theme: TerminalTheme
 ) {
-    drawRect(Background)
+    drawRect(Color(theme.background))
     buffer.read {
         if (buffer.cols == 0 || buffer.rows == 0) return@read
         val rows = minOf(buffer.rows, (size.height / metrics.height).toInt() + 1)
 
         for (row in 0 until rows) {
             val y = row * metrics.height
-            drawCellBackgrounds(buffer, row, y, metrics, scrollOffset)
+            drawCellBackgrounds(buffer, row, y, metrics, scrollOffset, theme)
             if (selection != null) drawSelection(row, selection, buffer.cols, y, metrics)
-            drawRowText(buffer, row, y, textMeasurer, style, metrics, scrollOffset)
+            drawRowText(buffer, row, y, textMeasurer, style, metrics, scrollOffset, theme)
         }
 
         if (buffer.cursorVisible && scrollOffset == 0) {
@@ -211,10 +211,10 @@ private fun DrawScope.drawTerminal(
             val cursorCol = buffer.cursorCol.coerceIn(0, buffer.cols - 1)
             if (cursorRow < rows) {
                 val origin = Offset(cursorCol * metrics.width, cursorRow * metrics.height)
-                drawRect(Cursor, topLeft = origin, size = Size(metrics.width, metrics.height))
+                drawRect(Color(theme.cursor), topLeft = origin, size = Size(metrics.width, metrics.height))
                 val under = buffer.cellAt(cursorRow, cursorCol).ch
                 if (under != ' ') {
-                    drawText(textMeasurer, under.toString(), origin, style.copy(color = Background))
+                    drawText(textMeasurer, under.toString(), origin, style.copy(color = Color(theme.background)))
                 }
             }
         }
@@ -246,7 +246,8 @@ private fun DrawScope.drawCellBackgrounds(
     row: Int,
     y: Float,
     metrics: CellMetrics,
-    scrollOffset: Int
+    scrollOffset: Int,
+    theme: TerminalTheme
 ) {
     var col = 0
     while (col < buffer.cols) {
@@ -258,7 +259,7 @@ private fun DrawScope.drawCellBackgrounds(
         val start = col
         while (col < buffer.cols && buffer.visibleCellAt(row, col, scrollOffset).bg == colour) col++
         drawRect(
-            Color(colour),
+            Color(theme.color(colour)),
             topLeft = Offset(start * metrics.width, y),
             size = Size((col - start) * metrics.width, metrics.height)
         )
@@ -272,7 +273,8 @@ private fun DrawScope.drawRowText(
     textMeasurer: TextMeasurer,
     style: TextStyle,
     metrics: CellMetrics,
-    scrollOffset: Int
+    scrollOffset: Int,
+    theme: TerminalTheme
 ) {
     var col = 0
     while (col < buffer.cols) {
@@ -296,7 +298,7 @@ private fun DrawScope.drawRowText(
             Offset(runStart * metrics.width, y),
             style.copy(
                 fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
-                color = Color(cell.fg)
+                color = Color(theme.color(cell.fg))
             )
         )
     }

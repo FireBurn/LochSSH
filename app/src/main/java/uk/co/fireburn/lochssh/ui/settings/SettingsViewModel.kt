@@ -16,6 +16,7 @@ import uk.co.fireburn.lochssh.data.ConnectionHistoryRecorder
 import uk.co.fireburn.lochssh.data.EncryptedStorageManager
 import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 import uk.co.fireburn.lochssh.ssh.HostKeyTrust
+import uk.co.fireburn.lochssh.ui.terminal.TerminalTheme
 import javax.inject.Inject
 
 @HiltViewModel
@@ -28,6 +29,8 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize
+    val terminalTheme = preferences.terminalTheme
+    fun setTerminalTheme(theme: TerminalTheme) = preferences.setTerminalTheme(theme)
     val keyboardLayout = preferences.keyboardLayout
     fun setKeyboardLayout(layout: KeyboardLayout) = preferences.setKeyboardLayout(layout)
     private val _error = MutableStateFlow<String?>(null)
