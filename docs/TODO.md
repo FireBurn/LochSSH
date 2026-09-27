@@ -80,6 +80,9 @@ This list reflects the current app and the project conversations. The older
 - Add terminal themes, font choices, URL opening, and saved session transcripts.
 - Add local shell sessions, homescreen shortcuts, and an app lock.
 - Add IPv6 connection tests, proxy settings, and external-keyboard shortcuts.
+  Ctrl punctuation and Alt+Ctrl character encoding now share the on-screen
+  keyboard's encoder; two Android tests pass on the phone. Check physical
+  keyboard input and application shortcuts in a live terminal.
 - Add port knocking and a lightweight remote performance view.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
   behavior. Implement it as a separate session type.

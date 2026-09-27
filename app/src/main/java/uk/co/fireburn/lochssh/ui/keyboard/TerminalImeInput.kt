@@ -10,6 +10,8 @@ import android.widget.EditText
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import uk.co.fireburn.lochssh.ui.terminal.TerminalKey
+import uk.co.fireburn.lochssh.ui.terminal.TerminalKeyEncoder
 
 // Invisible text input that captures system keyboard input. The InputConnection
 // forwards everything to the terminal instead of editing the (always empty) field.
@@ -90,12 +92,6 @@ object ImeKeyEncoder {
         val alt = event.isAltPressed || latchedAlt
         val code = event.keyCode
 
-        if (ctrl) {
-            val c = event.unicodeChar.toChar()
-            if (c in 'a'..'z' || c in 'A'..'Z') return byteArrayOf((c.lowercaseChar().code - 96).toByte())
-            if (code == KeyEvent.KEYCODE_SPACE) return byteArrayOf(0)
-        }
-
         when (code) {
             KeyEvent.KEYCODE_ENTER -> return byteArrayOf(0x0D)
             KeyEvent.KEYCODE_DEL -> return byteArrayOf(0x7F)
@@ -112,22 +108,19 @@ object ImeKeyEncoder {
             KeyEvent.KEYCODE_FORWARD_DEL -> return seq("3~")
         }
 
-        val c = event.unicodeChar.toChar()
+        val textModifiers = event.metaState and
+            (KeyEvent.META_CTRL_MASK or KeyEvent.META_ALT_MASK).inv()
+        val c = event.getUnicodeChar(textModifiers).toChar()
         if (c.code >= 0x20) {
-            val bytes = c.toString().toByteArray(Charsets.UTF_8)
-            return if (alt) byteArrayOf(0x1B) + bytes else bytes
+            return encodeText(c.toString(), ctrl, alt)
         }
         return null
     }
 
     fun encodeText(text: String, ctrl: Boolean = false, alt: Boolean = false): ByteArray {
-        if (ctrl && text.length == 1) {
-            val c = text.lowercase().single()
-            if (c in 'a'..'z') return byteArrayOf((c.code - 96).toByte())
-            if (c == ' ') return byteArrayOf(0)
-        }
-        val bytes = text.replace('\n', '\r').toByteArray(Charsets.UTF_8)
-        return if (alt) byteArrayOf(0x1B.toByte()) + bytes else bytes
+        return requireNotNull(TerminalKeyEncoder.encode(
+            TerminalKey.Text(text.replace('\n', '\r')), ctrl, alt, false
+        ))
     }
 
     private fun arrow(final: Char, ctrl: Boolean, alt: Boolean): ByteArray {
