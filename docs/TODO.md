@@ -55,8 +55,9 @@ This list reflects the current app and the project conversations. The older
   device. JVM tests now load and sign with those formats, including encrypted
   pasted and file-path keys; missing or wrong passphrases fail before login.
   Pasted keys no longer go through temporary files.
-  Generated Ed25519 keys have a format and JSch signing test, but still need
-  generation and login checks on a device.
+  Three instrumented tests pass on the Android 16 phone: generated-key signing,
+  encrypted RSA import and signing, and missing-passphrase rejection. Server
+  login with a generated key and the other import formats still need checks.
 - Confirm the foreground service and battery settings on supported Android
   versions. The service has a wake lock; there is no battery-optimization request.
 
