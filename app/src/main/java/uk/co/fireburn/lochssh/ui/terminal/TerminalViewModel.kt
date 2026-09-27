@@ -1,6 +1,10 @@
 package uk.co.fireburn.lochssh.ui.terminal
 
 import androidx.lifecycle.ViewModel
+import android.content.Context
+import android.net.Uri
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.CancellationException
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -23,12 +27,44 @@ import javax.inject.Inject
 class TerminalViewModel @Inject constructor(
     private val preferences: AppPreferences,
     private val registry: SessionRegistry,
-    private val savedCommandDao: SavedCommandDao
+    private val savedCommandDao: SavedCommandDao,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize
     val terminalTheme = preferences.terminalTheme
     val keyboardLayout = preferences.keyboardLayout
+    private var pendingTranscript: String? = null
+    val exportError = MutableStateFlow<String?>(null)
+
+    fun prepareTranscript(buffer: TerminalBuffer) {
+        pendingTranscript = buffer.transcript()
+    }
+
+    fun saveTranscript(uri: Uri?) {
+        val text = pendingTranscript
+        pendingTranscript = null
+        if (uri == null) return
+        if (text == null) {
+            exportError.value = "Terminal text is no longer available. Try saving again."
+            return
+        }
+        viewModelScope.launch {
+            try {
+                withContext(Dispatchers.IO) {
+                    val output = context.contentResolver.openOutputStream(uri, "wt")
+                        ?: throw java.io.IOException("Could not open file")
+                    output.bufferedWriter(Charsets.UTF_8).use { it.write(text) }
+                }
+            } catch (error: CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                exportError.value = "Could not save terminal text: ${error.message ?: "file error"}"
+            }
+        }
+    }
+
+    fun clearExportError() { exportError.value = null }
     val savedCommands = savedCommandDao.observeAll()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

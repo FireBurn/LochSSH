@@ -3,6 +3,8 @@ package uk.co.fireburn.lochssh.ui.terminal
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.view.inputmethod.InputMethodManager
@@ -92,6 +94,11 @@ fun TerminalScreen(
     var pendingLinks by remember(sessionId) { mutableStateOf<List<String>>(emptyList()) }
     var linkError by remember(sessionId) { mutableStateOf<String?>(null) }
     val selectedLinks = remember(selectedText) { TerminalLinks.find(selectedText.orEmpty()) }
+    var confirmExport by remember(sessionId) { mutableStateOf(false) }
+    val exportError by viewModel.exportError.collectAsStateWithLifecycle()
+    val exportPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) {
+        viewModel.saveTranscript(it)
+    }
 
     val session by viewModel.session.collectAsStateWithLifecycle()
     val savedCommands by viewModel.savedCommands.collectAsStateWithLifecycle()
@@ -109,6 +116,25 @@ fun TerminalScreen(
         selectedText = null
     }
 
+    if (confirmExport) {
+        AlertDialog(onDismissRequest = { confirmExport = false },
+            title = { Text("Save terminal text?") },
+            text = { Text("Save the current screen and retained scrollback. This may include secrets. Older discarded output is not included.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    confirmExport = false
+                    terminalBuffer?.let {
+                        viewModel.prepareTranscript(it)
+                        exportPicker.launch("lochssh-terminal.txt")
+                    }
+                }) { Text("Choose file") }
+            }, dismissButton = { TextButton(onClick = { confirmExport = false }) { Text("Cancel") } })
+    }
+    exportError?.let { message ->
+        AlertDialog(onDismissRequest = viewModel::clearExportError,
+            title = { Text("Could not save terminal text") }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::clearExportError) { Text("OK") } })
+    }
     if (pendingLinks.isNotEmpty()) {
         AlertDialog(
             onDismissRequest = { pendingLinks = emptyList() },
@@ -279,6 +305,9 @@ fun TerminalScreen(
                                         savedCommandsOpen = true
                                     }
                                 )
+                                DropdownMenuItem(text = { Text("Save terminal text") },
+                                    enabled = terminalBuffer != null,
+                                    onClick = { moreOpen = false; confirmExport = true })
                                 if (selectedText != null) {
                                     if (selectedLinks.isNotEmpty()) {
                                         DropdownMenuItem(text = { Text("Open selected link") }, onClick = {

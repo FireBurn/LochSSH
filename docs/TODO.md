@@ -81,7 +81,12 @@ This list reflects the current app and the project conversations. The older
   scrollback, inverse text, selection and remote programs with explicit colours.
   Settings changes apply to open terminals; default-colour and inverse-text
   unit tests pass. An isolated phone preferences test verifies theme persistence
-  and reset. Add font choices and saved session transcripts.
+  and reset. Add font choices.
+- Check Save terminal text on a device: file selection, cancellation, UTF-8,
+  failed writes and rotation while choosing a file. It exports retained
+  scrollback and the screen after a warning about secrets. Two unit tests cover
+  scrollback and alternate-screen exports. Full opt-in session recording,
+  including output discarded from scrollback, still needs implementation.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Three parsing tests pass;

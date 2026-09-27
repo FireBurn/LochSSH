@@ -76,6 +76,12 @@ class TerminalBuffer(
 
     fun cellAt(row: Int, col: Int): Cell = grid[row][col]
 
+    fun transcript(): String = read {
+        val lines = if (savedGrid == null) history.toList() + grid.toList() else grid.toList()
+        lines.joinToString("\n") { line -> line.joinToString("") { it.ch.toString() }.trimEnd() }
+            .trimEnd('\n') + "\n"
+    }
+
     fun visibleCellAt(row: Int, col: Int, scrollOffset: Int): Cell {
         val index = history.size - scrollOffset.coerceIn(0, history.size) + row
         val line = if (index < history.size) history[index] else grid[index - history.size]
