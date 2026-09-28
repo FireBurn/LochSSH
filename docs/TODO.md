@@ -7,6 +7,12 @@ This list reflects the current app and the project conversations. The older
 
 - Check host-key review and removal on a device, including a changed server key.
   The app now lists fingerprints and removes a selected key after confirmation.
+  First-seen keys now require fingerprint approval before being saved, including
+  keys from jump hosts. Seven storage tests cover approval, persistence, stale
+  reviews and changed-key rejection. A real SSH test stops the first handshake
+  without saving a key, then connects after exact-key approval.
+  Check trust, cancel, retry and save errors
+  in the phone UI; existing saved keys are kept.
 - Verify host duplication and deletion failures on a device. The host list now
   shows an error dialog, and deletion requires confirmation. Host-editor save
   errors now return to the UI without escaping the coroutine; test a failed save.

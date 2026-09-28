@@ -22,6 +22,8 @@ import uk.co.fireburn.lochssh.ssh.SessionRegistry
 import uk.co.fireburn.lochssh.ssh.RemoteSessions
 import uk.co.fireburn.lochssh.ssh.RemoteSessionEntry
 import uk.co.fireburn.lochssh.ssh.RemoteSessionOptions
+import uk.co.fireburn.lochssh.ssh.HostKeyTrust
+import uk.co.fireburn.lochssh.ssh.SavedHostKey
 import javax.inject.Inject
 
 @HiltViewModel
@@ -80,6 +82,22 @@ class TerminalViewModel @Inject constructor(
     }
 
     fun changeFontSize(step: Int) = preferences.changeTerminalFontSize(step)
+
+    fun dismissHostKeyReview() = registry.dismissHostKeyReview(sessionId.value)
+
+    fun acceptHostKey(key: SavedHostKey, onDone: (String?) -> Unit) {
+        val id = sessionId.value
+        viewModelScope.launch {
+            val error = try {
+                check(registry.find(id)?.hostKeyReview == key) { "Server key review has changed" }
+                withContext(Dispatchers.IO) { HostKeyTrust.accept(context, key) }
+                registry.dismissHostKeyReview(id)
+                null
+            } catch (cancelled: CancellationException) { throw cancelled }
+            catch (failure: Exception) { failure.message ?: "Could not save server key" }
+            onDone(error)
+        }
+    }
 
     fun saveCommand(id: Long, name: String, command: String, onDone: (String?) -> Unit) {
         viewModelScope.launch {

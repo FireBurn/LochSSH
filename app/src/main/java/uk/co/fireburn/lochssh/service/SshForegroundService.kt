@@ -29,6 +29,8 @@ import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import uk.co.fireburn.lochssh.data.db.SshHostDao
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
 import uk.co.fireburn.lochssh.ssh.JumpHostChain
+import uk.co.fireburn.lochssh.ssh.HostKeyReviewRequired
+import uk.co.fireburn.lochssh.ssh.SavedHostKey
 import uk.co.fireburn.lochssh.ssh.PortForwardSpec
 import uk.co.fireburn.lochssh.ssh.RemoteSessionOptions
 import uk.co.fireburn.lochssh.ssh.RemoteSessions
@@ -190,7 +192,7 @@ class SshForegroundService : Service() {
             if (attempts.remove(sessionId, attempt)) {
                 history.finished(attempt.token, ConnectionStates.FAILED)
                 Log.e(TAG, "Connect to host $hostId failed", e)
-                fail(sessionId, e.message ?: e.javaClass.simpleName)
+                fail(sessionId, e.message ?: e.javaClass.simpleName, (e as? HostKeyReviewRequired)?.key)
             }
         }
     }
@@ -264,9 +266,9 @@ class SshForegroundService : Service() {
         stopIfIdle()
     }
 
-    private fun fail(sessionId: Long, message: String) {
+    private fun fail(sessionId: Long, message: String, review: SavedHostKey? = null) {
         Log.e(TAG, "Session $sessionId failed: $message")
-        registry.failed(sessionId, "Connection failed: $message")
+        registry.failed(sessionId, "Connection failed: $message", review)
         NotificationManagerCompat.from(this).cancel(sessionNotificationId(sessionId))
         stopIfIdle()
     }

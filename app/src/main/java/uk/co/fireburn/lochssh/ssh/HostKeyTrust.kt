@@ -21,6 +21,9 @@ object HostKeyTrust {
     fun remove(context: Context, key: SavedHostKey) =
         (repository(context) as PersistentHostKeys).removeSaved(key)
 
+    fun accept(context: Context, key: SavedHostKey) =
+        (repository(context) as PersistentHostKeys).accept(key)
+
     @Synchronized
     fun clear(context: Context) {
         store?.clear() ?: PersistentHostKeys(File(context.filesDir, "known_hosts")).clear()
@@ -33,6 +36,8 @@ data class SavedHostKey(
     val fingerprint: String,
     val key: String
 )
+
+class HostKeyReviewRequired(val key: SavedHostKey) : RuntimeException("Server key needs approval for ${key.host}")
 
 internal class PersistentHostKeys(private val file: File) : HostKeyRepository {
     private var backing: HostKeyRepository
@@ -82,13 +87,29 @@ internal class PersistentHostKeys(private val file: File) : HostKeyRepository {
         if (result != HostKeyRepository.NOT_INCLUDED) return result
         if (backing.getHostKey(host, null).isNotEmpty()) return HostKeyRepository.CHANGED
 
-        backing.add(HostKey(host, key), null)
+        val candidate = HostKey(host, key)
+        throw HostKeyReviewRequired(SavedHostKey(host, candidate.type, candidate.getFingerPrint(JSch()), candidate.key))
+    }
+
+    @Synchronized
+    fun accept(key: SavedHostKey) {
+        check(usable) { "Known hosts file could not be saved" }
+        val bytes = java.util.Base64.getDecoder().decode(key.key)
+        val candidate = HostKey(key.host, bytes)
+        require(candidate.type == key.type && candidate.getFingerPrint(JSch()) == key.fingerprint) {
+            "Server key does not match the reviewed fingerprint"
+        }
+        val result = backing.check(key.host, bytes)
+        if (result == HostKeyRepository.OK) return
+        require(result == HostKeyRepository.NOT_INCLUDED && backing.getHostKey(key.host, null).isEmpty()) {
+            "A different server key has already been saved"
+        }
+        backing.add(candidate, null)
         val saved = reload()
-        if (saved.check(host, key) != HostKeyRepository.OK) {
+        if (saved.check(key.host, bytes) != HostKeyRepository.OK) {
             usable = false
             throw IOException("Could not save host key")
         }
-        return HostKeyRepository.OK
     }
 
     @Synchronized

@@ -18,7 +18,8 @@ class SessionRegistry @Inject constructor() {
         val error: String? = null,
         val title: String? = null,
         val remoteOptions: RemoteSessionOptions? = null,
-        val forwardWarnings: List<String> = emptyList()
+        val forwardWarnings: List<String> = emptyList(),
+        val hostKeyReview: SavedHostKey? = null
     ) {
         // What a terminal would put on the tab, falling back to the host.
         val label: String get() = title?.takeIf { it.isNotBlank() } ?: hostName
@@ -44,9 +45,11 @@ class SessionRegistry @Inject constructor() {
         if (it?.title == title) null else it?.copy(title = title)
     }
 
-    fun failed(id: Long, message: String) = update(id) {
-        it?.copy(manager = null, error = message)
+    fun failed(id: Long, message: String, review: SavedHostKey? = null) = update(id) {
+        it?.copy(manager = null, error = message, hostKeyReview = review)
     }
+
+    fun dismissHostKeyReview(id: Long) = update(id) { it?.copy(hostKeyReview = null) }
 
     fun offerRemoteSessions(id: Long, options: RemoteSessionOptions) = update(id) {
         it?.copy(remoteOptions = options)

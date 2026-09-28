@@ -103,6 +103,34 @@ fun TerminalScreen(
     val session by viewModel.session.collectAsStateWithLifecycle()
     val savedCommands by viewModel.savedCommands.collectAsStateWithLifecycle()
     val manager = session?.manager
+    var savingHostKey by remember { mutableStateOf(false) }
+    var hostKeyError by remember { mutableStateOf<String?>(null) }
+    val reviewedKey = session?.hostKeyReview
+    LaunchedEffect(reviewedKey) { hostKeyError = null }
+    reviewedKey?.let { key ->
+        AlertDialog(onDismissRequest = { if (!savingHostKey) viewModel.dismissHostKeyReview() },
+            title = { Text("Trust this server key?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(key.host)
+                    Text(key.type)
+                    Text(key.fingerprint)
+                    Text("Check this fingerprint with the server owner before trusting it. This may be a jump host rather than the destination.")
+                    hostKeyError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                }
+            }, confirmButton = {
+                TextButton(enabled = !savingHostKey, onClick = {
+                    savingHostKey = true
+                    viewModel.acceptHostKey(key) { error ->
+                        savingHostKey = false
+                        hostKeyError = error
+                        if (error == null) session?.let { SshForegroundService.start(context, it.hostId, it.id) }
+                    }
+                }) { Text("Trust and connect") }
+            }, dismissButton = {
+                TextButton(enabled = !savingHostKey, onClick = viewModel::dismissHostKeyReview) { Text("Cancel") }
+            })
+    }
 
     fun sendPaste(text: String) {
         val target = manager ?: return

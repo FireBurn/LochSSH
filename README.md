@@ -11,10 +11,14 @@ LochSSH is an Android SSH client. It is under active development and is not read
 - A command that runs when a host connects, or automatic tmux or Screen startup.
 - A remote tmux and Screen session picker.
 - Saved jump hosts and optional SSH-agent forwarding.
-- Saved SSH host keys. The first key is accepted; a changed key blocks later connections.
+- Saved SSH host keys. New keys need fingerprint approval; changed keys block connections.
 - SFTP browsing and file transfers, saved commands, and connection history.
 
-The first host key is not shown for approval. Review or remove saved keys under Settings → Saved host keys. Check [the work list](docs/TODO.md) before relying on the app for sensitive connections.
+Check a new server's displayed fingerprint with its owner before choosing
+Trust and connect. The prompt identifies the server, including jump hosts.
+Review or remove saved keys under Settings → Saved host keys. Existing saved
+keys are kept. Check [the work list](docs/TODO.md) before relying on the app for
+sensitive connections.
 
 ## Build
 
