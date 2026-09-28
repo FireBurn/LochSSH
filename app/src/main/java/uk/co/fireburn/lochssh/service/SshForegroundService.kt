@@ -140,6 +140,7 @@ class SshForegroundService : Service() {
                         keepAliveSeconds = host.keepAliveSeconds,
                         autoCommand = host.autoCommand,
                         remoteSessionMode = host.remoteSessionMode,
+                        agentForwarding = host.id == hostId && host.agentForwarding,
                         forwards = if (host.id == hostId) portForwardDao.getByHost(hostId).map {
                             PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
                         } else emptyList()

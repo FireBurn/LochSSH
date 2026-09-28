@@ -78,7 +78,7 @@ This list reflects the current app and the project conversations. The older
   failure; delete failures show an error. Four storage tests pass; check those
   error paths in the phone UI. Check connection history and the 5→6 migration on a device,
   including failed, cancelled, and interrupted connections.
-- Add jump hosts and SSH-agent forwarding.
+- Check jump hosts and SSH-agent forwarding on a device.
   The [jump-host plan](jump-hosts.md) covers separate identities, server-key
   checks and connection cleanup. The transport now carries SSH through
   direct-tcpip channels; a local nested SSH login and command test passes with
@@ -93,7 +93,12 @@ This list reflects the current app and the project conversations. The older
   lock; a silent-server test confirms direct handshakes stop before their read
   timeout. Cancellation during DNS/TCP setup and phone cleanup still need checks.
   Check the selector, live connections, key review, cancellation, and
-  two-server tests with separate identities. SSH-agent forwarding remains.
+  two-server tests with separate identities. Agent forwarding is off by default,
+  requires a private-key identity and warns before enabling. Only the current
+  connection's key is exposed; remote key-list changes are blocked. A local
+  SSH test authenticates using only the forwarded key. Phone tests verify
+  upgrades from versions 6 and 7 to 8, preserving jump choices and keeping
+  forwarding disabled. Check the warning, remote login and disconnect on a phone.
 - Check Loch, Black and Paper terminal themes on a device, including existing
   scrollback, inverse text, selection and remote programs with explicit colours.
   Settings changes apply to open terminals; default-colour and inverse-text

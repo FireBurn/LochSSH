@@ -10,6 +10,7 @@ LochSSH is an Android SSH client. It is under active development and is not read
 - Local, remote, and local SOCKS5 port forwarding.
 - A command that runs when a host connects, or automatic tmux or Screen startup.
 - A remote tmux and Screen session picker.
+- Saved jump hosts and optional SSH-agent forwarding.
 - Saved SSH host keys. The first key is accepted; a changed key blocks later connections.
 - SFTP browsing and file transfers, saved commands, and connection history.
 
@@ -37,6 +38,19 @@ The app currently includes local JSch and Android-support JARs in `app/libs/` fo
 ## Remote tmux and screen
 
 In the host editor, choose **Shell**, **Ask**, **Auto tmux**, or **Auto screen**. Shell opens a normal shell and can run a saved command. Ask checks for tmux and Screen on each connection and offers existing sessions or a new one. Auto tmux attaches to or creates a session named `lochssh`; Auto screen resumes a session or creates one. Open **Remote sessions** from the terminal menu to list sessions. Attaching or creating a session sends a command to the current terminal; use it at a shell prompt, not while another program is running.
+
+## Jump hosts and agent forwarding
+
+Choose a saved **Jump host** in the host editor to connect through it. Each hop
+uses its own identity and server-key checks. A jump host may use another jump;
+loops are rejected. Hosts used as jumps cannot be deleted until those links
+are removed.
+
+**Forward SSH agent** is off by default and needs a private-key identity. It
+lets the destination host use that connection's key for SSH authentication
+elsewhere while connected. The private key stays on the phone, but a
+compromised host can still ask it to sign. Enable only for hosts you trust.
+Intermediate jump hosts do not receive a forwarded agent.
 
 ## Terminal keyboard
 

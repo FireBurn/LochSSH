@@ -22,6 +22,7 @@ import uk.co.fireburn.lochssh.data.db.SshHostEntity
 import javax.inject.Inject
 import uk.co.fireburn.lochssh.ssh.KeepAlive
 import uk.co.fireburn.lochssh.ssh.JumpHostChain
+import uk.co.fireburn.lochssh.data.db.AuthTypes
 
 @HiltViewModel
 class HostEditorViewModel @Inject constructor(
@@ -81,11 +82,12 @@ class HostEditorViewModel @Inject constructor(
         autoCommand: String,
         remoteSessionMode: String,
         jumpHostId: Long?,
+        agentForwarding: Boolean,
         onFinished: (String?) -> Unit
     ) {
         viewModelScope.launch {
             val error = try {
-                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId)
+                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding)
                 null
             } catch (e: CancellationException) {
                 throw e
@@ -105,7 +107,8 @@ class HostEditorViewModel @Inject constructor(
         identityId: Long?,
         autoCommand: String,
         remoteSessionMode: String,
-        jumpHostId: Long?
+        jumpHostId: Long?,
+        agentForwarding: Boolean
     ) {
         val existing = host
         require(name.isNotBlank()) { "Enter a name" }
@@ -125,7 +128,8 @@ class HostEditorViewModel @Inject constructor(
             identityId = identityId,
             autoCommand = autoCommand,
             remoteSessionMode = remoteSessionMode,
-            jumpHostId = jumpHostId
+            jumpHostId = jumpHostId,
+            agentForwarding = agentForwarding
         ) ?: SshHostEntity(
             name = name,
             host = hostName,
@@ -135,9 +139,15 @@ class HostEditorViewModel @Inject constructor(
             identityId = identityId,
             autoCommand = autoCommand,
             remoteSessionMode = remoteSessionMode,
-            jumpHostId = jumpHostId
+            jumpHostId = jumpHostId,
+            agentForwarding = agentForwarding
         )
         database.withTransaction {
+            if (agentForwarding) {
+                require(identityId?.let { identityDao.getById(it)?.authType } == AuthTypes.PUBLIC_KEY) {
+                    "Choose a private-key identity for agent forwarding"
+                }
+            }
             JumpHostChain.resolve(entity, hostDao::getById)
             val hostId = if (existing != null) {
                 hostDao.update(entity)

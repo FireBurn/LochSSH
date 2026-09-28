@@ -13,7 +13,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         SavedCommandEntity::class,
         ConnectionHistoryEntity::class
     ],
-    version = 7
+    version = 8
 )
 abstract class LochSshDatabase : RoomDatabase() {
     abstract fun sshHostDao(): SshHostDao
@@ -24,6 +24,11 @@ abstract class LochSshDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "lochssh.db"
+        val MIGRATION_7_8 = object : Migration(7, 8) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE ssh_hosts ADD COLUMN agent_forwarding INTEGER NOT NULL DEFAULT 0")
+            }
+        }
         val MIGRATION_6_7 = object : Migration(6, 7) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("ALTER TABLE ssh_hosts ADD COLUMN jump_host_id INTEGER DEFAULT NULL")

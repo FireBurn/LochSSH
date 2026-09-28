@@ -6,12 +6,19 @@ import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 
 class JumpHostMigrationAndroidTest {
     @Test
-    fun migratesExistingHostsAndStoresJumpChoice() = runBlocking {
+    fun migratesExistingHostsAndStoresJumpChoice() = migrate(6)
+
+    @Test
+    fun preservesExistingJumpWhenAddingAgentSetting() = migrate(7)
+
+    private fun migrate(startVersion: Int) = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "jump_migration_${UUID.randomUUID()}.db"
         var database: LochSshDatabase? = null
@@ -25,21 +32,28 @@ class JumpHostMigrationAndroidTest {
                 old.execSQL("INSERT INTO identities VALUES(1, 'test', 'tester', 'NONE', NULL, NULL, NULL)")
                 old.execSQL("INSERT INTO ssh_hosts VALUES(1, 'destination', 'example.test', 2222, 1, 30, 'group', 'pwd', 'SHELL')")
                 old.execSQL("INSERT INTO port_forwards VALUES(1, 1, 'LOCAL', 8080, 'localhost', 80)")
-                old.version = 6
+                if (startVersion == 7) {
+                    old.execSQL("ALTER TABLE ssh_hosts ADD COLUMN jump_host_id INTEGER DEFAULT NULL")
+                    old.execSQL("INSERT INTO ssh_hosts VALUES(2, 'jump', 'jump.test', 22, 1, 30, '', '', 'SHELL', NULL)")
+                    old.execSQL("UPDATE ssh_hosts SET jump_host_id = 2 WHERE id = 1")
+                }
+                old.version = startVersion
             }
             val migrated = Room.databaseBuilder(context, LochSshDatabase::class.java, name)
-                .addMigrations(LochSshDatabase.MIGRATION_6_7).build()
+                .addMigrations(LochSshDatabase.MIGRATION_6_7, LochSshDatabase.MIGRATION_7_8).build()
             database = migrated
             val host = requireNotNull(migrated.sshHostDao().getById(1))
-            assertNull(host.jumpHostId)
+            if (startVersion == 6) assertNull(host.jumpHostId) else assertEquals(2L, host.jumpHostId)
+            assertFalse(host.agentForwarding)
             assertEquals("pwd", host.autoCommand)
             assertEquals(2222, host.port)
             assertEquals("tester", migrated.identityDao().getById(1)?.username)
             assertEquals(8080, migrated.portForwardDao().getByHost(1).single().localPort)
             val jump = migrated.sshHostDao().insert(host.copy(id = 0, name = "jump"))
-            migrated.sshHostDao().update(host.copy(jumpHostId = jump))
+            migrated.sshHostDao().update(host.copy(jumpHostId = jump, agentForwarding = true))
             assertEquals(jump, migrated.sshHostDao().getById(1)?.jumpHostId)
             assertEquals(1, migrated.sshHostDao().countUsingJump(jump))
+            assertTrue(requireNotNull(migrated.sshHostDao().getById(1)).agentForwarding)
         } finally {
             database?.close()
             context.deleteDatabase(name)

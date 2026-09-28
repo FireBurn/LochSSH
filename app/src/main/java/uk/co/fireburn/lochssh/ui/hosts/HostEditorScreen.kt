@@ -56,6 +56,20 @@ fun HostEditorScreen(
     val hosts by viewModel.hosts.collectAsStateWithLifecycle(emptyList())
     var jumpHostId by remember { mutableStateOf<Long?>(null) }
     var jumpMenu by remember { mutableStateOf(false) }
+    var agentForwarding by remember { mutableStateOf(false) }
+    var confirmAgent by remember { mutableStateOf(false) }
+    if (confirmAgent) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmAgent = false },
+            title = { Text("Forward this key to the remote host?") },
+            text = { Text("The remote host can use this connection's key to authenticate elsewhere while connected. The private key stays on the phone, but a compromised host can still use it. Enable only for hosts you trust. A private-key identity is required.") },
+            confirmButton = { TextButton(onClick = {
+                agentForwarding = true
+                confirmAgent = false
+            }) { Text("Enable") } },
+            dismissButton = { TextButton(onClick = { confirmAgent = false }) { Text("Cancel") } }
+        )
+    }
     LaunchedEffect(hostId) { viewModel.load(hostId) }
 
     var name by remember { mutableStateOf("") }
@@ -88,6 +102,7 @@ fun HostEditorScreen(
             remoteSessionMode = it.remoteSessionMode
             identityId = it.identityId
             jumpHostId = it.jumpHostId
+            agentForwarding = it.agentForwarding
         }
     }
 
@@ -121,7 +136,7 @@ fun HostEditorScreen(
                             saveError = null
                             viewModel.save(
                                 name, host, port, keepAlive, group, identityId,
-                                autoCommand, remoteSessionMode, jumpHostId
+                                autoCommand, remoteSessionMode, jumpHostId, agentForwarding
                             ) { error ->
                                 saving = false
                                 if (error == null) onBack() else saveError = error
@@ -263,6 +278,15 @@ fun HostEditorScreen(
                     DropdownMenuItem(text = { Text(jump.name) },
                         onClick = { jumpHostId = jump.id; jumpMenu = false })
                 }
+            }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Forward SSH agent")
+                    Text("Share this connection's key for remote SSH authentication",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                androidx.compose.material3.Switch(checked = agentForwarding,
+                    onCheckedChange = { if (it) confirmAgent = true else agentForwarding = false })
             }
             Text("Tunnels", style = MaterialTheme.typography.titleSmall)
             forwards.forEachIndexed { index, f ->

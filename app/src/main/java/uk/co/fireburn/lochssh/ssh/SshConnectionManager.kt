@@ -111,6 +111,10 @@ class SshConnectionManager(
             }
         })
         IdentityLoader.add(jsch, config.keyPath, config.keyMaterial, config.keyPassphrase)
+        if (config.agentForwarding) {
+            require(jsch.identityRepository.identities.isNotEmpty()) { "Agent forwarding needs a private key" }
+            jsch.setIdentityRepository(ForwardedIdentityRepository(jsch.identityRepository))
+        }
 
         val s = jsch.getSession(config.username, config.host, config.port)
         s.setServerAliveInterval(KeepAlive.milliseconds(config.keepAliveSeconds))
@@ -138,6 +142,7 @@ class SshConnectionManager(
 
     private fun openShell(s: Session) {
         val ch = s.openChannel(CHANNEL_SHELL) as ChannelShell
+        ch.setAgentForwarding(config.agentForwarding)
         ch.setPty(true)
         ch.setPtyType(PTY_TYPE, config.initialCols, config.initialRows, 0, 0)
         ch.setEnv("TERM", PTY_TYPE)

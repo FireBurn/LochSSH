@@ -30,5 +30,6 @@ data class SshHostEntity(
     @ColumnInfo(name = "auto_command", defaultValue = "''") val autoCommand: String = "",
     @ColumnInfo(name = "remote_session_mode", defaultValue = "'SHELL'")
     val remoteSessionMode: String = RemoteSessionModes.SHELL,
-    @ColumnInfo(name = "jump_host_id", defaultValue = "NULL") val jumpHostId: Long? = null
+    @ColumnInfo(name = "jump_host_id", defaultValue = "NULL") val jumpHostId: Long? = null,
+    @ColumnInfo(name = "agent_forwarding", defaultValue = "0") val agentForwarding: Boolean = false
 )
