@@ -11,7 +11,7 @@ import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStream
-import java.util.concurrent.CopyOnWriteArrayList
+import uk.co.fireburn.lochssh.ui.terminal.TerminalSession
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
@@ -28,10 +28,7 @@ class SshConnectionManager(
     private val titleScanner = WindowTitleScanner(onTitle)
     private val connectionAttempt = ConnectionAttemptControl()
     private val connectingSessions = ConnectingSessions()
-    fun interface OutputListener {
-        // bytes is an internal buffer, copy it before keeping it.
-        fun onOutput(bytes: ByteArray, length: Int)
-    }
+    val terminal = TerminalSession(config.initialCols, config.initialRows)
 
     @Volatile
     private var session: Session? = null
@@ -44,29 +41,12 @@ class SshConnectionManager(
     // Writes go over the socket, so they must not run on the caller's thread.
     @Volatile
     private var writer: ExecutorService? = null
-    private val outputListeners = CopyOnWriteArrayList<OutputListener>()
-    // Retained so a listener attached after output has started (the UI polls for
-    // the manager) can replay what it missed, e.g. the first shell prompt.
-    private val outputLock = Any()
-    private val outputHistory = ByteArrayOutputStream()
     private val dynamicForwards = mutableListOf<Socks5Forwarder>()
     @Volatile
     private var running = false
 
     val isConnected: Boolean
         get() = session?.isConnected == true
-
-    fun addOutputListener(listener: OutputListener) {
-        synchronized(outputLock) {
-            outputListeners.add(listener)
-            val replay = outputHistory.toByteArray()
-            if (replay.isNotEmpty()) listener.onOutput(replay, replay.size)
-        }
-    }
-
-    fun removeOutputListener(listener: OutputListener) {
-        outputListeners.remove(listener)
-    }
 
     @Synchronized
     fun connect() {
@@ -163,10 +143,7 @@ class SshConnectionManager(
                 isRunning = { running },
                 onOutput = { buffer, count ->
                     titleScanner.feed(buffer, count)
-                    synchronized(outputLock) {
-                        appendHistory(buffer, count)
-                        outputListeners.forEach { it.onOutput(buffer, count) }
-                    }
+                    terminal.feed(buffer, count)
                 },
                 onStopped = { failure ->
                     if (running) {
@@ -265,15 +242,6 @@ class SshConnectionManager(
         }
     }
 
-    private fun appendHistory(bytes: ByteArray, length: Int) {
-        outputHistory.write(bytes, 0, length)
-        if (outputHistory.size() > HISTORY_CAP) {
-            val all = outputHistory.toByteArray()
-            outputHistory.reset()
-            outputHistory.write(all, all.size - HISTORY_CAP, HISTORY_CAP)
-        }
-    }
-
     @Synchronized
     fun disconnect() {
         running = false
@@ -295,9 +263,6 @@ class SshConnectionManager(
             runCatching { ch?.disconnect() }
             runCatching { s?.disconnect() }
             intermediate.forEach { runCatching { it.disconnect() } }
-        }
-        synchronized(outputLock) {
-            outputHistory.reset()
         }
         readerThread = null
     }
@@ -335,7 +300,6 @@ class SshConnectionManager(
         private const val CHANNEL_SHELL = "shell"
         private const val PTY_TYPE = "xterm-256color"
         private const val LOCAL_LOOPBACK = "127.0.0.1"
-        private const val HISTORY_CAP = 1024 * 1024
         private const val TAG = "LochSSH"
     }
 }

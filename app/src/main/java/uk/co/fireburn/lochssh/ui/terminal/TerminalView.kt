@@ -4,7 +4,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -61,7 +60,8 @@ fun TerminalView(
     onSelectionChanged: (String?) -> Unit = {},
     onBuffer: (TerminalBuffer) -> Unit = {}
 ) {
-    val buffer = remember(manager) { TerminalBuffer(MIN_COLS, MIN_ROWS) }
+    val terminal = remember(manager) { manager?.terminal ?: TerminalSession(MIN_COLS, MIN_ROWS) }
+    val buffer = terminal.buffer
     val frame = remember(buffer) { mutableIntStateOf(0) }
     val scrollOffset = remember(buffer) { mutableIntStateOf(0) }
     var selection by remember(buffer) { mutableStateOf<Selection?>(null) }
@@ -106,21 +106,19 @@ fun TerminalView(
         frame.intValue++
     }
 
-    DisposableEffect(manager) {
-        val m = manager ?: return@DisposableEffect onDispose {}
-        val listener = SshConnectionManager.OutputListener { bytes, len ->
-            val before = buffer.read { buffer.totalScrolled }
-            buffer.feed(bytes, len)
+    LaunchedEffect(terminal) {
+        var before = buffer.read { buffer.totalScrolled }
+        terminal.revision.collect {
+            val total = buffer.read { buffer.totalScrolled }
             if (scrollOffset.intValue > 0) {
-                val added = buffer.read { (buffer.totalScrolled - before).toInt() }
+                val added = (total - before).coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
                 scrollOffset.intValue = buffer.read {
-                    (scrollOffset.intValue + added).coerceAtMost(buffer.scrollbackSize)
+                    (scrollOffset.intValue.toLong() + added).coerceAtMost(buffer.scrollbackSize.toLong()).toInt()
                 }
             }
+            before = total
             frame.intValue++
         }
-        m.addOutputListener(listener)
-        onDispose { m.removeOutputListener(listener) }
     }
 
     Canvas(

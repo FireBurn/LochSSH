@@ -35,6 +35,10 @@ This list reflects the current app and the project conversations. The older
   on a device without leaving a dead session listed as open.
   The host list distinguishes connecting, key approval and failed sessions.
   Closing a connecting row cancels its service attempt; check this on a device.
+  Terminal screens now stay with their connection instead of replaying a capped
+  raw-output tail when reopened. Tests cover full-screen state after more than
+  1 MB of output, split character/escape sequences and bounded scrollback.
+  Check returning to a running full-screen program on a device.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
@@ -50,6 +54,9 @@ This list reflects the current app and the project conversations. The older
 
 ## Complete the original app spec
 
+- Add a terminal session drawer or swipeable tabs. Concurrent connections can
+  be resumed from the host list, but the original spec calls for switching
+  between them without leaving the terminal.
 - Test SOCKS5 forwarding through a live SSH server on a device. A JVM-side
   loopback test passed through a real SSH session, but no Android tunnel run has
   been recorded. Bind and proxy connection failures now appear in the terminal;
