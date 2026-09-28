@@ -115,7 +115,7 @@ class HostEditorViewModel @Inject constructor(
         require(hostName.isNotBlank()) { "Enter a host" }
         val validPort = port.toIntOrNull()?.takeIf { it in 1..65535 }
             ?: throw IllegalArgumentException("Port must be between 1 and 65535")
-        val validKeepAlive = keepAlive.toIntOrNull()?.takeIf { it in 0..KeepAlive.MAX_SECONDS }
+        val validKeepAlive = KeepAlive.parse(keepAlive)
             ?: throw IllegalArgumentException("Keep-alive must be between 0 and ${KeepAlive.MAX_SECONDS} seconds")
         require(autoCommand.none { it == '\n' || it == '\r' }) { "Command must be one line" }
         require(remoteSessionMode in RemoteSessionModes.ALL) { "Choose a remote session option" }

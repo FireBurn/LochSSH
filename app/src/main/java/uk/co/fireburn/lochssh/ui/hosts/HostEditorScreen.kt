@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import uk.co.fireburn.lochssh.data.db.PortForwardEntity
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
+import uk.co.fireburn.lochssh.ssh.KeepAlive
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -107,7 +108,7 @@ fun HostEditorScreen(
     }
 
     val validPort = port.toIntOrNull() in 1..65535
-    val validKeepAlive = keepAlive.toIntOrNull()?.let { it >= 0 } == true
+    val validKeepAlive = KeepAlive.parse(keepAlive) != null
     val validCommand = autoCommand.none { it == '\n' || it == '\r' }
     val canSave = viewModel.loaded && !saving && name.isNotBlank() && host.isNotBlank() &&
         validPort && validKeepAlive && validCommand
@@ -186,6 +187,10 @@ fun HostEditorScreen(
                     onValueChange = { keepAlive = it },
                     label = { Text("Keep-alive (s)") },
                     isError = keepAlive.isNotEmpty() && !validKeepAlive,
+                    supportingText = {
+                        Text(if (validKeepAlive) "0 turns keep-alive off"
+                            else "Use 0–${KeepAlive.MAX_SECONDS} seconds")
+                    },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     modifier = Modifier.weight(1f)

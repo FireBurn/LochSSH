@@ -16,6 +16,10 @@ This list reflects the current app and the project conversations. The older
 - Verify host duplication and deletion failures on a device. The host list now
   shows an error dialog, and deletion requires confirmation. Host-editor save
   errors now return to the UI without escaping the coroutine; test a failed save.
+  Keep-alive validation now uses the same safe range in the editor and save
+  code. Zero disables it; oversized values disable Save and show the limit.
+  Boundary and invalid-input unit tests cover the shared parser; check the field
+  and its error message on a device.
 - Check Clear all data on a device. It now clears the open Room database and
   encrypted preferences instead of deleting an unrelated file path.
 - Add device tests for identity changes and failures. The editor now saves new
@@ -86,11 +90,17 @@ This list reflects the current app and the project conversations. The older
   login with a generated key and the other import formats still need checks.
 - Confirm the foreground service and battery settings on supported Android
   versions. The service has a wake lock; there is no battery-optimization request.
+  A wake lock does not exempt the app from
+  [Doze](https://developer.android.com/training/monitoring-device-state/doze-standby).
+  Add a user-controlled battery setting showing the current exemption state,
+  with Android's battery settings as a fallback for unsupported direct requests.
 
 ## Broader SSH-client features
 
 - Check SFTP browsing, upload, download, and overwrite prompts against a live
   server on a device. The current build uses an extra channel on an open session.
+  A local real-server test passes for listing, upload, download, overwrite
+  refusal, explicit replacement and directory links. Device checks remain.
 - Check saved-command insert, run, edit, delete, and the 4→5 database migration
   on a device. Saves now wait for the database result and retain input on
   failure; delete failures show an error. Four storage tests pass; check those
