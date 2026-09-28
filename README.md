@@ -6,7 +6,7 @@ LochSSH is an Android SSH client. It is under active development and is not read
 
 - Saved hosts and identities with password or private-key authentication.
 - Ed25519 key generation where Android supports it, with RSA as a fallback.
-- Multiple SSH terminal sessions and a customizable terminal keyboard.
+- Multiple SSH terminal sessions, an in-terminal session drawer and a customizable terminal keyboard.
 - Local, remote, and local SOCKS5 port forwarding.
 - A command that runs when a host connects, or automatic tmux or Screen startup.
 - A remote tmux and Screen session picker.

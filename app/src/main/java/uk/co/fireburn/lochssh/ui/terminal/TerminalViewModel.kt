@@ -37,6 +37,7 @@ class TerminalViewModel @Inject constructor(
     val fontSize = preferences.terminalFontSize
     val terminalTheme = preferences.terminalTheme
     val keyboardLayout = preferences.keyboardLayout
+    val sessions = registry.sessions
     private var pendingTranscript: String? = null
     val exportError = MutableStateFlow<String?>(null)
 

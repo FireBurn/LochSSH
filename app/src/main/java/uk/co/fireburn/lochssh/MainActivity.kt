@@ -29,6 +29,7 @@ import uk.co.fireburn.lochssh.ui.settings.ConnectionHistoryScreen
 import uk.co.fireburn.lochssh.ui.settings.HostKeysScreen
 import uk.co.fireburn.lochssh.ui.sftp.SftpScreen
 import uk.co.fireburn.lochssh.ui.terminal.TerminalScreen
+import uk.co.fireburn.lochssh.ui.terminal.switchTerminal
 import uk.co.fireburn.lochssh.ui.theme.LochSSHTheme
 
 object Routes {
@@ -166,6 +167,8 @@ fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>) {
             TerminalScreen(
                 sessionId = entry.arguments?.getLong("sessionId") ?: -1L,
                 onBack = { navController.popBackStack() },
+                onSwitchSession = { navController.switchTerminal(it) },
+                onHosts = { navController.popBackStack(Routes.HOSTS, false) },
                 onFiles = { navController.navigate(Routes.sftp(entry.arguments?.getLong("sessionId") ?: -1L)) }
             )
         }

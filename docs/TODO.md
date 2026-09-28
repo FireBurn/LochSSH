@@ -54,9 +54,12 @@ This list reflects the current app and the project conversations. The older
 
 ## Complete the original app spec
 
-- Add a terminal session drawer or swipeable tabs. Concurrent connections can
-  be resumed from the host list, but the original spec calls for switching
-  between them without leaving the terminal.
+- Check the terminal session drawer with live connections on a device.
+  It lists titles and connection states and switches without starting another
+  connection. Switching replaces the terminal page so Back returns to the host
+  list; returning to a session uses its retained screen and scrollback.
+  Two navigation tests pass on the phone, including older stacked terminal pages.
+  Three drawer UI tests are compiled but need an unlocked screen to run.
 - Test SOCKS5 forwarding through a live SSH server on a device. A JVM-side
   loopback test passed through a real SSH session, but no Android tunnel run has
   been recorded. Bind and proxy connection failures now appear in the terminal;
