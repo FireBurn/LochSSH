@@ -25,6 +25,21 @@ class SessionRegistry @Inject constructor() {
         val label: String get() = title?.takeIf { it.isNotBlank() } ?: hostName
 
         val isConnected: Boolean get() = manager?.isConnected == true
+
+        val statusText: String get() = when {
+            hostKeyReview != null -> "Server key approval needed"
+            error != null -> error
+            manager == null -> "Connecting"
+            !isConnected -> "Disconnected"
+            forwardWarnings.isNotEmpty() -> "Port forwarding issue"
+            else -> "Connected"
+        }
+
+        val actionLabel: String get() = when {
+            hostKeyReview != null -> "Review"
+            isConnected -> "Resume"
+            else -> "View"
+        }
     }
 
     private val nextId = AtomicLong(1)
@@ -38,7 +53,7 @@ class SessionRegistry @Inject constructor() {
     }
 
     fun connected(id: Long, manager: SshConnectionManager) = update(id) {
-        it?.copy(manager = manager, error = null)
+        it?.copy(manager = manager, error = null, hostKeyReview = null)
     }
 
     fun titled(id: Long, title: String) = update(id) {

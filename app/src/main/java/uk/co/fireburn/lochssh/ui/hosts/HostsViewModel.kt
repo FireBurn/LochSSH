@@ -34,8 +34,6 @@ class HostsViewModel @Inject constructor(
 
     fun newSessionId(): Long = registry.newId()
 
-    fun dismissSession(id: Long) = registry.remove(id)
-
     fun duplicateHost(id: Long) {
         viewModelScope.launch {
             runCatching {

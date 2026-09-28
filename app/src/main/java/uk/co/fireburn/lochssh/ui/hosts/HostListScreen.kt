@@ -35,11 +35,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
+import uk.co.fireburn.lochssh.service.SshForegroundService
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,7 +90,7 @@ fun HostListScreen(
             if (sessions.isNotEmpty()) {
                 item(key = "sessions") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Open sessions", style = MaterialTheme.typography.titleSmall)
+                        Text("Sessions", style = MaterialTheme.typography.titleSmall)
                         sessions.forEach { session ->
                             Card(
                                 onClick = { onResumeSession(session.id) },
@@ -101,16 +103,16 @@ fun HostListScreen(
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(session.label)
                                         Text(
-                                            session.error ?: if (session.forwardWarnings.isNotEmpty()) {
-                                                "Port forwarding issue"
-                                            } else "Connected",
+                                            session.statusText,
                                             style = MaterialTheme.typography.bodySmall
                                         )
                                     }
-                                    Text("Resume", style = MaterialTheme.typography.labelLarge)
+                                    Text(session.actionLabel, style = MaterialTheme.typography.labelLarge)
                                     if (session.manager == null) {
-                                        IconButton(onClick = { viewModel.dismissSession(session.id) }) {
-                                            Icon(Icons.Filled.Close, contentDescription = "Dismiss")
+                                        val context = LocalContext.current
+                                        IconButton(onClick = { SshForegroundService.disconnect(context, session.id) }) {
+                                            Icon(Icons.Filled.Close, contentDescription =
+                                                if (session.error == null) "Cancel connection" else "Dismiss")
                                         }
                                     }
                                 }
