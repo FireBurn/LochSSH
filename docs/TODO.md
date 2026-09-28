@@ -5,6 +5,11 @@ This list reflects the current app and the project conversations. The older
 
 ## Fix before wider use
 
+- Handle Android's foreground-service timeout and review the service type for
+  long-lived SSH connections. The service currently uses `dataSync`, which has a
+  [six-hour background limit](https://developer.android.com/develop/background-work/services/fgs/timeout)
+  on Android 15 and later when targeting API 35. There is no `onTimeout` cleanup,
+  so reaching that limit can crash the app. Battery exemption does not remove it.
 - Check host-key review and removal on a device, including a changed server key.
   The app now lists fingerprints and removes a selected key after confirmation.
   First-seen keys now require fingerprint approval before being saved, including
@@ -89,11 +94,14 @@ This list reflects the current app and the project conversations. The older
   encrypted RSA import and signing, and missing-passphrase rejection. Server
   login with a generated key and the other import formats still need checks.
 - Confirm the foreground service and battery settings on supported Android
-  versions. The service has a wake lock; there is no battery-optimization request.
+  versions. The service has a wake lock. Settings now shows the battery exemption
+  state and offers an explicit request, with battery and app settings as fallbacks.
   A wake lock does not exempt the app from
   [Doze](https://developer.android.com/training/monitoring-device-state/doze-standby).
-  Add a user-controlled battery setting showing the current exemption state,
-  with Android's battery settings as a fallback for unsupported direct requests.
+  Check the request, refusal, status refresh and screen-off SSH on a device.
+  No exemption is requested automatically, and other system limits still apply.
+  Five phone tests cover the declared permission, system-state read, request
+  intent, fallback pages and launch errors without changing the battery setting.
 
 ## Broader SSH-client features
 

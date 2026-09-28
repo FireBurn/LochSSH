@@ -108,6 +108,7 @@ fun SettingsScreen(
                     Text("Choose keys, change their order and add rows")
                 }
             }
+            BatterySettingsCard()
             Card(onClick = onHostKeys, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Saved host keys", style = MaterialTheme.typography.titleMedium)

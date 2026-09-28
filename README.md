@@ -39,6 +39,16 @@ The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`. Android
 
 The app currently includes local JSch and Android-support JARs in `app/libs/` for Android Ed25519 authentication and X25519 key exchange. See [the work list](docs/TODO.md) and [the upstream PR](https://github.com/mwiede/jsch/pull/1160). Do not replace them with the original `com.jcraft:jsch` library.
 
+## Screen-off connections
+
+Settings → Screen-off connections shows whether LochSSH is exempt from Android's
+battery optimization. Request battery exemption opens an Android prompt; nothing
+is requested automatically. If the prompt is unavailable, the app opens battery
+settings or its Android app settings instead.
+
+Allowing background access may use more battery. Other system limits, network
+changes and remote timeouts can still close a connection.
+
 ## Remote tmux and screen
 
 In the host editor, choose **Shell**, **Ask**, **Auto tmux**, or **Auto screen**. Shell opens a normal shell and can run a saved command. Ask checks for tmux and Screen on each connection and offers existing sessions or a new one. Auto tmux attaches to or creates a session named `lochssh`; Auto screen resumes a session or creates one. Open **Remote sessions** from the terminal menu to list sessions. Attaching or creating a session sends a command to the current terminal; use it at a shell prompt, not while another program is running.
