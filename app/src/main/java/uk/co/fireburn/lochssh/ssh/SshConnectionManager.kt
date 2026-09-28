@@ -26,6 +26,7 @@ class SshConnectionManager(
 ) {
 
     private val titleScanner = WindowTitleScanner(onTitle)
+    private val connectionAttempt = ConnectionAttemptControl()
     fun interface OutputListener {
         // bytes is an internal buffer, copy it before keeping it.
         fun onOutput(bytes: ByteArray, length: Int)
@@ -68,10 +69,17 @@ class SshConnectionManager(
 
     @Synchronized
     fun connect() {
+        connectionAttempt.run { connectChain() }
+    }
+
+    fun cancelConnect() = connectionAttempt.cancel()
+
+    private fun connectChain() {
         AndroidJSch.configure()
         require(config.jumpHosts.all { it.jumpHosts.isEmpty() }) { "Jump chain must be resolved before connecting" }
         var previous: Session? = null
         for (jumpConfig in config.jumpHosts) {
+            connectionAttempt.checkCancelled()
             val jump = createSession(jumpConfig)
             previous?.let { jump.setProxy(JumpHostProxy(it)) }
             jumps += jump
@@ -79,9 +87,11 @@ class SshConnectionManager(
             previous = jump
         }
         val s = createSession(config)
+        connectionAttempt.checkCancelled()
         previous?.let { s.setProxy(JumpHostProxy(it)) }
         session = s
         s.connect(CONNECT_TIMEOUT_MS)
+        connectionAttempt.checkCancelled()
         setupForwards(s)
 
         openShell(s)
