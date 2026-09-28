@@ -10,7 +10,7 @@ import java.net.Socket
 
 internal class JumpHostProxy(private val jump: Session) : Proxy {
     private var channel: ChannelDirectTCPIP? = null
-    private var input: InputStream? = null
+    private var input: TimedChannelInput? = null
     private var output: OutputStream? = null
 
     override fun connect(socketFactory: SocketFactory?, host: String, port: Int, timeout: Int) {
@@ -22,7 +22,8 @@ internal class JumpHostProxy(private val jump: Session) : Proxy {
             direct.setPort(port)
             direct.setOrgIPAddress("127.0.0.1")
             direct.setOrgPort(0)
-            input = direct.inputStream
+            input = TimedChannelInput(direct.inputStream) { direct.isConnected && !direct.isClosed }
+                .apply { timeoutMillis = timeout }
             output = direct.outputStream
             direct.connect(timeout)
             check(direct.isConnected) { "Jump connection could not be opened" }
@@ -34,7 +35,14 @@ internal class JumpHostProxy(private val jump: Session) : Proxy {
 
     override fun getInputStream(): InputStream = checkNotNull(input)
     override fun getOutputStream(): OutputStream = checkNotNull(output)
-    override fun getSocket(): Socket? = null
+    override fun getSocket(): Socket = object : Socket() {
+        override fun setSoTimeout(timeout: Int) {
+            require(timeout >= 0)
+            input?.timeoutMillis = timeout
+        }
+        override fun getSoTimeout(): Int = input?.timeoutMillis ?: 0
+        override fun close() = this@JumpHostProxy.close()
+    }
 
     override fun close() {
         channel?.disconnect()

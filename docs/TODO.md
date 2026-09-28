@@ -85,6 +85,8 @@ This list reflects the current app and the project conversations. The older
   strict server-key checks. The editor now selects a saved jump host; five
   chain tests reject missing hosts, loops and excessive chain length. An
   isolated phone test verifies the 6→7 migration and saved jump choices.
+  Timed channel reads now carry JSch's handshake and keep-alive timeouts;
+  a silent destination fails with a timeout in the local SSH integration test.
   Check the selector, live connections, key review, cancellation, and
   two-server tests with separate identities. SSH-agent forwarding remains.
 - Check Loch, Black and Paper terminal themes on a device, including existing
