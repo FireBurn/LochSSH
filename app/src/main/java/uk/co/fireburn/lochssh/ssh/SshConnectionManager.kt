@@ -27,6 +27,7 @@ class SshConnectionManager(
 
     private val titleScanner = WindowTitleScanner(onTitle)
     private val connectionAttempt = ConnectionAttemptControl()
+    private val connectingSessions = ConnectingSessions()
     fun interface OutputListener {
         // bytes is an internal buffer, copy it before keeping it.
         fun onOutput(bytes: ByteArray, length: Int)
@@ -69,10 +70,12 @@ class SshConnectionManager(
 
     @Synchronized
     fun connect() {
-        connectionAttempt.run { connectChain() }
+        try { connectionAttempt.run { connectChain() } }
+        finally { connectingSessions.clear() }
     }
 
     fun cancelConnect() = connectionAttempt.cancel()
+    fun closeConnectingSessions() = connectingSessions.close()
 
     private fun connectChain() {
         AndroidJSch.configure()
@@ -83,6 +86,7 @@ class SshConnectionManager(
             val jump = createSession(jumpConfig)
             previous?.let { jump.setProxy(JumpHostProxy(it)) }
             jumps += jump
+            connectionAttempt.checkCancelled()
             jump.connect(CONNECT_TIMEOUT_MS)
             previous = jump
         }
@@ -128,6 +132,7 @@ class SshConnectionManager(
                 "aes256-ctr,aes192-ctr,aes128-ctr"
         )
         config.password?.let { s.setPassword(it) }
+        connectingSessions.add(s)
         return s
     }
 

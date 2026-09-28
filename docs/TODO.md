@@ -89,7 +89,9 @@ This list reflects the current app and the project conversations. The older
   a silent destination fails with a timeout in the local SSH integration test.
   Cancel signals the handshake before waiting for the connection lock; tests
   cover cancellation before startup, during a silent channel read and at
-  completion. Direct socket reads may still wait for the handshake timeout.
+  completion. Connecting sessions are closed before waiting for the manager
+  lock; a silent-server test confirms direct handshakes stop before their read
+  timeout. Cancellation during DNS/TCP setup and phone cleanup still need checks.
   Check the selector, live connections, key review, cancellation, and
   two-server tests with separate identities. SSH-agent forwarding remains.
 - Check Loch, Black and Paper terminal themes on a device, including existing

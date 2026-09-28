@@ -286,7 +286,10 @@ class SshForegroundService : Service() {
         history.finished(attempt.token, ConnectionStates.CANCELLED)
         if (manager != null) {
             manager.cancelConnect()
-            thread(name = "ssh-cancel") { manager.disconnect() }
+            thread(name = "ssh-cancel") {
+                manager.closeConnectingSessions()
+                manager.disconnect()
+            }
         }
     }
 
