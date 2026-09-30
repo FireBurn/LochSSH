@@ -33,6 +33,7 @@ class HostsViewModel @Inject constructor(
     }
 
     fun newSessionId(): Long = registry.newId()
+    suspend fun hostById(id: Long): SshHostEntity? = hostDao.getById(id)
 
     fun duplicateHost(id: Long) {
         viewModelScope.launch {

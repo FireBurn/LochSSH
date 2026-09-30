@@ -271,7 +271,14 @@ This list reflects the current app and the project conversations. The older
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Three parsing tests pass;
   wrapped links and the selection-to-browser interaction still need checks.
-- Add local shell sessions, homescreen shortcuts, and an app lock.
+- Add local shell sessions and an app lock.
+  Saved-host menus now request a pinned homescreen shortcut. Launching it loads
+  the current host and asks before connecting; no credentials go into the
+  shortcut. Missing hosts and storage errors do not start a connection.
+  Check launcher support, cancellation, deleted and renamed hosts, rotation
+  and launching while another session is open on a device.
+  Android intent tests cover the explicit target, host-only contents, unrelated
+  actions and invalid IDs. Runtime confirmation and launcher tests remain.
 - Add IPv6 connection tests and proxy settings.
   Session-switching keyboard shortcuts are optional and off by default.
   When enabled, Ctrl+Alt+Page Up/Down cycles through session rows and wraps at

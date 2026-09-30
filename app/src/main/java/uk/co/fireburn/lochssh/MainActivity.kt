@@ -22,6 +22,8 @@ import dagger.hilt.android.AndroidEntryPoint
 import uk.co.fireburn.lochssh.service.SshForegroundService
 import uk.co.fireburn.lochssh.ui.hosts.HostEditorScreen
 import uk.co.fireburn.lochssh.ui.hosts.HostListScreen
+import uk.co.fireburn.lochssh.ui.hosts.HostShortcuts
+import uk.co.fireburn.lochssh.ui.hosts.HostShortcutScreen
 import uk.co.fireburn.lochssh.ui.identities.IdentityEditorScreen
 import uk.co.fireburn.lochssh.ui.identities.IdentityListScreen
 import uk.co.fireburn.lochssh.ui.settings.SettingsScreen
@@ -34,6 +36,8 @@ import uk.co.fireburn.lochssh.ui.theme.LochSSHTheme
 
 object Routes {
     const val HOSTS = "hosts"
+    const val HOST_SHORTCUT = "host_shortcut?hostId={hostId}"
+    fun hostShortcut(id: Long) = "host_shortcut?hostId=$id"
     const val HOST_EDITOR = "host_editor?id={id}"
     fun hostEditor(id: Long) = "host_editor?id=$id"
     const val IDENTITIES = "identities"
@@ -53,20 +57,21 @@ class MainActivity : ComponentActivity() {
 
     // A session id arrives here when one of the connection notifications is tapped.
     private val resumeSession = MutableStateFlow<Long?>(null)
+    private val shortcutHost = MutableStateFlow<Long?>(null)
 
     private val askNotifications =
         registerForActivityResult(ActivityResultContracts.RequestPermission()) {}
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        resumeSession.value = sessionOf(intent)
+        if (savedInstanceState == null) readLaunch(intent)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
         setContent {
             LochSSHTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    LochSshNavHost(resumeSession)
+                    LochSshNavHost(resumeSession, shortcutHost)
                 }
             }
         }
@@ -75,7 +80,12 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        resumeSession.value = sessionOf(intent)
+        readLaunch(intent)
+    }
+
+    private fun readLaunch(intent: Intent?) {
+        shortcutHost.value = HostShortcuts.hostId(intent)
+        resumeSession.value = if (shortcutHost.value == null) sessionOf(intent) else null
     }
 
     private fun sessionOf(intent: Intent?): Long? =
@@ -83,9 +93,20 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>) {
+fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>, shortcutHost: MutableStateFlow<Long?>) {
     val navController = rememberNavController()
     val context = LocalContext.current
+    LaunchedEffect(navController) {
+        shortcutHost.collect { id ->
+            if (id != null) {
+                navController.navigate(Routes.hostShortcut(id)) {
+                    popUpTo(Routes.HOSTS)
+                    launchSingleTop = true
+                }
+                shortcutHost.value = null
+            }
+        }
+    }
 
     LaunchedEffect(navController) {
         resumeSession.collect { id ->
@@ -97,6 +118,14 @@ fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>) {
     }
 
     NavHost(navController = navController, startDestination = Routes.HOSTS) {
+        composable(Routes.HOST_SHORTCUT,
+            arguments = listOf(navArgument("hostId") { type = NavType.LongType })) { entry ->
+            HostShortcutScreen(hostId = entry.arguments?.getLong("hostId") ?: -1L,
+                onConnect = { hostId, sessionId ->
+                    SshForegroundService.start(context, hostId, sessionId)
+                    navController.switchTerminal(sessionId)
+                }, onBack = { navController.popBackStack() })
+        }
         composable(Routes.HOSTS) {
             HostListScreen(
                 onNewSession = { hostId, sessionId ->

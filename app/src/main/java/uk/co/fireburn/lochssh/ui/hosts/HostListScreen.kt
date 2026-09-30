@@ -61,6 +61,8 @@ fun HostListScreen(
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     var pendingDelete by remember { mutableStateOf<SshHostEntity?>(null) }
+    var shortcutError by remember { mutableStateOf<String?>(null) }
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -128,12 +130,18 @@ fun HostListScreen(
                     onClick = { onNewSession(host.id, viewModel.newSessionId()) },
                     onEdit = { onEdit(host.id) },
                     onDuplicate = { viewModel.duplicateHost(host.id) },
-                    onDelete = { pendingDelete = host }
+                    onDelete = { pendingDelete = host },
+                    onShortcut = { shortcutError = HostShortcuts.pin(context, host) }
                 )
             }
         }
     }
 
+    shortcutError?.let { message ->
+        AlertDialog(onDismissRequest = { shortcutError = null },
+            title = { Text("Shortcut") }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = { shortcutError = null }) { Text("Close") } })
+    }
     pendingDelete?.let { host ->
         AlertDialog(
             onDismissRequest = { pendingDelete = null },
@@ -168,7 +176,8 @@ private fun HostRow(
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    onShortcut: () -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
@@ -196,6 +205,7 @@ private fun HostRow(
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
                     DropdownMenuItem(text = { Text("Edit") }, onClick = { menuOpen = false; onEdit() })
                     DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menuOpen = false; onDuplicate() })
+                    DropdownMenuItem(text = { Text("Add to homescreen") }, onClick = { menuOpen = false; onShortcut() })
                     DropdownMenuItem(text = { Text("Delete") }, onClick = { menuOpen = false; onDelete() })
                 }
             }

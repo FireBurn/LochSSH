@@ -20,6 +20,13 @@ Review or remove saved keys under Settings → Saved host keys. Existing saved
 keys are kept. Check [the work list](docs/TODO.md) before relying on the app for
 sensitive connections.
 
+## Homescreen shortcuts
+
+Choose Add to homescreen from a saved host's menu. A supported launcher asks
+before adding the shortcut. Opening it loads the current host and asks before
+connecting; a deleted host shows an error. The shortcut stores only the host ID,
+not credentials. Launcher interaction still needs device checks.
+
 ## Build
 
 Use JDK 25 and an Android SDK with API 35 installed:
