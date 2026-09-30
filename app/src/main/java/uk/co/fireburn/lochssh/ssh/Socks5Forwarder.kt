@@ -1,6 +1,5 @@
 package uk.co.fireburn.lochssh.ssh
 
-import android.util.Log
 import com.jcraft.jsch.ChannelDirectTCPIP
 import com.jcraft.jsch.Session
 import java.net.InetAddress
@@ -12,6 +11,8 @@ import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.Semaphore
 import java.util.concurrent.atomic.AtomicLong
+import java.util.logging.Level
+import java.util.logging.Logger
 import kotlin.concurrent.thread
 
 internal class Socks5Forwarder(
@@ -102,7 +103,7 @@ internal class Socks5Forwarder(
                 response.join(15_000)
             }
         } catch (e: Exception) {
-            Log.w("LochSSH", "SOCKS5 connection failed", e)
+            Logger.getLogger("LochSSH").log(Level.WARNING, "SOCKS5 connection failed", e)
             val now = System.nanoTime()
             val previous = lastWarningAt.get()
             if ((previous == 0L || now - previous > 10_000_000_000L) &&

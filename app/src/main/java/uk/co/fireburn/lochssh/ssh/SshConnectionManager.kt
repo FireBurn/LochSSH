@@ -46,6 +46,7 @@ class SshConnectionManager(
     private val dynamicForwards = mutableListOf<Socks5Forwarder>()
     @Volatile
     private var transport: SharedSshConnection? = null
+    private var warningSubscription: AutoCloseable? = null
     @Volatile
     private var running = false
 
@@ -78,6 +79,7 @@ class SshConnectionManager(
         if (reused != null) {
             transport = reused
             session = reused.session
+            warningSubscription = reused.warnings.listen(onForwardError)
             connectionAttempt.checkCancelled()
             openShell(reused.session)
             return
@@ -99,9 +101,11 @@ class SshConnectionManager(
         session = s
         s.connect(CONNECT_TIMEOUT_MS)
         connectionAttempt.checkCancelled()
-        setupForwards(s)
+        val warnings = ForwardWarnings()
+        warningSubscription = warnings.listen(onForwardError)
+        setupForwards(s, warnings::report)
 
-        transport = SharedSshConnection(s, jumps.toList(), dynamicForwards.toList())
+        transport = SharedSshConnection(s, jumps.toList(), dynamicForwards.toList(), warnings)
 
         openShell(s)
     }
@@ -273,6 +277,8 @@ class SshConnectionManager(
     @Synchronized
     fun disconnect() {
         running = false
+        warningSubscription?.close()
+        warningSubscription = null
         val ch = channel
         val s = session
         val out = remoteOut
@@ -300,7 +306,7 @@ class SshConnectionManager(
         readerThread = null
     }
 
-    private fun setupForwards(s: Session) {
+    private fun setupForwards(s: Session, report: (String) -> Unit) {
         for (f in config.forwards) {
             try {
                 when (f.type) {
@@ -309,7 +315,7 @@ class SshConnectionManager(
                     ForwardTypes.REMOTE ->
                         Log.i(TAG, "remote forward ${f.remotePort} -> ${f.localPort} rc=${s.setPortForwardingR(f.remotePort, LOCAL_LOOPBACK, f.localPort)}")
                     ForwardTypes.DYNAMIC -> {
-                        val forwarder = Socks5Forwarder(s, f.localPort, onForwardError)
+                        val forwarder = Socks5Forwarder(s, f.localPort, report)
                         forwarder.start()
                         dynamicForwards += forwarder
                         Log.i(TAG, "SOCKS5 forward listening on localhost:${f.localPort}")
@@ -323,7 +329,7 @@ class SshConnectionManager(
                     ForwardTypes.DYNAMIC -> "Proxy"
                     else -> "Local"
                 }
-                onForwardError("$place port $port could not be opened: ${e.message ?: "connection error"}")
+                report("$place port $port could not be opened: ${e.message ?: "connection error"}")
             }
         }
     }

@@ -6,7 +6,12 @@ import com.jcraft.jsch.Session
 import java.io.File
 import java.io.IOException
 import java.net.Socket
+import java.net.ServerSocket
+import java.net.InetAddress
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
@@ -76,6 +81,41 @@ class SharedSshConnectionTest {
         connection.release()
         connection.release()
         assertFalse(connection.acquire())
+    }
+
+    @Test
+    fun proxyFailureReachesTheRemainingTerminal() = withSession { session ->
+        val warnings = ForwardWarnings()
+        val first = mutableListOf<String>()
+        val received = CountDownLatch(1)
+        val firstSubscription = warnings.listen(first::add)
+        val remaining = warnings.listen { if (it.startsWith("Proxy connection failed:")) received.countDown() }
+        val proxy = Socks5Forwarder(session, 0, warnings::report)
+        proxy.start()
+        try {
+            firstSubscription.close()
+            val unusedPort = ServerSocket(0, 1, InetAddress.getByName("127.0.0.1")).use { it.localPort }
+            Socket("127.0.0.1", proxy.listenPort).use { socket ->
+                socket.soTimeout = 5_000
+                val output = socket.getOutputStream()
+                val input = socket.getInputStream()
+                output.write(byteArrayOf(5, 1, 0))
+                output.flush()
+                assertArrayEquals(byteArrayOf(5, 0), input.readNBytes(2))
+                output.write(byteArrayOf(5, 1, 0, 1, 127, 0, 0, 1,
+                    (unusedPort shr 8).toByte(), unusedPort.toByte()))
+                output.flush()
+                val response = input.readNBytes(10)
+                assertEquals(10, response.size)
+                assertEquals(5, response[1].toInt())
+            }
+            assertTrue(received.await(5, TimeUnit.SECONDS))
+            assertTrue(first.isEmpty())
+        } finally {
+            firstSubscription.close()
+            remaining.close()
+            proxy.stop()
+        }
     }
 
     private fun withSession(check: (Session) -> Unit) {

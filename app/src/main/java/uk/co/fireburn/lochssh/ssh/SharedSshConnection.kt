@@ -5,7 +5,8 @@ import com.jcraft.jsch.Session
 internal class SharedSshConnection(
     val session: Session,
     private val jumps: List<Session>,
-    private val forwards: List<Socks5Forwarder>
+    private val forwards: List<Socks5Forwarder>,
+    val warnings: ForwardWarnings = ForwardWarnings()
 ) {
     private var users = 1
     val isConnected: Boolean get() = session.isConnected
