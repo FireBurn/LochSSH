@@ -156,6 +156,10 @@ This list reflects the current app and the project conversations. The older
   before enabling input. Closing the session during discovery prevents it
   reappearing as connected. Check early typing, missing tools, discovery failures
   and disconnect during startup on a device.
+  Automatic startup checks only the selected tool instead of checking both
+  tools and listing sessions. The session picker keeps full discovery.
+  Four unit tests cover the selected check, missing tools, picker discovery
+  and allowed commands. Check startup time against a remote server on a device.
 - Test SOCKS5 forwarding through a live SSH server on a device. A JVM-side
   loopback test passed through a real SSH session, but no Android tunnel run has
   been recorded. Bind and proxy connection failures now appear in the terminal;

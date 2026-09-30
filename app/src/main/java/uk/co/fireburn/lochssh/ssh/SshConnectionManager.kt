@@ -8,6 +8,7 @@ import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
 import com.jcraft.jsch.android.AndroidJSch
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
+import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStream
@@ -215,8 +216,8 @@ class SshConnectionManager(
     }
 
     fun discoverRemoteSessions(): RemoteSessionOptions {
-        val tmuxAvailable = remoteCommand("command -v tmux >/dev/null 2>&1").exitCode == 0
-        val screenAvailable = remoteCommand("command -v screen >/dev/null 2>&1").exitCode == 0
+        val tmuxAvailable = remoteSessionAvailable(RemoteSessionModes.TMUX)
+        val screenAvailable = remoteSessionAvailable(RemoteSessionModes.SCREEN)
         val sessions = buildList {
             if (tmuxAvailable) {
                 addAll(RemoteSessions.parseTmux(
@@ -229,6 +230,9 @@ class SshConnectionManager(
         }
         return RemoteSessionOptions(tmuxAvailable, screenAvailable, sessions)
     }
+
+    fun remoteSessionAvailable(tool: String): Boolean =
+        remoteCommand(RemoteSessions.availabilityCommand(tool)).exitCode == 0
 
     private fun remoteCommand(command: String): RemoteCommandResult {
         val active = session ?: throw IOException("SSH session closed")

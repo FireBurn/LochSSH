@@ -17,6 +17,22 @@ data class RemoteSessionOptions(
 )
 
 object RemoteSessions {
+    fun startupOptions(mode: String, available: (String) -> Boolean,
+        discover: () -> RemoteSessionOptions): RemoteSessionOptions = when (mode) {
+        RemoteSessionModes.TMUX -> RemoteSessionOptions(tmuxAvailable = available(mode))
+        RemoteSessionModes.SCREEN -> RemoteSessionOptions(screenAvailable = available(mode))
+        else -> discover()
+    }
+
+    fun availabilityCommand(tool: String): String {
+        val name = when (tool) {
+            RemoteSessionModes.TMUX -> "tmux"
+            RemoteSessionModes.SCREEN -> "screen"
+            else -> throw IllegalArgumentException("Unknown remote session tool")
+        }
+        return "command -v $name >/dev/null 2>&1"
+    }
+
     private val tmuxId = Regex("\\$[0-9]+")
     private val screenId = Regex("[0-9]+\\.[^\\x00-\\x1f\\x7f/]+")
     private val screenStatus = Regex("\\((Attached|Detached|Multi, attached|Multi, detached)\\)\\s*$")

@@ -2,10 +2,58 @@ package uk.co.fireburn.lochssh.ssh
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 
 class RemoteSessionsTest {
+    @Test
+    fun automaticStartupChecksOnlyTheSelectedTool() {
+        for (mode in listOf(RemoteSessionModes.TMUX, RemoteSessionModes.SCREEN)) {
+            val checked = mutableListOf<String>()
+            val options = RemoteSessions.startupOptions(mode, {
+                checked += it
+                true
+            }, { error("Automatic startup must not list sessions") })
+            assertEquals(listOf(mode), checked)
+            assertEquals(mode == RemoteSessionModes.TMUX, options.tmuxAvailable)
+            assertEquals(mode == RemoteSessionModes.SCREEN, options.screenAvailable)
+            assertTrue(options.sessions.isEmpty())
+        }
+    }
+
+    @Test
+    fun missingSelectedToolDoesNotProbeAnotherTool() {
+        val checked = mutableListOf<String>()
+        val options = RemoteSessions.startupOptions(RemoteSessionModes.TMUX, {
+            checked += it
+            false
+        }, { error("Missing tools must not trigger full discovery") })
+        assertEquals(listOf(RemoteSessionModes.TMUX), checked)
+        assertEquals(RemoteSessionOptions(), options)
+    }
+
+    @Test
+    fun sessionPickerStillDiscoversAllSessions() {
+        val expected = RemoteSessionOptions(tmuxAvailable = true, screenAvailable = true)
+        var discoveries = 0
+        val options = RemoteSessions.startupOptions(RemoteSessionModes.ASK,
+            { error("The picker uses full discovery") }, { discoveries++; expected })
+        assertEquals(expected, options)
+        assertEquals(1, discoveries)
+    }
+
+    @Test
+    fun availabilityCommandsAcceptOnlyKnownTools() {
+        assertEquals("command -v tmux >/dev/null 2>&1",
+            RemoteSessions.availabilityCommand(RemoteSessionModes.TMUX))
+        assertEquals("command -v screen >/dev/null 2>&1",
+            RemoteSessions.availabilityCommand(RemoteSessionModes.SCREEN))
+        assertThrows(IllegalArgumentException::class.java) {
+            RemoteSessions.availabilityCommand("tmux; exit")
+        }
+    }
+
     @Test
     fun readsTmuxSessions() {
         val sessions = RemoteSessions.parseTmux("\$0|work|1\n\$1|editor|0\n")

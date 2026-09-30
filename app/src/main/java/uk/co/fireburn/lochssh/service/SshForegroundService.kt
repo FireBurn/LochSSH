@@ -240,7 +240,10 @@ class SshForegroundService : Service() {
     ) {
         if (managers[sessionId] !== manager) return
         val options = try {
-            withContext(Dispatchers.IO) { manager.discoverRemoteSessions() }
+            withContext(Dispatchers.IO) {
+                RemoteSessions.startupOptions(config.remoteSessionMode,
+                    manager::remoteSessionAvailable, manager::discoverRemoteSessions)
+            }
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
