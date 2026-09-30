@@ -194,14 +194,15 @@ class TerminalBuffer(
     }
 
     private fun feedByte(b: Int) {
+        if (b == 0x1B || b == 0x18 || b == 0x1A) {
+            clearParser()
+            inEscape = b == 0x1B
+            return
+        }
         when {
             skipNext -> skipNext = false
             inOsc -> when {
                 b == 0x07 -> inOsc = false
-                b == 0x1B -> {
-                    inOsc = false
-                    inEscape = true
-                }
                 else -> Unit
             }
             inCsi -> when {
@@ -232,13 +233,49 @@ class TerminalBuffer(
                         lineFeed()
                     }
                     'M'.code -> reverseIndex()
+                    'c'.code -> reset(full = true)
                     // Character set selection takes one more byte.
                     '('.code, ')'.code, '*'.code, '+'.code -> skipNext = true
                     else -> Unit
                 }
             }
-            b == 0x1B -> inEscape = true
             else -> controlOrPrint(b)
+        }
+    }
+
+    private fun clearParser() {
+        inEscape = false
+        inCsi = false
+        inOsc = false
+        skipNext = false
+        csiPrivate = false
+        csiParams.clear()
+        csiOverflow = false
+        utf8Remaining = 0
+        utf8Code = 0
+    }
+
+    private fun reset(full: Boolean) {
+        clearParser()
+        fg = DEFAULT_FG
+        bg = DEFAULT_BG
+        bold = false
+        inverse = false
+        wraparound = true
+        originMode = false
+        applicationCursor = false
+        cursorVisible = true
+        scrollTop = 0
+        scrollBottom = rows - 1
+        cursorCol = cursorCol.coerceAtMost(cols - 1)
+        savedCursor = SavedCursor(0, 0, fg, bg, bold, inverse, originMode, wraparound)
+        if (full) {
+            bracketedPaste = false
+            savedGrid = null
+            alternateState = null
+            grid = blankGrid(cols, rows)
+            history.clear()
+            homeCursor()
         }
     }
 
@@ -339,6 +376,10 @@ class TerminalBuffer(
     }
 
     private fun handleCsi(final: Char) {
+        if (final == 'p' && !csiPrivate && csiParams.toString() == "!") {
+            reset(full = false)
+            return
+        }
         val parts = csiParams.toString().split(';').map { it.toIntOrNull() ?: 0 }
         val first = parts.getOrNull(0) ?: 0
         val count = first.coerceIn(1, maxOf(cols, rows))

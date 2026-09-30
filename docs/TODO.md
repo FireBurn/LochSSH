@@ -83,13 +83,19 @@ This list reflects the current app and the project conversations. The older
   and saved cursor state retains origin, wrapping and text colours. Six unit
   tests cover positioning, reports, margins, saved state and resizing. Check these
   modes with editors and tmux while resizing and switching screens on a device.
+  Soft reset restores cursor modes, margins, text attributes and saved cursor
+  state without clearing text. Full reset clears both screens and scrollback,
+  disables bracketed paste and returns the cursor home. Escape, Cancel and
+  Substitute now interrupt unfinished commands. Seven unit tests cover resets,
+  retained text, screen changes and interrupted input. Check remote reset and recovery
+  after interrupted full-screen programs on a device.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
   not been checked on a device.
 - Complete terminal character and mode support: supplementary Unicode, wide
-  and combining characters, line-drawing characters, application keypad and
-  terminal reset. The current grid stores one
+  and combining characters, line-drawing characters and application keypad.
+  The current grid stores one
   Kotlin character per cell. Check editor and tmux output against a desktop
   terminal, including screen changes and resizing.
 - Resolve Android Ed25519 without relying on local JSch JARs. PR
