@@ -74,12 +74,16 @@ This list reflects the current app and the project conversations. The older
   Three unit tests cover mode changes, modified keys and session state through
   resizing. All four physical-key encoder tests pass on the Android emulator,
   including application cursor mode and modified keys.
+  Wrapping now follows the remote program's setting. A line feed or cursor
+  movement cancels a pending wrap instead of skipping another row. Tests cover
+  full lines, disabled wrapping, mode changes, backspace and cursor movement.
+  Check right-edge output in editors and after terminal resizing on a device.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
   not been checked on a device.
 - Complete terminal character and mode support: supplementary Unicode, wide
-  and combining characters, line-drawing characters, origin and wraparound
+  and combining characters, line-drawing characters, origin
   modes, application keypad and terminal reset. The current grid stores one
   Kotlin character per cell. Check editor and tmux output against a desktop
   terminal, including screen changes and resizing.

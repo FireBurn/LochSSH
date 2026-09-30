@@ -16,6 +16,7 @@ class TerminalBuffer(
     private var bg = DEFAULT_BG
     private var bold = false
     private var inverse = false
+    private var wraparound = true
 
     var cursorCol = 0
         private set
@@ -237,7 +238,7 @@ class TerminalBuffer(
     private fun controlOrPrint(b: Int) {
         when (b) {
             0x07 -> Unit // bell
-            0x08 -> cursorCol = (cursorCol - 1).coerceAtLeast(0)
+            0x08 -> cursorCol = (cursorCol.coerceAtMost(cols - 1) - 1).coerceAtLeast(0)
             0x09 -> cursorCol = ((cursorCol / 8 + 1) * 8).coerceAtMost(cols - 1)
             0x0A, 0x0B, 0x0C -> lineFeed()
             0x0D -> cursorCol = 0
@@ -277,11 +278,13 @@ class TerminalBuffer(
 
     private fun putChar(c: Char) {
         if (cursorCol >= cols) {
-            cursorCol = 0
-            lineFeed()
+            if (wraparound) {
+                cursorCol = 0
+                lineFeed()
+            } else cursorCol = cols - 1
         }
         grid[cursorRow][cursorCol] = cell(c)
-        cursorCol++
+        cursorCol = if (wraparound) cursorCol + 1 else (cursorCol + 1).coerceAtMost(cols - 1)
     }
 
     private fun cell(c: Char) =
@@ -290,6 +293,7 @@ class TerminalBuffer(
     private fun blank() = Cell(' ', DEFAULT_FG, DEFAULT_BG, false)
 
     private fun lineFeed() {
+        cursorCol = cursorCol.coerceAtMost(cols - 1)
         when {
             cursorRow == scrollBottom -> scrollUp(1)
             cursorRow < rows - 1 -> cursorRow++
@@ -297,6 +301,7 @@ class TerminalBuffer(
     }
 
     private fun reverseIndex() {
+        cursorCol = cursorCol.coerceAtMost(cols - 1)
         when {
             cursorRow == scrollTop -> scrollDown(1)
             cursorRow > 0 -> cursorRow--
@@ -354,10 +359,16 @@ class TerminalBuffer(
                 cursorRow = (parts.getOrNull(0) ?: 1).coerceAtLeast(1).coerceAtMost(rows) - 1
                 cursorCol = (parts.getOrNull(1) ?: 1).coerceAtLeast(1).coerceAtMost(cols) - 1
             }
-            'A' -> cursorRow = (cursorRow - count).coerceAtLeast(0)
-            'B' -> cursorRow = (cursorRow + count).coerceAtMost(rows - 1)
+            'A' -> {
+                cursorCol = cursorCol.coerceAtMost(cols - 1)
+                cursorRow = (cursorRow - count).coerceAtLeast(0)
+            }
+            'B' -> {
+                cursorCol = cursorCol.coerceAtMost(cols - 1)
+                cursorRow = (cursorRow + count).coerceAtMost(rows - 1)
+            }
             'C' -> cursorCol = (cursorCol + count).coerceAtMost(cols - 1)
-            'D' -> cursorCol = (cursorCol - count).coerceAtLeast(0)
+            'D' -> cursorCol = (cursorCol.coerceAtMost(cols - 1) - count).coerceAtLeast(0)
             'E' -> {
                 cursorRow = (cursorRow + count).coerceAtMost(rows - 1)
                 cursorCol = 0
@@ -367,7 +378,10 @@ class TerminalBuffer(
                 cursorCol = 0
             }
             'G', '`' -> cursorCol = first.coerceAtLeast(1).coerceAtMost(cols) - 1
-            'd' -> cursorRow = first.coerceAtLeast(1).coerceAtMost(rows) - 1
+            'd' -> {
+                cursorCol = cursorCol.coerceAtMost(cols - 1)
+                cursorRow = first.coerceAtLeast(1).coerceAtMost(rows) - 1
+            }
             'J' -> clearDisplay(first)
             'K' -> clearLine(first)
             'L' -> insertLines(count)
@@ -397,6 +411,10 @@ class TerminalBuffer(
         for (mode in parts) {
             when (mode) {
                 1 -> applicationCursor = enable
+                7 -> {
+                    wraparound = enable
+                    cursorCol = cursorCol.coerceAtMost(cols - 1)
+                }
                 25 -> cursorVisible = enable
                 2004 -> bracketedPaste = enable
                 // Full screen programs swap to their own screen and back.
