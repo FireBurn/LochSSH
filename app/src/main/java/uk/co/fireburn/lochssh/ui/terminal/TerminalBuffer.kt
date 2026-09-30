@@ -71,9 +71,7 @@ class TerminalBuffer(
     private val csiParams = StringBuilder()
     private var csiOverflow = false
 
-    // UTF-8 decode state
-    private var utf8Remaining = 0
-    private var utf8Code = 0
+    private val utf8 = TerminalUtf8 { putChar(it.toChar()) }
 
     // The reader thread feeds while the UI thread draws, so both sides take
     // this lock; readers take it once per frame through read().
@@ -262,8 +260,7 @@ class TerminalBuffer(
         csiPrivate = false
         csiParams.clear()
         csiOverflow = false
-        utf8Remaining = 0
-        utf8Code = 0
+        utf8.reset()
     }
 
     private fun reset(full: Boolean) {
@@ -292,6 +289,7 @@ class TerminalBuffer(
     }
 
     private fun controlOrPrint(b: Int) {
+        if (b < 0x20 || b == 0x7F) utf8.finish()
         when (b) {
             0x07 -> Unit // bell
             0x08 -> cursorCol = (cursorCol.coerceAtMost(cols - 1) - 1).coerceAtLeast(0)
@@ -300,37 +298,8 @@ class TerminalBuffer(
             0x0D -> cursorCol = 0
             0x0E -> charsets.use(1)
             0x0F -> charsets.use(0)
-            in 0x00..0x1F -> Unit
-            else -> printable(b)
-        }
-    }
-
-    private fun printable(b: Int) {
-        when {
-            utf8Remaining > 0 -> {
-                if (b and 0xC0 != 0x80) {
-                    utf8Remaining = 0
-                    putChar(b.toChar())
-                    return
-                }
-                utf8Code = (utf8Code shl 6) or (b and 0x3F)
-                utf8Remaining--
-                if (utf8Remaining == 0) putChar(utf8Code.toChar())
-            }
-            b < 0x80 -> putChar(b.toChar())
-            b and 0xE0 == 0xC0 -> {
-                utf8Code = b and 0x1F
-                utf8Remaining = 1
-            }
-            b and 0xF0 == 0xE0 -> {
-                utf8Code = b and 0x0F
-                utf8Remaining = 2
-            }
-            b and 0xF8 == 0xF0 -> {
-                utf8Code = b and 0x07
-                utf8Remaining = 3
-            }
-            else -> putChar('?')
+            in 0x00..0x1F, 0x7F -> Unit
+            else -> utf8.feed(b)
         }
     }
 

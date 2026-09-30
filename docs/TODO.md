@@ -99,6 +99,10 @@ This list reflects the current app and the project conversations. The older
   not been checked on a device.
 - Complete terminal character and mode support: supplementary Unicode, wide
   and combining characters, and application keypad.
+  The UTF-8 decoder now rejects overlong, surrogate and out-of-range sequences
+  and preserves valid characters after broken input. Five tests cover every
+  valid Unicode code point and malformed input. Decoder coverage does not
+  prove supplementary character rendering; the grid and drawing still need changes.
   The current grid stores one
   Kotlin character per cell. Check editor and tmux output against a desktop
   terminal, including screen changes and resizing.
