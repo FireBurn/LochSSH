@@ -41,6 +41,7 @@ import java.util.UUID
 import javax.inject.Inject
 import kotlin.concurrent.thread
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
@@ -201,12 +202,20 @@ class SshForegroundService : Service() {
             managers[sessionId] = connected.manager
             connectedTokens[sessionId] = attempt.token
             history.connected(attempt.token)
-            registry.connected(sessionId, connected.manager)
-            showSessionNotification(sessionId, host.name, "Connected to ${host.host}")
-            updateSummary()
-            scope.launch(Dispatchers.IO) {
-                startRemoteSession(sessionId, connected.config, connected.manager, attempt.remoteCommand)
+            val initialCommand = attempt.remoteCommand ?: connected.config.autoCommand.takeIf {
+                connected.config.remoteSessionMode == RemoteSessionModes.SHELL && it.isNotBlank()
             }
+            initialCommand?.let {
+                connected.manager.write((it + "\n").toByteArray(Charsets.UTF_8))
+            }
+            if (attempt.remoteCommand == null && connected.config.remoteSessionMode != RemoteSessionModes.SHELL) {
+                showSessionNotification(sessionId, host.name, "Checking remote sessions")
+                scope.launch {
+                    startRemoteSession(sessionId, connected.config, connected.manager)
+                    announceConnected(sessionId, connected.manager, host.name, host.host)
+                }
+            } else announceConnected(sessionId, connected.manager, host.name, host.host)
+            updateSummary()
         } catch (e: Exception) {
             attempt.manager?.disconnect()
             if (attempts.remove(sessionId, attempt)) {
@@ -217,25 +226,23 @@ class SshForegroundService : Service() {
         }
     }
 
-    private fun startRemoteSession(
+    private fun announceConnected(sessionId: Long, manager: SshConnectionManager, name: String, host: String) {
+        if (managers[sessionId] !== manager) return
+        registry.connected(sessionId, manager)
+        showSessionNotification(sessionId, name, "Connected to $host")
+        updateSummary()
+    }
+
+    private suspend fun startRemoteSession(
         sessionId: Long,
         config: SshConnectionConfig,
-        manager: SshConnectionManager,
-        remoteCommand: String?
+        manager: SshConnectionManager
     ) {
         if (managers[sessionId] !== manager) return
-        if (remoteCommand != null) {
-            manager.write((remoteCommand + "\n").toByteArray(Charsets.UTF_8))
-            return
-        }
-        if (config.remoteSessionMode == RemoteSessionModes.SHELL) {
-            if (config.autoCommand.isNotBlank()) {
-                manager.write((config.autoCommand + "\n").toByteArray(Charsets.UTF_8))
-            }
-            return
-        }
         val options = try {
-            manager.discoverRemoteSessions()
+            withContext(Dispatchers.IO) { manager.discoverRemoteSessions() }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Log.w(TAG, "Could not check remote sessions", e)
             RemoteSessionOptions(error = "Could not check remote sessions")
@@ -254,11 +261,7 @@ class SshForegroundService : Service() {
                 RemoteSessionModes.SCREEN -> "Screen is not installed"
                 else -> null
             }
-            scope.launch {
-                if (managers[sessionId] === manager) {
-                    registry.offerRemoteSessions(sessionId, options.copy(error = options.error ?: missing))
-                }
-            }
+            registry.offerRemoteSessions(sessionId, options.copy(error = options.error ?: missing))
         }
     }
 

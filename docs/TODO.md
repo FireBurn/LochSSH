@@ -150,6 +150,12 @@ This list reflects the current app and the project conversations. The older
   Three drawer UI tests and both navigation tests pass on an Android 33
   emulator, including repeated switches between sessions. Live connections,
   keyboard focus and the hiding toolbar still need interaction checks.
+  Explicit resume commands and shell auto-commands are now queued before
+  the UI receives the connection, so early typing cannot precede them.
+  Automatic tmux/Screen startup now waits for discovery and queues its command
+  before enabling input. Closing the session during discovery prevents it
+  reappearing as connected. Check early typing, missing tools, discovery failures
+  and disconnect during startup on a device.
 - Test SOCKS5 forwarding through a live SSH server on a device. A JVM-side
   loopback test passed through a real SSH session, but no Android tunnel run has
   been recorded. Bind and proxy connection failures now appear in the terminal;
