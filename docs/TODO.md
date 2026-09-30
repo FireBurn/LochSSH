@@ -97,18 +97,23 @@ This list reflects the current app and the project conversations. The older
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
   not been checked on a device.
-- Complete terminal character and mode support: wide characters, spacing marks
+- Complete terminal character and mode support: spacing marks
   and joined emoji sequences.
   Hardware keypad keys now follow the remote application's keypad mode. Num Lock
   selects numeric input; unlocked keys use navigation or application sequences.
   Normal Enter and on-screen keys remain unchanged. Check a physical keypad with
   editors, Num Lock and modifiers on a device.
   Four unit tests cover sequences, Num Lock, navigation and remote mode changes.
-  The Android keypad-event test compiles but has not run without a connected device.
+  All five Android key-encoder tests pass on the emulator, including keypad mode
+  and Num Lock. Physical-keypad interaction still needs a device check.
   [Unicode width tables](terminal-widths.md) are pinned to version 17.0.0 and
   used for mark classification on all Android versions. Exhaustive tests compare
-  their results with the source ranges. Two-column placement is not wired into
-  the grid yet; verify insertion, deletion, wrapping, copying and resizing next.
+  their results with the source ranges. Two-column characters now reserve a
+  continuation cell, copy once and keep combining marks with the leading cell.
+  Edits and resizing clear orphan halves. Nine tests cover wide characters,
+  partial edits and 1,000 random editing and resizing actions.
+  Check insertion, deletion, wrapping,
+  copying, resizing, cursor painting and font fallback on a device.
   The UTF-8 decoder now rejects overlong, surrogate and out-of-range sequences
   and preserves valid characters after broken input. Five tests cover every
   valid Unicode code point and malformed input. Cells now store complete text,
@@ -117,7 +122,7 @@ This list reflects the current app and the project conversations. The older
   their base cell without advancing or triggering a wrap. A cell is bounded to
   128 UTF-16 units to prevent untrusted output growing it without limit. Seven
   tests cover accents, edge wrapping, split input, screen changes and bounded cells. Check
-  accent shaping, selection and right-edge output on a device. Column widths,
+  accent shaping, selection and right-edge output on a device. Variation-selector widths,
   spacing marks and joined emoji still need implementation. Check editor and tmux output against a desktop
   terminal, including screen changes and resizing.
 - Resolve Android Ed25519 without relying on local JSch JARs. PR

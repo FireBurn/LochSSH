@@ -6,7 +6,7 @@ class TerminalBuffer(
     var rows: Int,
     private val onReply: (String) -> Unit = {}
 ) {
-    data class Cell(val text: String, val fg: Int, val bg: Int, val bold: Boolean)
+    data class Cell(val text: String, val fg: Int, val bg: Int, val bold: Boolean, val columns: Int = 1)
     data class Point(val row: Int, val col: Int)
 
     private var grid = blankGrid(cols, rows)
@@ -116,7 +116,9 @@ class TerminalBuffer(
         val first = minOf(safeStart, safeEnd, compareBy(Point::row, Point::col))
         val last = maxOf(safeStart, safeEnd, compareBy(Point::row, Point::col))
         return (first.row..last.row).joinToString("\n") { row ->
-            val from = if (row == first.row) first.col else 0
+            val firstCol = if (row == first.row) first.col else 0
+            val from = if (visibleCellAt(row, firstCol, scrollOffset).columns == 0)
+                (firstCol - 1).coerceAtLeast(0) else firstCol
             val until = if (row == last.row) last.col + 1 else cols
             visibleRowText(row, from, until, scrollOffset).trimEnd()
         }
@@ -161,7 +163,7 @@ class TerminalBuffer(
                 )
             }
             val resizedHistory = history.map { row ->
-                Array(newCols) { col -> row.getOrNull(col) ?: blank() }
+                Array(newCols) { col -> row.getOrNull(col) ?: blank() }.also(::repairRow)
             }
             history.clear()
             history.addAll(resizedHistory)
@@ -194,6 +196,7 @@ class TerminalBuffer(
         val lines = prefix + source.drop(sourceStart)
         for (r in 0 until minOf(lines.size, newRows)) {
             for (c in 0 until minOf(lines[r].size, newCols)) target[r][c] = lines[r][c]
+            repairRow(target[r])
         }
         return target
     }
@@ -322,16 +325,32 @@ class TerminalBuffer(
                 lineFeed()
             } else cursorCol = cols - 1
         }
-        val text = String(Character.toChars(charsets.translate(code)))
-        grid[cursorRow][cursorCol] = cell(text)
+        val translated = charsets.translate(code)
+        var width = TerminalWidth.columns(translated)
+        var text = String(Character.toChars(translated))
+        if (width > cols) {
+            width = 1
+            text = "\uFFFD"
+        }
+        if (cursorCol + width > cols) {
+            if (!wraparound) return
+            clearCell(grid[cursorRow], cursorCol)
+            cursorCol = 0
+            lineFeed()
+        }
+        val row = grid[cursorRow]
+        for (col in cursorCol until cursorCol + width) clearCell(row, col)
+        row[cursorCol] = cell(text).copy(columns = width)
+        if (width == 2) row[cursorCol + 1] = row[cursorCol].copy(text = "", columns = 0)
         lastWritten = Point(cursorRow, cursorCol)
-        cursorCol = if (wraparound) cursorCol + 1 else (cursorCol + 1).coerceAtMost(cols - 1)
+        cursorCol = if (wraparound) cursorCol + width else (cursorCol + width).coerceAtMost(cols - 1)
     }
 
     private fun appendMark(code: Int) {
-        val col = if (!wraparound && cursorCol == cols - 1 &&
+        var col = if (!wraparound && cursorCol == cols - 1 &&
             lastWritten == Point(cursorRow, cursorCol)) cursorCol
             else (cursorCol - 1).coerceIn(0, cols - 1)
+        if (grid[cursorRow][col].columns == 0) col = (col - 1).coerceAtLeast(0)
         val previous = grid[cursorRow][col]
         val mark = String(Character.toChars(code))
         if (previous.text.length + mark.length <= MAX_CELL_CODE_UNITS) {
@@ -343,6 +362,22 @@ class TerminalBuffer(
         if (inverse) Cell(text, bg, fg, bold) else Cell(text, fg, bg, bold)
 
     private fun blank() = Cell(" ", DEFAULT_FG, DEFAULT_BG, false)
+
+    private fun clearCell(row: Array<Cell>, col: Int) {
+        if (row[col].columns == 0 && col > 0) row[col - 1] = blank()
+        if (row[col].columns == 2 && col + 1 < row.size) row[col + 1] = blank()
+        row[col] = blank()
+    }
+
+    private fun repairRow(row: Array<Cell>) {
+        for (col in row.indices) {
+            if (row[col].columns == 2 && (col == row.lastIndex || row[col + 1].columns != 0)) {
+                row[col] = blank()
+            } else if (row[col].columns == 0 && (col == 0 || row[col - 1].columns != 2)) {
+                row[col] = blank()
+            }
+        }
+    }
 
     private fun lineFeed() {
         cursorCol = cursorCol.coerceAtMost(cols - 1)
@@ -551,8 +586,11 @@ class TerminalBuffer(
         val row = grid[cursorRow]
         val from = cursorCol.coerceIn(0, cols - 1)
         val n = count.coerceAtMost(cols - from)
+        if (row[from].columns == 0) clearCell(row, from)
+        if (from + n < cols && row[from + n].columns == 0) clearCell(row, from + n)
         for (c in from until cols - n) row[c] = row[c + n]
         for (c in cols - n until cols) row[c] = blank()
+        repairRow(row)
     }
 
     private fun insertChars(count: Int) {
@@ -561,12 +599,13 @@ class TerminalBuffer(
         val n = count.coerceAtMost(cols - from)
         for (c in cols - 1 downTo from + n) row[c] = row[c - n]
         for (c in from until from + n) row[c] = blank()
+        repairRow(row)
     }
 
     private fun eraseChars(count: Int) {
         val row = grid[cursorRow]
         val from = cursorCol.coerceIn(0, cols - 1)
-        for (c in from until (from + count).coerceAtMost(cols)) row[c] = blank()
+        for (c in from until (from + count).coerceAtMost(cols)) clearCell(row, c)
     }
 
     private fun insertLines(count: Int) {
@@ -663,11 +702,13 @@ class TerminalBuffer(
     }
 
     private fun clearLine(mode: Int) {
+        cursorCol = cursorCol.coerceAtMost(cols - 1)
         when (mode) {
             0 -> for (c in cursorCol.coerceIn(0, cols) until cols) grid[cursorRow][c] = blank()
             1 -> for (c in 0..cursorCol.coerceIn(0, cols - 1)) grid[cursorRow][c] = blank()
             else -> for (c in 0 until cols) grid[cursorRow][c] = blank()
         }
+        repairRow(grid[cursorRow])
     }
 
     private fun blankRow() = Array(cols) { blank() }
