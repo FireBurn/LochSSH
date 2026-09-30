@@ -73,3 +73,5 @@ Open Settings → Terminal keyboard to change keys and their order. Add up to fo
 ## License
 
 BSD 3-Clause. See [LICENSE](LICENSE).
+
+Unicode character data uses [Unicode License V3](licenses/Unicode.txt).

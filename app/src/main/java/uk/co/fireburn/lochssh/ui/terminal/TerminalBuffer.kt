@@ -312,8 +312,7 @@ class TerminalBuffer(
     }
 
     private fun putCodePoint(code: Int) {
-        val type = Character.getType(code)
-        if (type == Character.NON_SPACING_MARK.toInt() || type == Character.ENCLOSING_MARK.toInt()) {
+        if (TerminalWidth.columns(code) == 0) {
             appendMark(code)
             return
         }

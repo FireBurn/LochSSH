@@ -105,6 +105,10 @@ This list reflects the current app and the project conversations. The older
   editors, Num Lock and modifiers on a device.
   Four unit tests cover sequences, Num Lock, navigation and remote mode changes.
   The Android keypad-event test compiles but has not run without a connected device.
+  [Unicode width tables](terminal-widths.md) are pinned to version 17.0.0 and
+  used for mark classification on all Android versions. Exhaustive tests compare
+  their results with the source ranges. Two-column placement is not wired into
+  the grid yet; verify insertion, deletion, wrapping, copying and resizing next.
   The UTF-8 decoder now rejects overlong, surrogate and out-of-range sequences
   and preserves valid characters after broken input. Five tests cover every
   valid Unicode code point and malformed input. Cells now store complete text,
