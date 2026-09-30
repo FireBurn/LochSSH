@@ -71,6 +71,26 @@ class TerminalCombiningTest {
         assertEquals("d\u0308", buffer.cellAt(0, 3).text)
     }
 
+    @Test
+    fun resizingMovesTheLastWrittenCellWithItsRow() {
+        val buffer = TerminalBuffer(4, 3)
+        buffer.send("\u001B[?7l\u001B[3;1Habcd")
+        buffer.resize(4, 2)
+        buffer.send("\u0301")
+        assertEquals("d\u0301", buffer.cellAt(1, 3).text)
+        assertEquals("c", buffer.cellAt(1, 2).text)
+    }
+
+    @Test
+    fun resizingMovesTheSavedScreensLastWrittenCell() {
+        val buffer = TerminalBuffer(4, 3)
+        buffer.send("\u001B[?7l\u001B[3;1Habcd\u001B[?1049h")
+        buffer.resize(4, 2)
+        buffer.send("\u001B[?1049l\u0301")
+        assertEquals("d\u0301", buffer.cellAt(1, 3).text)
+        assertEquals("c", buffer.cellAt(1, 2).text)
+    }
+
     @Test(timeout = 2_000)
     fun excessiveMarksCannotGrowACellWithoutLimit() {
         val buffer = TerminalBuffer(8, 4)

@@ -159,7 +159,8 @@ class TerminalBuffer(
                     row = (state.row - savedStart).coerceIn(0, newRows - 1),
                     col = state.col.coerceIn(0, newCols - 1),
                     top = (state.top - savedStart).coerceIn(0, newRows - 1),
-                    bottom = (state.bottom - savedStart).coerceIn(0, newRows - 1)
+                    bottom = (state.bottom - savedStart).coerceIn(0, newRows - 1),
+                    lastWritten = resizedPoint(state.lastWritten, -savedStart, newCols, newRows)
                 )
             }
             val resizedHistory = history.map { row ->
@@ -170,6 +171,7 @@ class TerminalBuffer(
             cols = newCols
             rows = newRows
             val rowShift = restored.size - start
+            lastWritten = resizedPoint(lastWritten, rowShift, newCols, newRows)
             if (oldTop == 0 && oldBottom == oldRows - 1) {
                 scrollTop = 0
                 scrollBottom = newRows - 1
@@ -182,6 +184,13 @@ class TerminalBuffer(
             cursorCol = cursorCol.coerceIn(0, newCols - 1)
             version++
         }
+    }
+
+    private fun resizedPoint(point: Point?, rowShift: Int, width: Int, height: Int): Point? {
+        if (point == null) return null
+        val row = point.row + rowShift
+        return if (row in 0 until height && point.col in 0 until width)
+            Point(row, point.col) else null
     }
 
     private fun copyInto(

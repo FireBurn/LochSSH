@@ -121,8 +121,10 @@ This list reflects the current app and the project conversations. The older
   and font fallback on a device. Nonspacing and enclosing marks now stay with
   their base cell without advancing or triggering a wrap. A cell is bounded to
   128 UTF-16 units to prevent untrusted output growing it without limit. Seven
-  tests cover accents, edge wrapping, split input, screen changes and bounded cells. Check
-  accent shaping, selection and right-edge output on a device. Variation-selector widths,
+  tests cover accents, edge wrapping, split input, screen changes and bounded cells.
+  Resizing now moves the remembered base cell with its row on both screens;
+  two regression tests cover accents arriving after a height change.
+  Check accent shaping, selection and right-edge output on a device. Variation-selector widths,
   spacing marks and joined emoji still need implementation. Check editor and tmux output against a desktop
   terminal, including screen changes and resizing.
 - Resolve Android Ed25519 without relying on local JSch JARs. PR
