@@ -18,6 +18,7 @@ class TerminalBuffer(
     private var inverse = false
     private var wraparound = true
     private var originMode = false
+    private val charsets = TerminalCharsets()
 
     var cursorCol = 0
         private set
@@ -46,7 +47,8 @@ class TerminalBuffer(
 
     private data class SavedCursor(
         val row: Int, val col: Int, val fg: Int, val bg: Int,
-        val bold: Boolean, val inverse: Boolean, val origin: Boolean, val wrap: Boolean
+        val bold: Boolean, val inverse: Boolean, val origin: Boolean, val wrap: Boolean,
+        val charsets: TerminalCharsets.State
     )
     private var savedCursor: SavedCursor? = null
     private data class AlternateState(
@@ -55,7 +57,8 @@ class TerminalBuffer(
         val top: Int,
         val bottom: Int,
         val savedCursor: SavedCursor?,
-        val origin: Boolean
+        val origin: Boolean,
+        val charsets: TerminalCharsets.State
     )
     private var alternateState: AlternateState? = null
 
@@ -63,7 +66,7 @@ class TerminalBuffer(
     private var inEscape = false
     private var inCsi = false
     private var inOsc = false
-    private var skipNext = false
+    private var charsetSlot: Int? = null
     private var csiPrivate = false
     private val csiParams = StringBuilder()
     private var csiOverflow = false
@@ -200,7 +203,12 @@ class TerminalBuffer(
             return
         }
         when {
-            skipNext -> skipNext = false
+            charsetSlot != null -> {
+                if (b >= 0x20) {
+                    charsets.designate(requireNotNull(charsetSlot), b.toChar())
+                    charsetSlot = null
+                } else controlOrPrint(b)
+            }
             inOsc -> when {
                 b == 0x07 -> inOsc = false
                 else -> Unit
@@ -234,8 +242,11 @@ class TerminalBuffer(
                     }
                     'M'.code -> reverseIndex()
                     'c'.code -> reset(full = true)
-                    // Character set selection takes one more byte.
-                    '('.code, ')'.code, '*'.code, '+'.code -> skipNext = true
+                    '('.code, ')'.code, '*'.code, '+'.code -> charsetSlot = b - '('.code
+                    'N'.code -> charsets.next(2)
+                    'O'.code -> charsets.next(3)
+                    'n'.code -> charsets.use(2)
+                    'o'.code -> charsets.use(3)
                     else -> Unit
                 }
             }
@@ -247,7 +258,7 @@ class TerminalBuffer(
         inEscape = false
         inCsi = false
         inOsc = false
-        skipNext = false
+        charsetSlot = null
         csiPrivate = false
         csiParams.clear()
         csiOverflow = false
@@ -268,7 +279,8 @@ class TerminalBuffer(
         scrollTop = 0
         scrollBottom = rows - 1
         cursorCol = cursorCol.coerceAtMost(cols - 1)
-        savedCursor = SavedCursor(0, 0, fg, bg, bold, inverse, originMode, wraparound)
+        charsets.reset()
+        savedCursor = SavedCursor(0, 0, fg, bg, bold, inverse, originMode, wraparound, charsets.snapshot())
         if (full) {
             bracketedPaste = false
             savedGrid = null
@@ -286,6 +298,8 @@ class TerminalBuffer(
             0x09 -> cursorCol = ((cursorCol / 8 + 1) * 8).coerceAtMost(cols - 1)
             0x0A, 0x0B, 0x0C -> lineFeed()
             0x0D -> cursorCol = 0
+            0x0E -> charsets.use(1)
+            0x0F -> charsets.use(0)
             in 0x00..0x1F -> Unit
             else -> printable(b)
         }
@@ -327,7 +341,7 @@ class TerminalBuffer(
                 lineFeed()
             } else cursorCol = cols - 1
         }
-        grid[cursorRow][cursorCol] = cell(c)
+        grid[cursorRow][cursorCol] = cell(charsets.translate(c))
         cursorCol = if (wraparound) cursorCol + 1 else (cursorCol + 1).coerceAtMost(cols - 1)
     }
 
@@ -479,7 +493,8 @@ class TerminalBuffer(
 
     private fun enterAlternateScreen() {
         if (savedGrid != null) return
-        alternateState = AlternateState(cursorRow, cursorCol, scrollTop, scrollBottom, savedCursor, originMode)
+        alternateState = AlternateState(cursorRow, cursorCol, scrollTop, scrollBottom,
+            savedCursor, originMode, charsets.snapshot())
         savedGrid = grid
         grid = blankGrid(cols, rows)
         cursorRow = 0
@@ -502,10 +517,12 @@ class TerminalBuffer(
         originMode = state.origin
         if (originMode) cursorRow = cursorRow.coerceIn(scrollTop, scrollBottom)
         savedCursor = state.savedCursor
+        charsets.restore(state.charsets)
     }
 
     private fun saveCursor() {
-        savedCursor = SavedCursor(cursorRow, cursorCol, fg, bg, bold, inverse, originMode, wraparound)
+        savedCursor = SavedCursor(cursorRow, cursorCol, fg, bg, bold, inverse,
+            originMode, wraparound, charsets.snapshot())
     }
 
     private fun restoreCursor() {
@@ -518,6 +535,7 @@ class TerminalBuffer(
         bg = saved.bg
         bold = saved.bold
         inverse = saved.inverse
+        charsets.restore(saved.charsets)
     }
 
     private fun firstRow() = if (originMode) scrollTop else 0

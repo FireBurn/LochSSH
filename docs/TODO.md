@@ -89,12 +89,16 @@ This list reflects the current app and the project conversations. The older
   Substitute now interrupt unfinished commands. Seven unit tests cover resets,
   retained text, screen changes and interrupted input. Check remote reset and recovery
   after interrupted full-screen programs on a device.
+  DEC line-drawing and UK character sets now honour selection, shift controls,
+  saved cursor state and screen changes. Reset restores ASCII. Seven unit tests
+  cover mappings, shifts, split input, saved state and resizing. Check borders
+  and symbols in tmux, Screen and text-based menus at different font sizes.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
   not been checked on a device.
 - Complete terminal character and mode support: supplementary Unicode, wide
-  and combining characters, line-drawing characters and application keypad.
+  and combining characters, and application keypad.
   The current grid stores one
   Kotlin character per cell. Check editor and tmux output against a desktop
   terminal, including screen changes and resizing.
