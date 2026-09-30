@@ -53,6 +53,12 @@ This list reflects the current app and the project conversations. The older
   raw-output tail when reopened. Tests cover full-screen state after more than
   1 MB of output, split character/escape sequences and bounded scrollback.
   Check returning to a running full-screen program on a device.
+  Check the reported crashes, switching from one live terminal to another,
+  and disconnect while a drawer or menu is open. Session selection now
+  navigates immediately; disconnect leaves the terminal only once. Resize
+  tests cover selections made before shrinking the grid and repeated size
+  changes. The terminal bar hides after eight seconds and opens through
+  Show controls; session switching and disconnect are in its actions menu.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
@@ -78,11 +84,25 @@ This list reflects the current app and the project conversations. The older
   loopback test passed through a real SSH session, but no Android tunnel run has
   been recorded. Bind and proxy connection failures now appear in the terminal;
   verify those warnings on a device.
+  Sessions for the same saved host and connection settings now share one SSH
+  connection, with a separate shell for each terminal. Check local, remote
+  and SOCKS5 forwards with several shells, closing the first shell, cancelling
+  a new shell, and closing the last shell. A changed host or identity starts a
+  separate connection. Check that losing the shared connection closes every
+  affected terminal.
+  Three real-server tests cover retaining local and SOCKS5 listeners until the
+  last release, closing one channel without losing the connection, and refusing
+  to share a disconnected connection. Opening channels are now tracked before
+  connect so cancellation can close them without closing another shell's SSH
+  connection. Check cancellation during a delayed shell reply on a device.
 - Verify command-on-connect and tmux/Screen session selection on a device,
   including the 2→3 and 3→4 database migrations for existing hosts.
   Eight unit tests cover session listings and quoted attach commands, including
   Screen names with spaces and Unicode, multi-user listings, and tmux sessions
   with several clients. Check these cases in the phone's session picker.
+  Selecting or creating a remote session now opens a new shell before running
+  the attach command. Check this while the original terminal is running an
+  interactive program, and check retry after a failed new shell.
 - Check terminal keyboard customization on a device. Settings now supports
   changing and reordering keys, text keys, adding and removing rows, and reset.
   Layout and key-encoding unit tests pass; an isolated phone preferences test

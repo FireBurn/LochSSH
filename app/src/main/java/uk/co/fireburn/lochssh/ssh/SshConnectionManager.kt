@@ -29,6 +29,7 @@ class SshConnectionManager(
     private val titleScanner = WindowTitleScanner(onTitle)
     private val connectionAttempt = ConnectionAttemptControl()
     private val connectingSessions = ConnectingSessions()
+    private val connectingChannels = ConnectingChannels()
     val terminal = TerminalSession(config.initialCols, config.initialRows)
 
     @Volatile
@@ -44,7 +45,7 @@ class SshConnectionManager(
     private var writer: ExecutorService? = null
     private val dynamicForwards = mutableListOf<Socks5Forwarder>()
     @Volatile
-    private var transport: SharedTransport? = null
+    private var transport: SharedSshConnection? = null
     @Volatile
     private var running = false
 
@@ -54,16 +55,22 @@ class SshConnectionManager(
     @Synchronized
     fun connect() {
         try { connectionAttempt.run { connectChain() } }
-        finally { connectingSessions.clear() }
+        finally {
+            connectingChannels.clear()
+            connectingSessions.clear()
+        }
     }
 
     fun cancelConnect() = connectionAttempt.cancel()
-    fun closeConnectingSessions() = connectingSessions.close()
+    fun closeConnectingSessions() {
+        connectingChannels.close()
+        connectingSessions.close()
+    }
 
     fun canShare(other: SshConnectionConfig): Boolean =
         config == other && transport?.isConnected == true
 
-    private fun acquireTransport(): SharedTransport? = transport?.takeIf { it.acquire() }
+    private fun acquireTransport(): SharedSshConnection? = transport?.takeIf { it.acquire() }
 
     private fun connectChain() {
         AndroidJSch.configure()
@@ -94,7 +101,7 @@ class SshConnectionManager(
         connectionAttempt.checkCancelled()
         setupForwards(s)
 
-        transport = SharedTransport(s, jumps.toList(), dynamicForwards.toList())
+        transport = SharedSshConnection(s, jumps.toList(), dynamicForwards.toList())
 
         openShell(s)
     }
@@ -140,6 +147,8 @@ class SshConnectionManager(
 
     private fun openShell(s: Session) {
         val ch = s.openChannel(CHANNEL_SHELL) as ChannelShell
+        channel = ch
+        connectingChannels.add(ch)
         ch.setAgentForwarding(config.agentForwarding)
         ch.setPty(true)
         ch.setPtyType(PTY_TYPE, config.initialCols, config.initialRows, 0, 0)
@@ -151,8 +160,9 @@ class SshConnectionManager(
         // Deliberately no timeout: jsch asks for a reply to every channel request
         // when one is set, and the window change request never gets one, so each
         // resize would block until it gave up.
+        connectionAttempt.checkCancelled()
         ch.connect()
-        channel = ch
+        connectionAttempt.checkCancelled()
         writer = Executors.newSingleThreadExecutor { r -> Thread(r, "ssh-writer") }
         running = true
         readerThread = thread(name = "ssh-reader") {
@@ -288,30 +298,6 @@ class SshConnectionManager(
             }
         }
         readerThread = null
-    }
-
-    private class SharedTransport(
-        val session: Session,
-        private val jumps: List<Session>,
-        private val forwards: List<Socks5Forwarder>
-    ) {
-        private var users = 1
-        val isConnected: Boolean get() = session.isConnected
-
-        @Synchronized
-        fun acquire(): Boolean {
-            if (users == 0 || !session.isConnected) return false
-            users++
-            return true
-        }
-
-        @Synchronized
-        fun release() {
-            if (--users != 0) return
-            forwards.forEach { it.stop() }
-            runCatching { session.disconnect() }
-            jumps.asReversed().forEach { runCatching { it.disconnect() } }
-        }
     }
 
     private fun setupForwards(s: Session) {
