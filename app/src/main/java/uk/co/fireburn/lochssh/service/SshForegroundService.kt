@@ -46,11 +46,15 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 @AndroidEntryPoint
 class SshForegroundService : Service() {
 
-    private class ConnectionAttempt(val sessionId: Long, val hostId: Long, val token: String) {
+    private class ConnectionAttempt(
+        val sessionId: Long, val hostId: Long, val token: String, val remoteCommand: String?
+    ) {
         @Volatile
         var cancelled = false
         @Volatile
@@ -78,6 +82,7 @@ class SshForegroundService : Service() {
     private val managers = ConcurrentHashMap<Long, SshConnectionManager>()
     private val connectedTokens = ConcurrentHashMap<Long, String>()
     private val attempts = ConcurrentHashMap<Long, ConnectionAttempt>()
+    private val hostLocks = ConcurrentHashMap<Long, Mutex>()
     private var wakeLock: PowerManager.WakeLock? = null
     private var stopReason: String? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
@@ -105,7 +110,10 @@ class SshForegroundService : Service() {
             stopIfIdle()
             return Service.START_NOT_STICKY
         }
-        val attempt = ConnectionAttempt(sessionId, hostId, UUID.randomUUID().toString())
+        val attempt = ConnectionAttempt(
+            sessionId, hostId, UUID.randomUUID().toString(),
+            intent?.getStringExtra(EXTRA_REMOTE_COMMAND)?.takeIf { it.length <= 1024 && '\n' !in it && '\r' !in it }
+        )
         attempts.put(sessionId, attempt)?.let(::cancelAttempt)
         history.started(attempt.token, hostId)
         registry.opening(sessionId, hostId, "Host")
@@ -114,6 +122,14 @@ class SshForegroundService : Service() {
     }
 
     private suspend fun connect(attempt: ConnectionAttempt) {
+        hostLocks.computeIfAbsent(attempt.hostId) { Mutex() }.withLock {
+            if (attempts[attempt.sessionId] === attempt && !attempt.cancelled) {
+                connectLocked(attempt)
+            }
+        }
+    }
+
+    private suspend fun connectLocked(attempt: ConnectionAttempt) {
         val sessionId = attempt.sessionId
         val hostId = attempt.hostId
         try {
@@ -149,11 +165,15 @@ class SshForegroundService : Service() {
                     )
                 }
                 val config = configFor(host).copy(jumpHosts = jumpHosts.map { configFor(it) })
+                val shared = managers.entries.firstOrNull { (id, candidate) ->
+                    registry.find(id)?.hostId == hostId && candidate.canShare(config)
+                }?.value
 
                 lateinit var manager: SshConnectionManager
                 manager = SshConnectionManager(
                     context = this@SshForegroundService,
                     config = config,
+                    sharedConnection = shared,
                     onTitle = { title -> scope.launch { onSessionTitle(sessionId, manager, title) } },
                     onForwardError = { message ->
                         scope.launch { onForwardError(sessionId, manager, message) }
@@ -185,7 +205,7 @@ class SshForegroundService : Service() {
             showSessionNotification(sessionId, host.name, "Connected to ${host.host}")
             updateSummary()
             scope.launch(Dispatchers.IO) {
-                startRemoteSession(sessionId, connected.config, connected.manager)
+                startRemoteSession(sessionId, connected.config, connected.manager, attempt.remoteCommand)
             }
         } catch (e: Exception) {
             attempt.manager?.disconnect()
@@ -200,9 +220,14 @@ class SshForegroundService : Service() {
     private fun startRemoteSession(
         sessionId: Long,
         config: SshConnectionConfig,
-        manager: SshConnectionManager
+        manager: SshConnectionManager,
+        remoteCommand: String?
     ) {
         if (managers[sessionId] !== manager) return
+        if (remoteCommand != null) {
+            manager.write((remoteCommand + "\n").toByteArray(Charsets.UTF_8))
+            return
+        }
         if (config.remoteSessionMode == RemoteSessionModes.SHELL) {
             if (config.autoCommand.isNotBlank()) {
                 manager.write((config.autoCommand + "\n").toByteArray(Charsets.UTF_8))
@@ -432,6 +457,7 @@ class SshForegroundService : Service() {
         const val EXTRA_SESSION_ID = "session_id"
 
         private const val EXTRA_HOST_ID = "host_id"
+        private const val EXTRA_REMOTE_COMMAND = "remote_command"
         private const val ACTION_DISCONNECT = "uk.co.fireburn.lochssh.DISCONNECT"
         private const val CHANNEL_ID = "ssh_connections"
         private const val GROUP_KEY = "uk.co.fireburn.lochssh.sessions"
@@ -445,10 +471,11 @@ class SshForegroundService : Service() {
         private fun sessionNotificationId(sessionId: Long) =
             SESSION_NOTIFICATION_BASE + sessionId.toInt()
 
-        fun start(context: Context, hostId: Long, sessionId: Long) {
+        fun start(context: Context, hostId: Long, sessionId: Long, remoteCommand: String? = null) {
             val intent = Intent(context, SshForegroundService::class.java)
                 .putExtra(EXTRA_HOST_ID, hostId)
                 .putExtra(EXTRA_SESSION_ID, sessionId)
+                .putExtra(EXTRA_REMOTE_COMMAND, remoteCommand)
             context.startForegroundService(intent)
         }
 

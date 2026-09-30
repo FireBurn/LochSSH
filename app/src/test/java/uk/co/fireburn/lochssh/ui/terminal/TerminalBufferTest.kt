@@ -217,6 +217,32 @@ class TerminalBufferTest {
     }
 
     @Test
+    fun selectionMadeBeforeResizeStaysInsideTheNewGrid() {
+        val buffer = buffer(cols = 8, rows = 4)
+        buffer.feed("one\r\ntwo\r\nthree\r\nfour")
+        buffer.resize(4, 2)
+
+        assertEquals("thre\nfour", buffer.selectedText(
+            TerminalBuffer.Point(0, 0), TerminalBuffer.Point(3, 7), 0
+        ))
+    }
+
+    @Test
+    fun repeatedResizesKeepVisibleRowsInBounds() {
+        val buffer = buffer(cols = 80, rows = 24)
+        repeat(80) { buffer.feed("line $it\r\n") }
+        repeat(100) { step ->
+            val cols = 20 + (step * 17) % 101
+            val rows = 5 + (step * 11) % 38
+            buffer.resize(cols, rows)
+            for (row in 0 until rows) {
+                assertEquals(cols, buffer.visibleRowText(row, 0, cols, buffer.scrollbackSize).length)
+            }
+            buffer.selectedText(TerminalBuffer.Point(23, 79), TerminalBuffer.Point(0, 0), 0)
+        }
+    }
+
+    @Test
     fun bracketedPasteModeFollowsRemoteRequests() {
         val buffer = buffer()
         buffer.feed("\u001B[?2004h")

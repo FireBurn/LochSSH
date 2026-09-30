@@ -26,7 +26,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -57,6 +56,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
 import uk.co.fireburn.lochssh.service.SshForegroundService
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
+import uk.co.fireburn.lochssh.ssh.RemoteSessions
 import uk.co.fireburn.lochssh.ui.keyboard.ImeKeyEncoder
 import uk.co.fireburn.lochssh.ui.keyboard.JuiceSshKeyboardBar
 import uk.co.fireburn.lochssh.ui.keyboard.TerminalEditText
@@ -87,6 +87,7 @@ fun TerminalScreen(
     var imeVisible by remember { mutableStateOf(false) }
     var imeEditText by remember { mutableStateOf<TerminalEditText?>(null) }
     var hadSession by remember(sessionId) { mutableStateOf(false) }
+    var leaving by remember(sessionId) { mutableStateOf(false) }
     var scrollbackOffset by remember(sessionId) { mutableIntStateOf(0) }
     var liveRequest by remember(sessionId) { mutableIntStateOf(0) }
     var selectionClearKey by remember(sessionId) { mutableIntStateOf(0) }
@@ -94,6 +95,7 @@ fun TerminalScreen(
     var terminalBuffer by remember(sessionId) { mutableStateOf<TerminalBuffer?>(null) }
     var pendingPaste by remember(sessionId) { mutableStateOf<String?>(null) }
     var moreOpen by remember { mutableStateOf(false) }
+    var toolbarVisible by remember(sessionId) { mutableStateOf(true) }
     var savedCommandsOpen by remember { mutableStateOf(false) }
     var pendingLinks by remember(sessionId) { mutableStateOf<List<String>>(emptyList()) }
     var linkError by remember(sessionId) { mutableStateOf<String?>(null) }
@@ -146,6 +148,20 @@ fun TerminalScreen(
         liveRequest++
         selectionClearKey++
         selectedText = null
+    }
+
+    fun openRemoteSession(command: String) {
+        val hostId = session?.hostId ?: return
+        val nextId = viewModel.newSessionId()
+        viewModel.dismissRemoteSessions()
+        SshForegroundService.start(context, hostId, nextId, command)
+        onSwitchSession(nextId)
+    }
+
+    fun leave() {
+        if (leaving) return
+        leaving = true
+        onBack()
     }
 
     if (confirmExport) {
@@ -242,17 +258,17 @@ fun TerminalScreen(
                     options.sessions.forEach { entry ->
                         val tool = if (entry.tool == RemoteSessionModes.TMUX) "tmux" else "Screen"
                         val state = if (entry.attached) "attached" else "detached"
-                        TextButton(onClick = { viewModel.attachRemoteSession(entry) }) {
+                        TextButton(onClick = { openRemoteSession(RemoteSessions.attach(entry)) }) {
                             Text("$tool: ${entry.name} ($state)")
                         }
                     }
                     if (options.tmuxAvailable) {
-                        TextButton(onClick = { viewModel.createRemoteSession(RemoteSessionModes.TMUX) }) {
+                        TextButton(onClick = { openRemoteSession(RemoteSessions.create(RemoteSessionModes.TMUX)) }) {
                             Text("New tmux session")
                         }
                     }
                     if (options.screenAvailable) {
-                        TextButton(onClick = { viewModel.createRemoteSession(RemoteSessionModes.SCREEN) }) {
+                        TextButton(onClick = { openRemoteSession(RemoteSessions.create(RemoteSessionModes.SCREEN)) }) {
                             Text("New Screen session")
                         }
                     }
@@ -280,9 +296,15 @@ fun TerminalScreen(
     }
 
     LaunchedEffect(sessionId) { viewModel.load(sessionId) }
+    LaunchedEffect(toolbarVisible, moreOpen, sessionId) {
+        if (toolbarVisible && !moreOpen) {
+            delay(8_000)
+            toolbarVisible = false
+        }
+    }
     LaunchedEffect(sessionId, session?.id) {
         if (session != null) hadSession = true
-        else if (hadSession) onBack()
+        else if (hadSession) leave()
     }
 
     SessionDrawer(sessions, sessionId, onSwitchSession, onHosts) { openSessions ->
@@ -291,7 +313,7 @@ fun TerminalScreen(
             // keyboard or the navigation bar is taller, so the bar sits on the keyboard.
             contentWindowInsets = WindowInsets.statusBars,
             topBar = {
-                TopAppBar(
+                if (toolbarVisible) TopAppBar(
                     title = {
                         Text(
                             session?.label?.ifBlank { null } ?: "Terminal",
@@ -300,189 +322,206 @@ fun TerminalScreen(
                         )
                     },
                     navigationIcon = {
-                        IconButton(onClick = onBack) {
+                        IconButton(onClick = { leave() }) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back")
                         }
                     },
                     actions = {
-                        IconButton(onClick = openSessions) {
-                            Icon(Icons.Filled.Menu, contentDescription = "Switch session")
-                        }
                         if (scrollbackOffset > 0) {
                             TextButton(onClick = { liveRequest++ }) { Text("Live") }
                         }
-                        if (manager != null) {
-                            Box {
-                                IconButton(onClick = { moreOpen = true }) {
-                                    Icon(Icons.Filled.MoreVert, contentDescription = "Terminal actions")
-                                }
-                                DropdownMenu(
-                                    expanded = moreOpen,
-                                    onDismissRequest = { moreOpen = false }
-                                ) {
-                                    DropdownMenuItem(
-                                        text = { Text("Remote sessions") },
-                                        onClick = {
+                        Box {
+                            IconButton(onClick = { moreOpen = true }) {
+                                Icon(Icons.Filled.MoreVert, contentDescription = "Terminal actions")
+                            }
+                            DropdownMenu(
+                                expanded = moreOpen,
+                                onDismissRequest = { moreOpen = false }
+                            ) {
+                                DropdownMenuItem(text = { Text("Switch session") }, onClick = {
+                                    moreOpen = false
+                                    openSessions()
+                                })
+                                DropdownMenuItem(
+                                    text = { Text("Remote sessions") },
+                                    enabled = manager != null,
+                                    onClick = {
+                                        moreOpen = false
+                                        viewModel.checkRemoteSessions()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Remote files") },
+                                    enabled = manager != null,
+                                    onClick = {
+                                        moreOpen = false
+                                        onFiles()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Saved commands") },
+                                    enabled = manager != null,
+                                    onClick = {
+                                        moreOpen = false
+                                        savedCommandsOpen = true
+                                    }
+                                )
+                                DropdownMenuItem(text = { Text("Save terminal text") },
+                                    enabled = terminalBuffer != null,
+                                    onClick = { moreOpen = false; confirmExport = true })
+                                if (selectedText != null) {
+                                    if (selectedLinks.isNotEmpty()) {
+                                        DropdownMenuItem(text = { Text("Open selected link") }, onClick = {
+                                            pendingLinks = selectedLinks
                                             moreOpen = false
-                                            viewModel.checkRemoteSessions()
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Remote files") },
-                                        onClick = {
-                                            moreOpen = false
-                                            onFiles()
-                                        }
-                                    )
-                                    DropdownMenuItem(
-                                        text = { Text("Saved commands") },
-                                        onClick = {
-                                            moreOpen = false
-                                            savedCommandsOpen = true
-                                        }
-                                    )
-                                    DropdownMenuItem(text = { Text("Save terminal text") },
-                                        enabled = terminalBuffer != null,
-                                        onClick = { moreOpen = false; confirmExport = true })
-                                    if (selectedText != null) {
-                                        if (selectedLinks.isNotEmpty()) {
-                                            DropdownMenuItem(text = { Text("Open selected link") }, onClick = {
-                                                pendingLinks = selectedLinks
-                                                moreOpen = false
-                                            })
-                                        }
-                                        DropdownMenuItem(
-                                            text = { Text("Copy selection") },
-                                            onClick = {
-                                                clipboard.setPrimaryClip(
-                                                    ClipData.newPlainText("Terminal text", selectedText.orEmpty())
-                                                )
-                                                selectionClearKey++
-                                                selectedText = null
-                                                moreOpen = false
-                                            }
-                                        )
+                                        })
                                     }
                                     DropdownMenuItem(
-                                        text = { Text("Paste") },
+                                        text = { Text("Copy selection") },
                                         onClick = {
+                                            clipboard.setPrimaryClip(
+                                                ClipData.newPlainText("Terminal text", selectedText.orEmpty())
+                                            )
+                                            selectionClearKey++
+                                            selectedText = null
                                             moreOpen = false
-                                            val text = clipboard.primaryClip?.getItemAt(0)
-                                                ?.coerceToText(context)?.toString().orEmpty()
-                                            if (text.contains('\n') || text.contains('\r')) {
-                                                pendingPaste = text
-                                            } else if (text.isNotEmpty()) {
-                                                sendPaste(text)
-                                            }
                                         }
                                     )
                                 }
+                                DropdownMenuItem(
+                                    text = { Text("Paste") },
+                                    enabled = manager != null,
+                                    onClick = {
+                                        moreOpen = false
+                                        val text = clipboard.primaryClip?.getItemAt(0)
+                                            ?.coerceToText(context)?.toString().orEmpty()
+                                        if (text.contains('\n') || text.contains('\r')) {
+                                            pendingPaste = text
+                                        } else if (text.isNotEmpty()) {
+                                            sendPaste(text)
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(text = { Text("Hide controls") }, onClick = {
+                                    moreOpen = false
+                                    toolbarVisible = false
+                                })
+                                DropdownMenuItem(text = { Text("Disconnect") }, onClick = {
+                                    moreOpen = false
+                                    SshForegroundService.disconnect(context, sessionId)
+                                    leave()
+                                })
                             }
                         }
-                        TextButton(onClick = {
-                            SshForegroundService.disconnect(context, sessionId)
-                            onBack()
-                        }) { Text("Disconnect") }
                     }
                 )
             }
         ) { padding ->
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
-            ) {
-                val error = session?.error
-                if (error != null && manager == null) {
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .fillMaxWidth()
-                            .padding(24.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.Center
-                    ) {
-                        Text(
-                            error,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.error
+            Box(Modifier.fillMaxSize()) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
+                ) {
+                    val error = session?.error
+                    if (error != null && manager == null) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(
+                                error,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.error
+                            )
+                            TextButton(onClick = {
+                                session?.let { SshForegroundService.start(context, it.hostId, it.id) }
+                            }) { Text("Retry") }
+                        }
+                    } else {
+                        TerminalView(
+                            manager = manager,
+                            fontSize = fontSize.sp,
+                            theme = terminalTheme,
+                            scrollToLiveKey = liveRequest,
+                            clearSelectionKey = selectionClearKey,
+                            onScrollOffsetChanged = { scrollbackOffset = it },
+                            onSelectionChanged = { selectedText = it?.takeIf { text -> text.isNotEmpty() } },
+                            onBuffer = { terminalBuffer = it },
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
                         )
-                        TextButton(onClick = {
-                            session?.let { SshForegroundService.start(context, it.hostId, it.id) }
-                        }) { Text("Retry") }
                     }
-                } else {
-                    TerminalView(
-                        manager = manager,
-                        fontSize = fontSize.sp,
-                        theme = terminalTheme,
-                        scrollToLiveKey = liveRequest,
-                        clearSelectionKey = selectionClearKey,
-                        onScrollOffsetChanged = { scrollbackOffset = it },
-                        onSelectionChanged = { selectedText = it?.takeIf { text -> text.isNotEmpty() } },
-                        onBuffer = { terminalBuffer = it },
+                    TerminalImeInput(
+                        onText = {
+                            if (it.contains('\n') || it.contains('\r')) {
+                                pendingPaste = it
+                            } else {
+                                liveRequest++
+                                selectionClearKey++
+                                manager?.write(
+                                    ImeKeyEncoder.encodeText(it, modifiers.ctrl, modifiers.alt)
+                                )
+                            }
+                            modifiers.clear()
+                        },
+                        onKey = { key ->
+                            val bytes = ImeKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt)
+                            if (bytes != null) {
+                                liveRequest++
+                                selectionClearKey++
+                                manager?.write(bytes)
+                                modifiers.clear()
+                                true
+                            } else {
+                                false
+                            }
+                        },
+                        onDelete = { n ->
+                            liveRequest++
+                            selectionClearKey++
+                            manager?.write(ByteArray(n) { 0x7F })
+                        },
                         modifier = Modifier
-                            .weight(1f)
                             .fillMaxWidth()
+                            .height(1.dp)
+                            .graphicsLayer(alpha = 0f),
+                        onReady = { imeEditText = it }
+                    )
+                    JuiceSshKeyboardBar(
+                        layout = keyboardLayout,
+                        modifiers = modifiers,
+                        onSend = {
+                            liveRequest++
+                            selectionClearKey++
+                            manager?.write(it)
+                        },
+                        onFontSizeChange = { viewModel.changeFontSize(it) },
+                        onImeToggle = {
+                            val view = imeEditText ?: return@JuiceSshKeyboardBar
+                            if (imeVisible) {
+                                imm.hideSoftInputFromWindow(view.windowToken, 0)
+                                view.clearFocus()
+                            } else {
+                                view.requestFocus()
+                                imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
+                            }
+                            imeVisible = !imeVisible
+                        }
                     )
                 }
-                TerminalImeInput(
-                    onText = {
-                        if (it.contains('\n') || it.contains('\r')) {
-                            pendingPaste = it
-                        } else {
-                            liveRequest++
-                            selectionClearKey++
-                            manager?.write(
-                                ImeKeyEncoder.encodeText(it, modifiers.ctrl, modifiers.alt)
-                            )
-                        }
-                        modifiers.clear()
-                    },
-                    onKey = { key ->
-                        val bytes = ImeKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt)
-                        if (bytes != null) {
-                            liveRequest++
-                            selectionClearKey++
-                            manager?.write(bytes)
-                            modifiers.clear()
-                            true
-                        } else {
-                            false
-                        }
-                    },
-                    onDelete = { n ->
-                        liveRequest++
-                        selectionClearKey++
-                        manager?.write(ByteArray(n) { 0x7F })
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(1.dp)
-                        .graphicsLayer(alpha = 0f),
-                    onReady = { imeEditText = it }
-                )
-                JuiceSshKeyboardBar(
-                    layout = keyboardLayout,
-                    modifiers = modifiers,
-                    onSend = {
-                        liveRequest++
-                        selectionClearKey++
-                        manager?.write(it)
-                    },
-                    onFontSizeChange = { viewModel.changeFontSize(it) },
-                    onImeToggle = {
-                        val view = imeEditText ?: return@JuiceSshKeyboardBar
-                        if (imeVisible) {
-                            imm.hideSoftInputFromWindow(view.windowToken, 0)
-                            view.clearFocus()
-                        } else {
-                            view.requestFocus()
-                            imm.showSoftInput(view, InputMethodManager.SHOW_IMPLICIT)
-                        }
-                        imeVisible = !imeVisible
-                    }
-                )
+                if (!toolbarVisible) {
+                    TextButton(
+                        onClick = { toolbarVisible = true },
+                        modifier = Modifier.align(Alignment.TopEnd).padding(padding)
+                    ) { Text("Show controls") }
+                }
             }
         }
     }

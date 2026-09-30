@@ -15,8 +15,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -33,7 +31,6 @@ fun SessionDrawer(
 ) {
     val drawer = rememberDrawerState(DrawerValue.Closed)
     val scope = rememberCoroutineScope()
-    val currentSessions by rememberUpdatedState(sessions)
     ModalNavigationDrawer(
         drawerState = drawer,
         gesturesEnabled = drawer.isOpen,
@@ -41,7 +38,7 @@ fun SessionDrawer(
             ModalDrawerSheet {
                 Text("Sessions", Modifier.padding(16.dp), style = MaterialTheme.typography.titleLarge)
                 TextButton(onClick = {
-                    scope.launch { drawer.close(); onHosts() }
+                    onHosts()
                 }) { Text("Manage hosts") }
                 HorizontalDivider()
                 LazyColumn {
@@ -57,11 +54,10 @@ fun SessionDrawer(
                                 }
                             },
                             onClick = {
-                                scope.launch {
-                                    drawer.close()
-                                    if (session.id != currentId && currentSessions.any { it.id == session.id }) {
-                                        onSelect(session.id)
-                                    }
+                                if (session.id != currentId && sessions.any { it.id == session.id }) {
+                                    onSelect(session.id)
+                                } else {
+                                    scope.launch { drawer.close() }
                                 }
                             },
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)

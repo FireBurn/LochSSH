@@ -90,7 +90,7 @@ fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>) {
     LaunchedEffect(navController) {
         resumeSession.collect { id ->
             if (id != null) {
-                navController.navigate(Routes.terminal(id))
+                navController.switchTerminal(id)
                 resumeSession.value = null
             }
         }
@@ -105,7 +105,7 @@ fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>) {
                 },
                 // Resuming only opens the screen again; the session is already up.
                 onResumeSession = { sessionId ->
-                    navController.navigate(Routes.terminal(sessionId))
+                    navController.switchTerminal(sessionId)
                 },
                 onEdit = { id -> navController.navigate(Routes.hostEditor(id)) },
                 onNew = { navController.navigate(Routes.hostEditor(0)) },

@@ -95,8 +95,10 @@ class TerminalBuffer(
     }
 
     fun selectedText(start: Point, end: Point, scrollOffset: Int): String {
-        val first = minOf(start, end, compareBy(Point::row, Point::col))
-        val last = maxOf(start, end, compareBy(Point::row, Point::col))
+        val safeStart = Point(start.row.coerceIn(0, rows - 1), start.col.coerceIn(0, cols - 1))
+        val safeEnd = Point(end.row.coerceIn(0, rows - 1), end.col.coerceIn(0, cols - 1))
+        val first = minOf(safeStart, safeEnd, compareBy(Point::row, Point::col))
+        val last = maxOf(safeStart, safeEnd, compareBy(Point::row, Point::col))
         return (first.row..last.row).joinToString("\n") { row ->
             val from = if (row == first.row) first.col else 0
             val until = if (row == last.row) last.col + 1 else cols

@@ -20,6 +20,7 @@ import kotlin.concurrent.thread
 class SshConnectionManager(
     private val context: Context,
     private val config: SshConnectionConfig,
+    private val sharedConnection: SshConnectionManager? = null,
     private val onTitle: (String) -> Unit = {},
     private val onForwardError: (String) -> Unit = {},
     private val onExit: (code: Int) -> Unit
@@ -43,6 +44,8 @@ class SshConnectionManager(
     private var writer: ExecutorService? = null
     private val dynamicForwards = mutableListOf<Socks5Forwarder>()
     @Volatile
+    private var transport: SharedTransport? = null
+    @Volatile
     private var running = false
 
     val isConnected: Boolean
@@ -57,8 +60,21 @@ class SshConnectionManager(
     fun cancelConnect() = connectionAttempt.cancel()
     fun closeConnectingSessions() = connectingSessions.close()
 
+    fun canShare(other: SshConnectionConfig): Boolean =
+        config == other && transport?.isConnected == true
+
+    private fun acquireTransport(): SharedTransport? = transport?.takeIf { it.acquire() }
+
     private fun connectChain() {
         AndroidJSch.configure()
+        val reused = sharedConnection?.acquireTransport()
+        if (reused != null) {
+            transport = reused
+            session = reused.session
+            connectionAttempt.checkCancelled()
+            openShell(reused.session)
+            return
+        }
         require(config.jumpHosts.all { it.jumpHosts.isEmpty() }) { "Jump chain must be resolved before connecting" }
         var previous: Session? = null
         for (jumpConfig in config.jumpHosts) {
@@ -77,6 +93,8 @@ class SshConnectionManager(
         s.connect(CONNECT_TIMEOUT_MS)
         connectionAttempt.checkCancelled()
         setupForwards(s)
+
+        transport = SharedTransport(s, jumps.toList(), dynamicForwards.toList())
 
         openShell(s)
     }
@@ -248,23 +266,52 @@ class SshConnectionManager(
         val ch = channel
         val s = session
         val out = remoteOut
-        val intermediate = jumps.toList().asReversed()
+        val shared = transport
+        transport = null
+        val intermediate = if (shared == null) jumps.toList().asReversed() else emptyList()
         jumps.clear()
         channel = null
         session = null
         remoteOut = null
         writer?.shutdownNow()
         writer = null
-        dynamicForwards.forEach { it.stop() }
+        if (shared == null) dynamicForwards.forEach { it.stop() }
         dynamicForwards.clear()
         // Closing sends packets, so it cannot run on the caller's thread either.
         thread(name = "ssh-disconnect") {
             runCatching { out?.close() }
             runCatching { ch?.disconnect() }
-            runCatching { s?.disconnect() }
-            intermediate.forEach { runCatching { it.disconnect() } }
+            if (shared != null) shared.release()
+            else {
+                runCatching { s?.disconnect() }
+                intermediate.forEach { runCatching { it.disconnect() } }
+            }
         }
         readerThread = null
+    }
+
+    private class SharedTransport(
+        val session: Session,
+        private val jumps: List<Session>,
+        private val forwards: List<Socks5Forwarder>
+    ) {
+        private var users = 1
+        val isConnected: Boolean get() = session.isConnected
+
+        @Synchronized
+        fun acquire(): Boolean {
+            if (users == 0 || !session.isConnected) return false
+            users++
+            return true
+        }
+
+        @Synchronized
+        fun release() {
+            if (--users != 0) return
+            forwards.forEach { it.stop() }
+            runCatching { session.disconnect() }
+            jumps.asReversed().forEach { runCatching { it.disconnect() } }
+        }
     }
 
     private fun setupForwards(s: Session) {

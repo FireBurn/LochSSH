@@ -98,6 +98,9 @@ fun TerminalView(
         delay(RESIZE_DELAY_MS)
         val cols = (canvasSize.width / metrics.width).toInt().coerceAtLeast(MIN_COLS)
         val rows = (canvasSize.height / metrics.height).toInt().coerceAtLeast(MIN_ROWS)
+        if (buffer.read { buffer.cols == cols && buffer.rows == rows }) return@LaunchedEffect
+        selection = null
+        onSelectionChanged(null)
         buffer.resize(cols, rows)
         scrollOffset.intValue = buffer.read {
             scrollOffset.intValue.coerceAtMost(buffer.scrollbackSize)

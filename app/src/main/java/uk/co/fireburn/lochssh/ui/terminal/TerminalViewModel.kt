@@ -19,8 +19,6 @@ import uk.co.fireburn.lochssh.data.SavedCommandStore
 import uk.co.fireburn.lochssh.data.db.SavedCommandDao
 import uk.co.fireburn.lochssh.data.db.SavedCommandEntity
 import uk.co.fireburn.lochssh.ssh.SessionRegistry
-import uk.co.fireburn.lochssh.ssh.RemoteSessions
-import uk.co.fireburn.lochssh.ssh.RemoteSessionEntry
 import uk.co.fireburn.lochssh.ssh.RemoteSessionOptions
 import uk.co.fireburn.lochssh.ssh.HostKeyTrust
 import uk.co.fireburn.lochssh.ssh.SavedHostKey
@@ -82,6 +80,8 @@ class TerminalViewModel @Inject constructor(
         sessionId.value = id
     }
 
+    fun newSessionId(): Long = registry.newId()
+
     fun changeFontSize(step: Int) = preferences.changeTerminalFontSize(step)
 
     fun dismissHostKeyReview() = registry.dismissHostKeyReview(sessionId.value)
@@ -139,17 +139,4 @@ class TerminalViewModel @Inject constructor(
         }
     }
 
-    fun attachRemoteSession(entry: RemoteSessionEntry) {
-        sendRemoteCommand(RemoteSessions.attach(entry))
-    }
-
-    fun createRemoteSession(tool: String) {
-        sendRemoteCommand(RemoteSessions.create(tool))
-    }
-
-    private fun sendRemoteCommand(command: String) {
-        val id = sessionId.value
-        registry.find(id)?.manager?.write((command + "\n").toByteArray(Charsets.UTF_8))
-        registry.dismissRemoteSessions(id)
-    }
 }
