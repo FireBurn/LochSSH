@@ -160,12 +160,16 @@ This list reflects the current app and the project conversations. The older
   a new shell, and closing the last shell. A changed host or identity starts a
   separate connection. Check that losing the shared connection closes every
   affected terminal.
-  Four real-server tests cover retaining local and SOCKS5 listeners until the
+  Five real-server tests cover retaining local and SOCKS5 listeners until the
   last release, closing one channel without losing the connection, and refusing
   to share a disconnected connection. A failed SOCKS5 request still reaches
   the remaining terminal after the first closes. Opening channels are tracked before
   connect so cancellation can close them without closing another shell's SSH
   connection. Check cancellation during a delayed shell reply on a device.
+  Remote-session discovery channels now close with their terminal, without
+  closing the shared connection. A real-server test covers closing a pending
+  check, rejecting checks after closure and running another command afterward.
+  Check disconnect during tmux/Screen discovery on a device.
   Tunnel warnings now reach all terminals sharing the connection, including
   after the first terminal closes. Newly opened terminals receive retained
   forwarding errors. Check SOCKS5 failures and warning dismissal on a device.

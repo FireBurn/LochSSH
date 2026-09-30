@@ -30,6 +30,7 @@ class SshConnectionManager(
     private val connectionAttempt = ConnectionAttemptControl()
     private val connectingSessions = ConnectingSessions()
     private val connectingChannels = ConnectingChannels()
+    private val sessionChannels = SessionChannels()
     val terminal = TerminalSession(config.initialCols, config.initialRows) {
         write(it.toByteArray(Charsets.US_ASCII))
     }
@@ -235,11 +236,13 @@ class SshConnectionManager(
         val output = ByteArrayOutputStream()
         val buffer = ByteArray(1024)
         try {
+            sessionChannels.add(exec)
             exec.setCommand(command)
             val input = exec.inputStream
             exec.connect(3_000)
             val deadline = System.nanoTime() + 3_000_000_000L
             while (System.nanoTime() < deadline) {
+                if (session !== active) throw IOException("Terminal closed")
                 val available = input.available()
                 if (available > 0) {
                     val remaining = 16_384 - output.size()
@@ -254,6 +257,7 @@ class SshConnectionManager(
             }
             throw IOException("Remote session check timed out")
         } finally {
+            sessionChannels.remove(exec)
             exec.disconnect()
         }
     }
@@ -297,6 +301,7 @@ class SshConnectionManager(
         dynamicForwards.clear()
         // Closing sends packets, so it cannot run on the caller's thread either.
         thread(name = "ssh-disconnect") {
+            sessionChannels.close()
             runCatching { out?.close() }
             runCatching { ch?.disconnect() }
             if (shared != null) shared.release()

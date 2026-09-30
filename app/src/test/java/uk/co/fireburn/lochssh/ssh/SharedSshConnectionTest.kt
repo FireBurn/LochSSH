@@ -96,6 +96,29 @@ class SharedSshConnectionTest {
     }
 
     @Test
+    fun closingTerminalChecksKeepsOtherChannelsUsable() = withSession { session ->
+        val checks = SessionChannels()
+        val pending = session.openChannel("exec") as ChannelExec
+        pending.setCommand("sleep 30")
+        checks.add(pending)
+        pending.connect(3_000)
+        checks.close()
+        checks.close()
+        assertFalse(pending.isConnected)
+        assertTrue(session.isConnected)
+        val remaining = session.openChannel("exec") as ChannelExec
+        try {
+            assertThrows(IOException::class.java) { checks.add(remaining) }
+            remaining.setCommand("printf retained")
+            val input = remaining.inputStream
+            remaining.connect(3_000)
+            assertEquals("retained", input.readNBytes(8).toString(Charsets.UTF_8))
+        } finally {
+            remaining.disconnect()
+        }
+    }
+
+    @Test
     fun proxyFailureReachesTheRemainingTerminal() = withSession { session ->
         val warnings = ForwardWarnings()
         val first = mutableListOf<String>()
