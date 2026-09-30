@@ -30,7 +30,9 @@ class SshConnectionManager(
     private val connectionAttempt = ConnectionAttemptControl()
     private val connectingSessions = ConnectingSessions()
     private val connectingChannels = ConnectingChannels()
-    val terminal = TerminalSession(config.initialCols, config.initialRows)
+    val terminal = TerminalSession(config.initialCols, config.initialRows) {
+        write(it.toByteArray(Charsets.US_ASCII))
+    }
 
     @Volatile
     private var session: Session? = null

@@ -42,8 +42,9 @@ This list reflects the current app and the project conversations. The older
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen
   output, and session title errors. Unit tests now cover command recall and
-  alternate-screen cursor restoration, but there is no device regression run
-  for the current build. Also verify disconnect during a slow handshake: the
+  alternate-screen cursor restoration. Drawer and navigation tests pass on an
+  Android 33 emulator; live terminal regression checks remain. Also verify
+  disconnect during a slow handshake: the
   service now cancels that attempt before it can appear as an open session.
   Stream read errors now trigger session cleanup; verify loss of connectivity
   on a device without leaving a dead session listed as open.
@@ -62,6 +63,11 @@ This list reflects the current app and the project conversations. The older
   Parser bounds now cover large cursor and scroll counts, invalid colour
   components, and unterminated oversized escape parameters. Check malformed
   output alongside tmux, Screen and full-screen programs on a device.
+  Terminal status, cursor position and text-area size queries now receive
+  replies through the connection's writer. Check query-driven applications
+  while resizing and switching terminals. Four parser tests cover reply
+  contents, split reads, resizing and unsupported queries. A real-server test
+  confirms the remote program receives the cursor report.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
@@ -82,7 +88,9 @@ This list reflects the current app and the project conversations. The older
   connection. Switching replaces the terminal page so Back returns to the host
   list; returning to a session uses its retained screen and scrollback.
   Two navigation tests pass on the phone, including older stacked terminal pages.
-  Three drawer UI tests are compiled but need an unlocked screen to run.
+  Three drawer UI tests and both navigation tests pass on an Android 33
+  emulator, including repeated switches between sessions. Live connections,
+  keyboard focus and the hiding toolbar still need interaction checks.
 - Test SOCKS5 forwarding through a live SSH server on a device. A JVM-side
   loopback test passed through a real SSH session, but no Android tunnel run has
   been recorded. Bind and proxy connection failures now appear in the terminal;

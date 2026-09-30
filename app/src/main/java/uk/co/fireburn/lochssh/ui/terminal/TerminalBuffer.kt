@@ -3,7 +3,8 @@ package uk.co.fireburn.lochssh.ui.terminal
 // Character grid with cursor and a VT100/xterm parser.
 class TerminalBuffer(
     var cols: Int,
-    var rows: Int
+    var rows: Int,
+    private val onReply: (String) -> Unit = {}
 ) {
     data class Cell(val ch: Char, val fg: Int, val bg: Int, val bold: Boolean)
     data class Point(val row: Int, val col: Int)
@@ -328,12 +329,24 @@ class TerminalBuffer(
         val first = parts.getOrNull(0) ?: 0
         val count = first.coerceIn(1, maxOf(cols, rows))
 
+        if (final == 'n' && parts.size == 1) {
+            when {
+                first == 5 && !csiPrivate -> onReply("\u001B[0n")
+                first == 6 -> {
+                    val prefix = if (csiPrivate) "?" else ""
+                    onReply("\u001B[$prefix${cursorRow + 1};${cursorCol.coerceAtMost(cols - 1) + 1}R")
+                }
+            }
+            return
+        }
+
         if (csiPrivate) {
             handlePrivateMode(parts, final)
             return
         }
 
         when (final) {
+            't' -> if (first == 18 && parts.size == 1) onReply("\u001B[8;$rows;${cols}t")
             'm' -> applySgr(parts)
             'H', 'f' -> {
                 cursorRow = (parts.getOrNull(0) ?: 1).coerceAtLeast(1).coerceAtMost(rows) - 1
