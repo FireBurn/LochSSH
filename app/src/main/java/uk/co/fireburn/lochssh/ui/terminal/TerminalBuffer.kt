@@ -56,6 +56,7 @@ class TerminalBuffer(
     private var skipNext = false
     private var csiPrivate = false
     private val csiParams = StringBuilder()
+    private var csiOverflow = false
 
     // UTF-8 decode state
     private var utf8Remaining = 0
@@ -195,12 +196,16 @@ class TerminalBuffer(
             inCsi -> when {
                 b == '?'.code && csiParams.isEmpty() -> csiPrivate = true
                 b in 0x40..0x7E -> {
-                    handleCsi(b.toChar())
+                    if (!csiOverflow) handleCsi(b.toChar())
                     inCsi = false
                     csiPrivate = false
                     csiParams.clear()
+                    csiOverflow = false
                 }
-                b >= 0x20 -> csiParams.append(b.toChar())
+                b >= 0x20 -> {
+                    if (csiParams.length < 256) csiParams.append(b.toChar())
+                    else csiOverflow = true
+                }
                 else -> Unit
             }
             inEscape -> {
@@ -296,7 +301,7 @@ class TerminalBuffer(
     }
 
     private fun scrollUp(count: Int) {
-        repeat(count.coerceAtLeast(1)) {
+        repeat(count.coerceIn(1, scrollBottom - scrollTop + 1)) {
             if (scrollTop == 0 && scrollBottom == rows - 1 && savedGrid == null) {
                 appendHistory(grid[0])
             }
@@ -312,7 +317,7 @@ class TerminalBuffer(
     }
 
     private fun scrollDown(count: Int) {
-        repeat(count.coerceAtLeast(1)) {
+        repeat(count.coerceIn(1, scrollBottom - scrollTop + 1)) {
             for (r in scrollBottom downTo scrollTop + 1) grid[r] = grid[r - 1]
             grid[scrollTop] = blankRow()
         }
@@ -321,7 +326,7 @@ class TerminalBuffer(
     private fun handleCsi(final: Char) {
         val parts = csiParams.toString().split(';').map { it.toIntOrNull() ?: 0 }
         val first = parts.getOrNull(0) ?: 0
-        val count = first.coerceAtLeast(1)
+        val count = first.coerceIn(1, maxOf(cols, rows))
 
         if (csiPrivate) {
             handlePrivateMode(parts, final)
@@ -483,14 +488,14 @@ class TerminalBuffer(
                     val target = p
                     when (list.getOrNull(i + 1)) {
                         5 -> {
-                            val colour = color256(list.getOrNull(i + 2) ?: 0)
+                            val colour = color256((list.getOrNull(i + 2) ?: 0).coerceIn(0, 255))
                             if (target == 38) fg = colour else bg = colour
                             i += 2
                         }
                         2 -> {
-                            val r = list.getOrNull(i + 2) ?: 0
-                            val g = list.getOrNull(i + 3) ?: 0
-                            val b = list.getOrNull(i + 4) ?: 0
+                            val r = (list.getOrNull(i + 2) ?: 0).coerceIn(0, 255)
+                            val g = (list.getOrNull(i + 3) ?: 0).coerceIn(0, 255)
+                            val b = (list.getOrNull(i + 4) ?: 0).coerceIn(0, 255)
                             val colour = 0xFF000000.toInt() or (r shl 16) or (g shl 8) or b
                             if (target == 38) fg = colour else bg = colour
                             i += 4

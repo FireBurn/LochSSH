@@ -59,6 +59,9 @@ This list reflects the current app and the project conversations. The older
   tests cover selections made before shrinking the grid and repeated size
   changes. The terminal bar hides after eight seconds and opens through
   Show controls; session switching and disconnect are in its actions menu.
+  Parser bounds now cover large cursor and scroll counts, invalid colour
+  components, and unterminated oversized escape parameters. Check malformed
+  output alongside tmux, Screen and full-screen programs on a device.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have

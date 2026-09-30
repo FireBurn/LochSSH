@@ -18,6 +18,47 @@ class TerminalBufferTest {
     private fun TerminalBuffer.screen() = (0 until rows).map { line(it) }
 
     @Test
+    fun largeCursorCountsStayInsideTheGrid() {
+        val buffer = buffer(cols = 8, rows = 4)
+        buffer.feed("\u001B[2;2H\u001B[2147483647B\u001B[2147483647Cx")
+        assertEquals('x', buffer.cellAt(3, 7).ch)
+        buffer.feed("\u001B[2147483647A\u001B[2147483647Dy")
+        assertEquals('y', buffer.cellAt(0, 0).ch)
+        buffer.feed("\u001B[2147483647Ez\u001B[2147483647Fw")
+        assertEquals('z', buffer.cellAt(3, 0).ch)
+        assertEquals('w', buffer.cellAt(0, 0).ch)
+    }
+
+    @Test(timeout = 2_000)
+    fun largeScrollCountsClearOnlyTheScrollRegion() {
+        val buffer = buffer(cols = 8, rows = 4)
+        buffer.feed("one\r\ntwo\r\nthree\r\nfour")
+        buffer.feed("\u001B[2;3r\u001B[2147483647S")
+        assertEquals(listOf("one", "", "", "four"), buffer.screen())
+        buffer.feed("\u001B[2147483647T")
+        assertEquals(listOf("one", "", "", "four"), buffer.screen())
+        assertEquals(0, buffer.scrollbackSize)
+    }
+
+    @Test
+    fun invalidColourComponentsCannotLeaveThePalette() {
+        val buffer = buffer()
+        buffer.feed("\u001B[38;5;-1ma\u001B[48;5;2147483647mb")
+        assertEquals(TerminalBuffer.ANSI_COLORS[0], buffer.cellAt(0, 0).fg)
+        assertEquals(0xFFEEEEEE.toInt(), buffer.cellAt(0, 1).bg)
+        buffer.feed("\u001B[38;2;999;-1;256mc")
+        assertEquals(0xFFFF00FF.toInt(), buffer.cellAt(0, 2).fg)
+    }
+
+    @Test
+    fun oversizedEscapeSequenceIsDiscardedAndParsingResumes() {
+        val buffer = buffer()
+        buffer.feed("\u001B[" + "1;".repeat(10_000) + "Hok\u001B[2;1Hnext")
+        assertEquals("ok", buffer.line(0))
+        assertEquals("next", buffer.line(1))
+    }
+
+    @Test
     fun replacingALongerLineLeavesNothingBehind() {
         // What readline sends when a shorter command is recalled: backspaces to
         // the start of the input, delete the extra characters, then the new text.
