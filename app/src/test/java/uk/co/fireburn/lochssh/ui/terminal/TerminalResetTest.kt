@@ -23,7 +23,7 @@ class TerminalResetTest {
         assertTrue(buffer.cursorVisible)
         assertTrue(buffer.transcript().isBlank())
         buffer.send("x")
-        assertEquals(TerminalBuffer.Cell('x', TerminalBuffer.DEFAULT_FG,
+        assertEquals(TerminalBuffer.Cell("x", TerminalBuffer.DEFAULT_FG,
             TerminalBuffer.DEFAULT_BG, false), buffer.cellAt(0, 0))
     }
 
@@ -54,9 +54,9 @@ class TerminalResetTest {
         assertTrue(buffer.cursorVisible)
         assertTrue(buffer.bracketedPaste)
         buffer.send("\u001B[1;1Hx\u001B[4;8Hyz")
-        assertEquals(TerminalBuffer.Cell('x', TerminalBuffer.DEFAULT_FG,
+        assertEquals(TerminalBuffer.Cell("x", TerminalBuffer.DEFAULT_FG,
             TerminalBuffer.DEFAULT_BG, false), buffer.visibleCellAt(0, 0, 1))
-        assertEquals('z', buffer.cellAt(3, 0).ch)
+        assertEquals("z", buffer.cellAt(3, 0).text)
     }
 
     @Test
@@ -72,11 +72,11 @@ class TerminalResetTest {
     fun softResetReplacesTheSavedCursorWithDefaultState() {
         val buffer = TerminalBuffer(8, 4)
         buffer.send("\u001B[2;3r\u001B[?6h\u001B[?7l\u001B[31m\u001B[2;3H\u001B7\u001B[!p\u001B8x")
-        assertEquals('x', buffer.cellAt(0, 0).ch)
+        assertEquals("x", buffer.cellAt(0, 0).text)
         assertEquals(TerminalBuffer.DEFAULT_FG, buffer.cellAt(0, 0).fg)
         buffer.send("\u001B[1;8Hab")
-        assertEquals('a', buffer.cellAt(0, 7).ch)
-        assertEquals('b', buffer.cellAt(1, 0).ch)
+        assertEquals("a", buffer.cellAt(0, 7).text)
+        assertEquals("b", buffer.cellAt(1, 0).text)
     }
 
     @Test

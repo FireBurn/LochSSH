@@ -11,7 +11,7 @@ class TerminalCharsetsTest {
         assertEquals(" ◆▒␉␌␍␊°±␤␋┘┐┌└┼⎺⎻─⎼⎽├┤┴┬│≤≥π≠£· ABC",
             buffer.rowText(0, 0, 36))
         buffer.send("\u001B(Bq")
-        assertEquals('q', buffer.cellAt(0, 36).ch)
+        assertEquals("q", buffer.cellAt(0, 36).text)
     }
 
     @Test
@@ -45,7 +45,7 @@ class TerminalCharsetsTest {
     fun savedCursorRetainsCharacterSlotsAndPendingSingleShift() {
         val buffer = TerminalBuffer(12, 4)
         buffer.send("\u001B)0\u000E\u001B7\u001B)B\u000F\u001B8q")
-        assertEquals('─', buffer.cellAt(0, 0).ch)
+        assertEquals("─", buffer.cellAt(0, 0).text)
         buffer.send("\u001B*0\u000F\u001BN\u001B7\u001B*Bq\u001B8qq")
         assertEquals("──q", buffer.rowText(0, 0, 3))
     }
@@ -58,7 +58,7 @@ class TerminalCharsetsTest {
         buffer.send("\u001B[?1049lq")
         assertEquals("──", buffer.rowText(0, 0, 2))
         buffer.send("\u001B[!pq")
-        assertEquals('q', buffer.cellAt(0, 2).ch)
+        assertEquals("q", buffer.cellAt(0, 2).text)
         buffer.send("\u001B(0\u001Bcq")
         assertEquals("q", buffer.rowText(0, 0, 8).trimEnd())
     }

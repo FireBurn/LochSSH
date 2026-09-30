@@ -31,10 +31,10 @@ internal class TerminalCharsets {
 
     fun next(slot: Int) { single = slot }
 
-    fun translate(character: Char): Char {
+    fun translate(code: Int): Int {
         val selected = sets[single ?: active]
         single = null
-        return selected.translate(character)
+        return if (code <= 0xFFFF) selected.translate(code.toChar()).code else code
     }
 
     fun snapshot() = State(sets, active, single)

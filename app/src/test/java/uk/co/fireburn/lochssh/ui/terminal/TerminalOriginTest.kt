@@ -12,10 +12,10 @@ class TerminalOriginTest {
         buffer.send("\u001B[?6h")
         assertEquals(1 to 0, buffer.cursor)
         buffer.send("\u001B[2;3Hx\u001B[4;2fy")
-        assertEquals('x', buffer.cellAt(2, 2).ch)
-        assertEquals('y', buffer.cellAt(4, 1).ch)
+        assertEquals("x", buffer.cellAt(2, 2).text)
+        assertEquals("y", buffer.cellAt(4, 1).text)
         buffer.send("\u001B[2dz")
-        assertEquals('z', buffer.cellAt(2, 2).ch)
+        assertEquals("z", buffer.cellAt(2, 2).text)
         buffer.send("\u001B[?6l")
         assertEquals(0 to 0, buffer.cursor)
     }
@@ -67,7 +67,7 @@ class TerminalOriginTest {
         assertEquals(TerminalBuffer.ANSI_COLORS[4], cell.bg)
         assertEquals(true, cell.bold)
         buffer.send("\u001B[1;8Habc")
-        assertEquals('c', buffer.cellAt(1, 7).ch)
+        assertEquals("c", buffer.cellAt(1, 7).text)
         assertEquals(1 to 7, buffer.cursor)
     }
 
@@ -77,7 +77,7 @@ class TerminalOriginTest {
         buffer.send("\u001B[2;5r\u001B[?6h\u001B[2;3H\u001B[?1049h\u001B[?6l")
         buffer.resize(5, 4)
         buffer.send("\u001B[?1049l\u001B[1;1Hx")
-        assertEquals('x', buffer.cellAt(1, 0).ch)
+        assertEquals("x", buffer.cellAt(1, 0).text)
         buffer.send("\u001B[99d")
         assertEquals(3, buffer.cursorRow)
         buffer.resize(3, 2)

@@ -11,14 +11,14 @@ class TerminalWrapTest {
         assertEquals("abcd", buffer.rowText(0, 0, 4))
         assertEquals(0, buffer.cursorRow)
         buffer.send("e")
-        assertEquals('e', buffer.cellAt(1, 0).ch)
+        assertEquals("e", buffer.cellAt(1, 0).text)
     }
 
     @Test
     fun lineFeedCancelsThePendingWrap() {
         val buffer = TerminalBuffer(4, 3)
         buffer.send("abcd\ne")
-        assertEquals('e', buffer.cellAt(1, 3).ch)
+        assertEquals("e", buffer.cellAt(1, 3).text)
         assertEquals(1, buffer.cursorRow)
         assertEquals("    ", buffer.rowText(2, 0, 4))
     }
@@ -31,7 +31,7 @@ class TerminalWrapTest {
         assertEquals(0 to 3, buffer.cursor)
         buffer.send("\u001B[?7hgh")
         assertEquals("abcg", buffer.rowText(0, 0, 4))
-        assertEquals('h', buffer.cellAt(1, 0).ch)
+        assertEquals("h", buffer.cellAt(1, 0).text)
     }
 
     @Test
@@ -53,11 +53,11 @@ class TerminalWrapTest {
     fun cursorMovementCancelsThePendingWrap() {
         val buffer = TerminalBuffer(4, 3)
         buffer.send("abcd\u001B[Bx")
-        assertEquals('x', buffer.cellAt(1, 3).ch)
+        assertEquals("x", buffer.cellAt(1, 3).text)
         buffer.send("\u001B[Dy")
-        assertEquals('y', buffer.cellAt(1, 2).ch)
+        assertEquals("y", buffer.cellAt(1, 2).text)
         buffer.send("\u001B[1dz")
-        assertEquals('z', buffer.cellAt(0, 3).ch)
+        assertEquals("z", buffer.cellAt(0, 3).text)
     }
 
     private fun TerminalBuffer.send(text: String) {

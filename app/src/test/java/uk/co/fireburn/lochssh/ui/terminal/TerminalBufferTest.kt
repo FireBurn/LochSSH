@@ -21,12 +21,12 @@ class TerminalBufferTest {
     fun largeCursorCountsStayInsideTheGrid() {
         val buffer = buffer(cols = 8, rows = 4)
         buffer.feed("\u001B[2;2H\u001B[2147483647B\u001B[2147483647Cx")
-        assertEquals('x', buffer.cellAt(3, 7).ch)
+        assertEquals("x", buffer.cellAt(3, 7).text)
         buffer.feed("\u001B[2147483647A\u001B[2147483647Dy")
-        assertEquals('y', buffer.cellAt(0, 0).ch)
+        assertEquals("y", buffer.cellAt(0, 0).text)
         buffer.feed("\u001B[2147483647Ez\u001B[2147483647Fw")
-        assertEquals('z', buffer.cellAt(3, 0).ch)
-        assertEquals('w', buffer.cellAt(0, 0).ch)
+        assertEquals("z", buffer.cellAt(3, 0).text)
+        assertEquals("w", buffer.cellAt(0, 0).text)
     }
 
     @Test(timeout = 2_000)

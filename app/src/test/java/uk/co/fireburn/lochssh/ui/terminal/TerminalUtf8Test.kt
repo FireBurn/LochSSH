@@ -58,9 +58,9 @@ class TerminalUtf8Test {
         val buffer = TerminalBuffer(12, 4)
         val bytes = byteArrayOf(0xE2.toByte(), 0x0A, 0xC3.toByte(), 0xA9.toByte(), 0xE2.toByte(), 'x'.code.toByte())
         buffer.feed(bytes, bytes.size)
-        assertEquals('�', buffer.cellAt(0, 0).ch)
+        assertEquals("�", buffer.cellAt(0, 0).text)
         assertEquals(" é�x", buffer.rowText(1, 0, 4))
         buffer.feed(byteArrayOf(0x7F, 'y'.code.toByte()), 2)
-        assertEquals('y', buffer.cellAt(1, 4).ch)
+        assertEquals("y", buffer.cellAt(1, 4).text)
     }
 }

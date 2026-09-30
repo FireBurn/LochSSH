@@ -6,7 +6,7 @@ class TerminalBuffer(
     var rows: Int,
     private val onReply: (String) -> Unit = {}
 ) {
-    data class Cell(val ch: Char, val fg: Int, val bg: Int, val bold: Boolean)
+    data class Cell(val text: String, val fg: Int, val bg: Int, val bold: Boolean)
     data class Point(val row: Int, val col: Int)
 
     private var grid = blankGrid(cols, rows)
@@ -71,7 +71,7 @@ class TerminalBuffer(
     private val csiParams = StringBuilder()
     private var csiOverflow = false
 
-    private val utf8 = TerminalUtf8 { putChar(it.toChar()) }
+    private val utf8 = TerminalUtf8(::putCodePoint)
 
     // The reader thread feeds while the UI thread draws, so both sides take
     // this lock; readers take it once per frame through read().
@@ -90,7 +90,7 @@ class TerminalBuffer(
 
     fun transcript(): String = read {
         val lines = if (savedGrid == null) history.toList() + grid.toList() else grid.toList()
-        lines.joinToString("\n") { line -> line.joinToString("") { it.ch.toString() }.trimEnd() }
+        lines.joinToString("\n") { line -> line.joinToString("") { it.text }.trimEnd() }
             .trimEnd('\n') + "\n"
     }
 
@@ -102,7 +102,7 @@ class TerminalBuffer(
 
     fun visibleRowText(row: Int, start: Int, end: Int, scrollOffset: Int): String {
         val sb = StringBuilder(end - start)
-        for (c in start until end) sb.append(visibleCellAt(row, c, scrollOffset).ch)
+        for (c in start until end) sb.append(visibleCellAt(row, c, scrollOffset).text)
         return sb.toString()
     }
 
@@ -120,7 +120,7 @@ class TerminalBuffer(
 
     fun rowText(row: Int, start: Int, end: Int): String {
         val sb = StringBuilder(end - start)
-        for (c in start until end) sb.append(grid[row][c].ch)
+        for (c in start until end) sb.append(grid[row][c].text)
         return sb.toString()
     }
 
@@ -303,21 +303,22 @@ class TerminalBuffer(
         }
     }
 
-    private fun putChar(c: Char) {
+    private fun putCodePoint(code: Int) {
         if (cursorCol >= cols) {
             if (wraparound) {
                 cursorCol = 0
                 lineFeed()
             } else cursorCol = cols - 1
         }
-        grid[cursorRow][cursorCol] = cell(charsets.translate(c))
+        val text = String(Character.toChars(charsets.translate(code)))
+        grid[cursorRow][cursorCol] = cell(text)
         cursorCol = if (wraparound) cursorCol + 1 else (cursorCol + 1).coerceAtMost(cols - 1)
     }
 
-    private fun cell(c: Char) =
-        if (inverse) Cell(c, bg, fg, bold) else Cell(c, fg, bg, bold)
+    private fun cell(text: String) =
+        if (inverse) Cell(text, bg, fg, bold) else Cell(text, fg, bg, bold)
 
-    private fun blank() = Cell(' ', DEFAULT_FG, DEFAULT_BG, false)
+    private fun blank() = Cell(" ", DEFAULT_FG, DEFAULT_BG, false)
 
     private fun lineFeed() {
         cursorCol = cursorCol.coerceAtMost(cols - 1)
@@ -660,6 +661,6 @@ class TerminalBuffer(
         )
 
         private fun blankGrid(cols: Int, rows: Int) =
-            Array(rows) { Array(cols) { Cell(' ', DEFAULT_FG, DEFAULT_BG, false) } }
+            Array(rows) { Array(cols) { Cell(" ", DEFAULT_FG, DEFAULT_BG, false) } }
     }
 }

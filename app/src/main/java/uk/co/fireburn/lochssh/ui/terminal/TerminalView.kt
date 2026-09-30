@@ -213,9 +213,9 @@ private fun DrawScope.drawTerminal(
             if (cursorRow < rows) {
                 val origin = Offset(cursorCol * metrics.width, cursorRow * metrics.height)
                 drawRect(Color(theme.cursor), topLeft = origin, size = Size(metrics.width, metrics.height))
-                val under = buffer.cellAt(cursorRow, cursorCol).ch
-                if (under != ' ') {
-                    drawText(textMeasurer, under.toString(), origin, style.copy(color = Color(theme.background)))
+                val under = buffer.cellAt(cursorRow, cursorCol).text
+                if (under != " ") {
+                    drawText(textMeasurer, under, origin, style.copy(color = Color(theme.background)))
                 }
             }
         }
@@ -280,14 +280,17 @@ private fun DrawScope.drawRowText(
     var col = 0
     while (col < buffer.cols) {
         val cell = buffer.visibleCellAt(row, col, scrollOffset)
-        if (cell.ch == ' ') {
+        if (cell.text == " ") {
             col++
             continue
         }
         val runStart = col
+        col++
         while (
             col < buffer.cols &&
-            buffer.visibleCellAt(row, col, scrollOffset).ch != ' ' &&
+            cell.text.length == 1 && cell.text[0] in '!'..'~' &&
+            buffer.visibleCellAt(row, col, scrollOffset).text.length == 1 &&
+            buffer.visibleCellAt(row, col, scrollOffset).text[0] in '!'..'~' &&
             buffer.visibleCellAt(row, col, scrollOffset).fg == cell.fg &&
             buffer.visibleCellAt(row, col, scrollOffset).bold == cell.bold
         ) {
