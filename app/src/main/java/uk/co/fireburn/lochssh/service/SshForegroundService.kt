@@ -8,7 +8,6 @@ import android.app.Service
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
-import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
@@ -80,6 +79,7 @@ class SshForegroundService : Service() {
     private val connectedTokens = ConcurrentHashMap<Long, String>()
     private val attempts = ConcurrentHashMap<Long, ConnectionAttempt>()
     private var wakeLock: PowerManager.WakeLock? = null
+    private var stopReason: String? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
     override fun onCreate() {
@@ -378,7 +378,7 @@ class SshForegroundService : Service() {
             startForeground(
                 SUMMARY_NOTIFICATION_ID,
                 summaryNotification(),
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC
+                SshServiceType.forAndroid(Build.VERSION.SDK_INT)
             )
         } else {
             startForeground(SUMMARY_NOTIFICATION_ID, summaryNotification())
@@ -389,20 +389,36 @@ class SshForegroundService : Service() {
         notifyIfAllowed(SUMMARY_NOTIFICATION_ID, summaryNotification())
     }
 
-    // Keeps the CPU up so connections survive Doze while the user is attached.
+    // Doze still requires the user to allow a battery exemption.
     private fun acquireWakeLock() {
         val pm = getSystemService(Context.POWER_SERVICE) as PowerManager
         wakeLock = pm.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, WAKE_LOCK_TAG)
             .apply { acquire(WAKE_LOCK_TIMEOUT_MS) }
     }
 
+    override fun onTimeout(startId: Int) = stopAfterTimeout()
+
+    override fun onTimeout(startId: Int, fgsType: Int) = stopAfterTimeout()
+
+    private fun stopAfterTimeout() {
+        Log.w(TAG, "Android timed out the SSH service")
+        stopReason = "Android stopped background connections. Retry to connect again."
+        stopForeground(STOP_FOREGROUND_REMOVE)
+        stopSelf()
+    }
+
     override fun onDestroy() {
+        val ids = (attempts.keys + managers.keys).toSet()
+        val attemptTokens = attempts.values.map { it.token }
         attempts.values.forEach(::cancelAttempt)
         attempts.clear()
         managers.values.forEach { it.disconnect() }
-        managers.keys.forEach { registry.remove(it) }
+        registry.closeSessions(ids, stopReason)
+        ids.forEach { NotificationManagerCompat.from(this).cancel(sessionNotificationId(it)) }
         managers.clear()
-        connectedTokens.values.forEach { history.finished(it, ConnectionStates.ENDED) }
+        val status = if (stopReason == null) ConnectionStates.ENDED else ConnectionStates.INTERRUPTED
+        connectedTokens.values.forEach { history.finished(it, status) }
+        if (stopReason != null) attemptTokens.forEach { history.finished(it, ConnectionStates.INTERRUPTED) }
         connectedTokens.clear()
         wakeLock?.let { if (it.isHeld) it.release() }
         wakeLock = null

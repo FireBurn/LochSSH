@@ -5,11 +5,16 @@ This list reflects the current app and the project conversations. The older
 
 ## Fix before wider use
 
-- Handle Android's foreground-service timeout and review the service type for
-  long-lived SSH connections. The service currently uses `dataSync`, which has a
-  [six-hour background limit](https://developer.android.com/develop/background-work/services/fgs/timeout)
-  on Android 15 and later when targeting API 35. There is no `onTimeout` cleanup,
-  so reaching that limit can crash the app. Battery exemption does not remove it.
+- Check long-lived SSH service behavior on a device. Android 14 and later now
+  use `specialUse` with an explicit SSH purpose instead of the `dataSync` type
+  subject to a [six-hour background limit](https://developer.android.com/develop/background-work/services/fgs/timeout).
+  Older Android keeps its existing service start. Timeout callbacks stop the
+  service and retain a retry reason; normal shutdown removes opening rows too.
+  Four unit tests cover type selection and session cleanup. The built APK has
+  the declared type, permission and SSH purpose. A phone test for the installed
+  declaration is compiled but not yet run. Actual service start, timeout
+  delivery and long screen-off runs still need device checks.
+  The special-use declaration needs review before Google Play publication.
 - Check host-key review and removal on a device, including a changed server key.
   The app now lists fingerprints and removes a selected key after confirmation.
   First-seen keys now require fingerprint approval before being saved, including

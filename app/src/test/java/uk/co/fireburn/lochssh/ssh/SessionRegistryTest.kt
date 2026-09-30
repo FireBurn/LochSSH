@@ -8,6 +8,36 @@ import org.junit.Test
 
 class SessionRegistryTest {
     @Test
+    fun removesOpeningSessionsWhenTheServiceStops() {
+        val registry = SessionRegistry()
+        registry.opening(1, 10, "First")
+        registry.opening(2, 20, "Second")
+        registry.opening(3, 30, "Already failed")
+        registry.failed(3, "Connection refused")
+
+        registry.closeSessions(setOf(1, 2))
+
+        assertNull(registry.find(1))
+        assertNull(registry.find(2))
+        assertEquals("Connection refused", registry.find(3)?.error)
+    }
+
+    @Test
+    fun keepsTimedOutSessionsWithAReasonAndNoPendingKeyReview() {
+        val registry = SessionRegistry()
+        registry.opening(1, 10, "First")
+        registry.failed(1, "Key not approved", SavedHostKey("test", "type", "fingerprint", "key"))
+        registry.closeSessions(setOf(1), "Android stopped background connections")
+
+        val session = requireNotNull(registry.find(1))
+        assertEquals("First", session.label)
+        assertEquals("Android stopped background connections", session.statusText)
+        assertEquals("View", session.actionLabel)
+        assertNull(session.hostKeyReview)
+        assertFalse(session.isConnected)
+    }
+
+    @Test
     fun keepsRecentForwardWarningsUntilDismissed() {
         val registry = SessionRegistry()
         val id = registry.newId()

@@ -87,6 +87,16 @@ class SessionRegistry @Inject constructor() {
         _sessions.value = _sessions.value.filterNot { it.id == id }
     }
 
+    fun closeSessions(ids: Set<Long>, error: String? = null) {
+        _sessions.value = _sessions.value.mapNotNull {
+            when {
+                it.id !in ids -> it
+                error == null -> null
+                else -> it.copy(manager = null, error = error, remoteOptions = null, hostKeyReview = null)
+            }
+        }
+    }
+
     fun find(id: Long): Session? = _sessions.value.firstOrNull { it.id == id }
 
     fun forHost(hostId: Long): List<Session> = _sessions.value.filter { it.hostId == hostId }
