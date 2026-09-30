@@ -168,6 +168,10 @@ fun TerminalScreen(
         buffer.read { buffer.applicationCursor }
     } == true
 
+    fun usesApplicationKeypad(): Boolean = manager?.terminal?.buffer?.let { buffer ->
+        buffer.read { buffer.applicationKeypad }
+    } == true
+
     if (confirmExport) {
         AlertDialog(onDismissRequest = { confirmExport = false },
             title = { Text("Save terminal text?") },
@@ -477,7 +481,7 @@ fun TerminalScreen(
                         },
                         onKey = { key ->
                             val bytes = ImeKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt,
-                                usesApplicationCursor())
+                                usesApplicationCursor(), usesApplicationKeypad())
                             if (bytes != null) {
                                 liveRequest++
                                 selectionClearKey++

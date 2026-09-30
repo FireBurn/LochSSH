@@ -97,8 +97,14 @@ This list reflects the current app and the project conversations. The older
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
   not been checked on a device.
-- Complete terminal character and mode support: wide characters, spacing marks,
-  joined emoji sequences and application keypad.
+- Complete terminal character and mode support: wide characters, spacing marks
+  and joined emoji sequences.
+  Hardware keypad keys now follow the remote application's keypad mode. Num Lock
+  selects numeric input; unlocked keys use navigation or application sequences.
+  Normal Enter and on-screen keys remain unchanged. Check a physical keypad with
+  editors, Num Lock and modifiers on a device.
+  Four unit tests cover sequences, Num Lock, navigation and remote mode changes.
+  The Android keypad-event test compiles but has not run without a connected device.
   The UTF-8 decoder now rejects overlong, surrogate and out-of-range sequences
   and preserves valid characters after broken input. Five tests cover every
   valid Unicode code point and malformed input. Cells now store complete text,

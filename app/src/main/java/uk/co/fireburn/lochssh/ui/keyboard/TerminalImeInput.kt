@@ -87,13 +87,30 @@ fun TerminalImeInput(
 // Encodes IME/hardware key events as terminal byte sequences.
 object ImeKeyEncoder {
     fun encode(event: KeyEvent, latchedCtrl: Boolean = false, latchedAlt: Boolean = false,
-        applicationCursor: Boolean = false): ByteArray? {
+        applicationCursor: Boolean = false, applicationKeypad: Boolean = false): ByteArray? {
         if (event.action != KeyEvent.ACTION_DOWN) return null
         val ctrl = event.isCtrlPressed || latchedCtrl
         val alt = event.isAltPressed || latchedAlt
         val code = event.keyCode
         val modifier = 1 + (if (event.isShiftPressed) 1 else 0) +
             (if (alt) 2 else 0) + (if (ctrl) 4 else 0)
+        val keypad = when (code) {
+            in KeyEvent.KEYCODE_NUMPAD_0..KeyEvent.KEYCODE_NUMPAD_9 ->
+                ('0'.code + code - KeyEvent.KEYCODE_NUMPAD_0).toChar()
+            KeyEvent.KEYCODE_NUMPAD_DIVIDE -> '/'
+            KeyEvent.KEYCODE_NUMPAD_MULTIPLY -> '*'
+            KeyEvent.KEYCODE_NUMPAD_SUBTRACT -> '-'
+            KeyEvent.KEYCODE_NUMPAD_ADD -> '+'
+            KeyEvent.KEYCODE_NUMPAD_DOT -> '.'
+            KeyEvent.KEYCODE_NUMPAD_COMMA -> ','
+            KeyEvent.KEYCODE_NUMPAD_ENTER -> '\r'
+            KeyEvent.KEYCODE_NUMPAD_EQUALS -> '='
+            KeyEvent.KEYCODE_NUMPAD_LEFT_PAREN -> '('
+            KeyEvent.KEYCODE_NUMPAD_RIGHT_PAREN -> ')'
+            else -> null
+        }
+        if (keypad != null) return uk.co.fireburn.lochssh.ui.terminal.TerminalKeypad.encode(
+            keypad, applicationKeypad, event.isNumLockOn, modifier, applicationCursor)
         if (code in KeyEvent.KEYCODE_F1..KeyEvent.KEYCODE_F12) {
             val number = code - KeyEvent.KEYCODE_F1
             if (number < 4) {

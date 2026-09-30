@@ -31,6 +31,8 @@ class TerminalBuffer(
         private set
     var applicationCursor = false
         private set
+    var applicationKeypad = false
+        private set
     var version = 0
         private set
     var totalScrolled = 0L
@@ -242,6 +244,8 @@ class TerminalBuffer(
                     }
                     'M'.code -> reverseIndex()
                     'c'.code -> reset(full = true)
+                    '='.code -> applicationKeypad = true
+                    '>'.code -> applicationKeypad = false
                     '('.code, ')'.code, '*'.code, '+'.code -> charsetSlot = b - '('.code
                     'N'.code -> charsets.next(2)
                     'O'.code -> charsets.next(3)
@@ -275,6 +279,7 @@ class TerminalBuffer(
         wraparound = true
         originMode = false
         applicationCursor = false
+        applicationKeypad = false
         cursorVisible = true
         scrollTop = 0
         scrollBottom = rows - 1
@@ -465,6 +470,7 @@ class TerminalBuffer(
         for (mode in parts) {
             when (mode) {
                 1 -> applicationCursor = enable
+                66 -> applicationKeypad = enable
                 6 -> {
                     originMode = enable
                     homeCursor()

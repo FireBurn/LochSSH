@@ -6,6 +6,18 @@ import org.junit.Test
 
 class ImeKeyEncoderAndroidTest {
     @Test
+    fun hardwareKeypadUsesRemoteModeAndNumLock() {
+        assertArrayEquals("\u001BOp".toByteArray(), ImeKeyEncoder.encode(
+            KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_NUMPAD_0), applicationKeypad = true))
+        assertArrayEquals("\u001BOM".toByteArray(), ImeKeyEncoder.encode(
+            KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_NUMPAD_ENTER), applicationKeypad = true))
+        assertArrayEquals("\r".toByteArray(), ImeKeyEncoder.encode(
+            KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER), applicationKeypad = true))
+        assertArrayEquals("0".toByteArray(), ImeKeyEncoder.encode(
+            KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_NUMPAD_0, 0, KeyEvent.META_NUM_LOCK_ON),
+            applicationKeypad = true))
+    }
+    @Test
     fun hardwareCursorKeysFollowApplicationMode() {
         val keys = mapOf(
             KeyEvent.KEYCODE_DPAD_UP to "A", KeyEvent.KEYCODE_DPAD_DOWN to "B",
