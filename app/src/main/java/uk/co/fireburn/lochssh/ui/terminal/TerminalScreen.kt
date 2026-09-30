@@ -74,6 +74,7 @@ fun TerminalScreen(
 ) {
     val context = LocalContext.current
     val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
+    val terminalTypeface by viewModel.terminalTypeface.collectAsStateWithLifecycle()
     val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
     val keyboardLayout by viewModel.keyboardLayout.collectAsStateWithLifecycle()
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
@@ -455,6 +456,7 @@ fun TerminalScreen(
                         TerminalView(
                             manager = manager,
                             fontSize = fontSize.sp,
+                            typeface = terminalTypeface,
                             theme = terminalTheme,
                             scrollToLiveKey = liveRequest,
                             clearSelectionKey = selectionClearKey,

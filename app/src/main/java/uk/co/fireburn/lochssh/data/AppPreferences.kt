@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTheme
+import uk.co.fireburn.lochssh.ui.terminal.TerminalTypeface
 
 @Singleton
 class AppPreferences @Inject constructor(
@@ -21,6 +22,13 @@ class AppPreferences @Inject constructor(
     val terminalFontSize: StateFlow<Int> = _terminalFontSize
     private val _terminalTheme = MutableStateFlow(TerminalTheme.decode(prefs.getString(KEY_THEME, null)))
     val terminalTheme: StateFlow<TerminalTheme> = _terminalTheme
+    private val _terminalTypeface = MutableStateFlow(TerminalTypeface.decode(prefs.getString(KEY_TYPEFACE, null)))
+    val terminalTypeface: StateFlow<TerminalTypeface> = _terminalTypeface
+
+    fun setTerminalTypeface(typeface: TerminalTypeface) {
+        prefs.edit().putString(KEY_TYPEFACE, typeface.name).apply()
+        _terminalTypeface.value = typeface
+    }
 
     fun setTerminalTheme(theme: TerminalTheme) {
         prefs.edit().putString(KEY_THEME, theme.name).apply()
@@ -49,6 +57,7 @@ class AppPreferences @Inject constructor(
         _terminalFontSize.value = DEFAULT_FONT_SIZE
         _keyboardLayout.value = KeyboardLayout.DEFAULT
         _terminalTheme.value = TerminalTheme.LOCH
+        _terminalTypeface.value = TerminalTypeface.NOTO
     }
 
     companion object {
@@ -60,5 +69,6 @@ class AppPreferences @Inject constructor(
         private const val KEY_FONT_SIZE = "terminal_font_size"
         private const val KEY_KEYBOARD = "keyboard_layout"
         private const val KEY_THEME = "terminal_theme"
+        private const val KEY_TYPEFACE = "terminal_typeface"
     }
 }

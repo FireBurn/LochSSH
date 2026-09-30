@@ -75,3 +75,5 @@ Open Settings → Terminal keyboard to change keys and their order. Add up to fo
 BSD 3-Clause. See [LICENSE](LICENSE).
 
 Unicode character data uses [Unicode License V3](licenses/Unicode.txt).
+JetBrains Mono v2.304 uses the [SIL Open Font License](app/src/main/assets/jetbrains-mono-license.txt).
+The bundled regular and bold files come from the upstream no-ligature family.

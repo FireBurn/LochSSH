@@ -31,6 +31,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import uk.co.fireburn.lochssh.ui.keyboard.KeyboardLayoutEditor
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTheme
+import uk.co.fireburn.lochssh.ui.terminal.TerminalTypeface
 import androidx.compose.material3.RadioButton
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -45,6 +46,7 @@ fun SettingsScreen(
     var editKeyboard by remember { mutableStateOf(false) }
     val keyboardLayout by viewModel.keyboardLayout.collectAsStateWithLifecycle()
     val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
+    val terminalTypeface by viewModel.terminalTypeface.collectAsStateWithLifecycle()
     val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
 
@@ -88,6 +90,20 @@ fun SettingsScreen(
                     }
                     TextButton(onClick = { viewModel.changeFontSize(-1) }) { Text("Aa-") }
                     TextButton(onClick = { viewModel.changeFontSize(1) }) { Text("Aa+") }
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Terminal font", style = MaterialTheme.typography.titleMedium)
+                    TerminalTypeface.entries.forEach { typeface ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = terminalTypeface == typeface,
+                                onClick = { viewModel.setTerminalTypeface(typeface) })
+                            TextButton(onClick = { viewModel.setTerminalTypeface(typeface) }) {
+                                Text(typeface.label, fontFamily = typeface.family)
+                            }
+                        }
+                    }
                 }
             }
             Card(modifier = Modifier.fillMaxWidth()) {

@@ -255,7 +255,13 @@ This list reflects the current app and the project conversations. The older
   scrollback, inverse text, selection and remote programs with explicit colours.
   Settings changes apply to open terminals; default-colour and inverse-text
   unit tests pass. An isolated phone preferences test verifies theme persistence
-  and reset. Add font choices.
+  and reset. Settings now offers Noto Sans Mono and JetBrains Mono. The choice
+  is saved and applies to open terminals, which remeasure and resize their grid.
+  JetBrains Mono v2.304 uses the no-ligature family, with regular and bold files
+  and its licence bundled. Check font selection, persistence, reset, fallback
+  glyphs, bold text and remote resizing on a device.
+  Two unit tests cover saved choices and defaults. The Android persistence,
+  reset and loaded-font width tests compile but have not run for this change.
 - Check Save terminal text on a device: file selection, cancellation, UTF-8,
   failed writes and rotation while choosing a file. It exports retained
   scrollback and the screen after a warning about secrets. Two unit tests cover

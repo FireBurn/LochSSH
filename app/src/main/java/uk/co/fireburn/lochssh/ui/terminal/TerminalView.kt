@@ -20,23 +20,13 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.drawText
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
-import uk.co.fireburn.lochssh.R
 import uk.co.fireburn.lochssh.ssh.SshConnectionManager
-
-// The system monospace family is not monospaced on every device, so the grid
-// only lines up with a font we ship ourselves.
-private val TerminalFont = FontFamily(
-    Font(R.font.noto_sans_mono_regular, FontWeight.Normal),
-    Font(R.font.noto_sans_mono_bold, FontWeight.Bold)
-)
 
 private val SelectionColour = Color(0x8855A878)
 
@@ -53,6 +43,7 @@ fun TerminalView(
     modifier: Modifier = Modifier,
     manager: SshConnectionManager? = null,
     fontSize: TextUnit = 14.sp,
+    typeface: TerminalTypeface = TerminalTypeface.NOTO,
     theme: TerminalTheme = TerminalTheme.LOCH,
     scrollToLiveKey: Int = 0,
     clearSelectionKey: Int = 0,
@@ -68,8 +59,8 @@ fun TerminalView(
     val textMeasurer = rememberTextMeasurer()
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
-    val style = remember(fontSize) {
-        TextStyle(fontFamily = TerminalFont, fontSize = fontSize)
+    val style = remember(fontSize, typeface) {
+        TextStyle(fontFamily = typeface.family, fontSize = fontSize)
     }
     // Measured over a run so the advance keeps its fraction; rounding one
     // character would drift by a whole cell across a line.

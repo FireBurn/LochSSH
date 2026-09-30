@@ -9,6 +9,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTheme
+import uk.co.fireburn.lochssh.ui.terminal.TerminalTypeface
 
 class KeyboardPreferencesAndroidTest {
     @Test
@@ -26,10 +27,13 @@ class KeyboardPreferencesAndroidTest {
             )))
             preferences.setKeyboardLayout(layout)
             preferences.setTerminalTheme(TerminalTheme.PAPER)
+            preferences.setTerminalTypeface(TerminalTypeface.JETBRAINS)
             assertTrue(testContext.getSharedPreferences(fileName, Context.MODE_PRIVATE).edit().commit())
             assertEquals(layout, preferences.keyboardLayout.value)
             assertEquals(layout, AppPreferences(context).keyboardLayout.value)
             assertEquals(TerminalTheme.PAPER, AppPreferences(context).terminalTheme.value)
+            assertEquals(TerminalTypeface.JETBRAINS, preferences.terminalTypeface.value)
+            assertEquals(TerminalTypeface.JETBRAINS, AppPreferences(context).terminalTypeface.value)
 
             preferences.reset()
 
@@ -37,6 +41,8 @@ class KeyboardPreferencesAndroidTest {
             assertEquals(KeyboardLayout.DEFAULT, AppPreferences(context).keyboardLayout.value)
             assertEquals(TerminalTheme.LOCH, preferences.terminalTheme.value)
             assertEquals(TerminalTheme.LOCH, AppPreferences(context).terminalTheme.value)
+            assertEquals(TerminalTypeface.NOTO, preferences.terminalTypeface.value)
+            assertEquals(TerminalTypeface.NOTO, AppPreferences(context).terminalTypeface.value)
         } finally {
             testContext.deleteSharedPreferences(fileName)
         }
