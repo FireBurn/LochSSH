@@ -279,7 +279,12 @@ This list reflects the current app and the project conversations. The older
   and launching while another session is open on a device.
   Android intent tests cover the explicit target, host-only contents, unrelated
   actions and invalid IDs. Runtime confirmation and launcher tests remain.
-- Add IPv6 connection tests and proxy settings.
+- Add proxy settings and check IPv6 connections on Android.
+  Three real-server IPv6 tests cover SSH authentication, local forwarding and
+  SOCKS5 IPv6 requests. They require an explicit IPv6 address for the same
+  server already trusted under the test host name. Trust aliases stay in memory
+  and retain known-host markers; the user's known-host file is not changed.
+  Check saved IPv6 host entry, Android networking and server-key review on a device.
   Session-switching keyboard shortcuts are optional and off by default.
   When enabled, Ctrl+Alt+Page Up/Down cycles through session rows and wraps at
   the ends. Repeated key-down events do not cause repeated switches. Other

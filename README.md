@@ -44,6 +44,12 @@ Run the instrumented tests with a connected Android device:
 
 The debug APK is written to `app/build/outputs/apk/debug/app-debug.apk`. Android 8.0 (API 26) or newer is required.
 
+The live IPv6 tests use `LOCHSSH_TEST_SSH_IPV6_HOST`, `LOCHSSH_TEST_SSH_HOST`,
+`LOCHSSH_TEST_SSH_USER` and `LOCHSSH_TEST_SSH_KEY`. Both host values must reach
+the same SSH server on port 22. The test host must already be in `known_hosts`;
+the IPv6 alias is kept in memory. Run `:app:testDebugUnitTest --tests '*Ipv6ConnectionTest'`
+with those variables set. Without them, these tests are skipped.
+
 The app currently includes local JSch and Android-support JARs in `app/libs/` for Android Ed25519 authentication and X25519 key exchange. See [the work list](docs/TODO.md) and [the upstream PR](https://github.com/mwiede/jsch/pull/1160). Do not replace them with the original `com.jcraft:jsch` library.
 
 ## Screen-off connections
