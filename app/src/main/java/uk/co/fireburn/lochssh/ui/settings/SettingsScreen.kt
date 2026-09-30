@@ -33,6 +33,7 @@ import uk.co.fireburn.lochssh.ui.keyboard.KeyboardLayoutEditor
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTheme
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTypeface
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Switch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -46,6 +47,7 @@ fun SettingsScreen(
     var editKeyboard by remember { mutableStateOf(false) }
     val keyboardLayout by viewModel.keyboardLayout.collectAsStateWithLifecycle()
     val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
+    val sessionShortcuts by viewModel.sessionShortcuts.collectAsStateWithLifecycle()
     val terminalTypeface by viewModel.terminalTypeface.collectAsStateWithLifecycle()
     val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
@@ -122,6 +124,15 @@ fun SettingsScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Terminal keyboard", style = MaterialTheme.typography.titleMedium)
                     Text("Choose keys, change their order and add rows")
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Session keyboard shortcuts", style = MaterialTheme.typography.titleMedium)
+                        Text("Ctrl+Alt+Page Up/Down switches sessions. When off, these keys go to the server.")
+                    }
+                    Switch(checked = sessionShortcuts, onCheckedChange = viewModel::setSessionShortcuts)
                 }
             }
             BatterySettingsCard()

@@ -272,7 +272,15 @@ This list reflects the current app and the project conversations. The older
   schemes, and reports browser launch failures. Three parsing tests pass;
   wrapped links and the selection-to-browser interaction still need checks.
 - Add local shell sessions, homescreen shortcuts, and an app lock.
-- Add IPv6 connection tests, proxy settings, and external-keyboard shortcuts.
+- Add IPv6 connection tests and proxy settings.
+  Session-switching keyboard shortcuts are optional and off by default.
+  When enabled, Ctrl+Alt+Page Up/Down cycles through session rows and wraps at
+  the ends. Repeated key-down events do not cause repeated switches. Other
+  chords and disabled shortcuts keep the existing remote encoding.
+  Check the toggle, persistence, repeat handling and switching with a physical
+  keyboard on a device.
+  Three unit tests cover cycling, wraparound and missing sessions. Android
+  key-event, remote-encoding and preference tests still need a device run.
   Ctrl punctuation and Alt+Ctrl character encoding now share the on-screen
   keyboard's encoder. Hardware F1–F12, Insert, Shift+Tab and modified navigation
   keys are encoded too; three Android tests pass on the phone. Check physical

@@ -30,6 +30,8 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize
+    val sessionShortcuts = preferences.sessionShortcuts
+    fun setSessionShortcuts(enabled: Boolean) = preferences.setSessionShortcuts(enabled)
     val terminalTypeface = preferences.terminalTypeface
     fun setTerminalTypeface(typeface: TerminalTypeface) = preferences.setTerminalTypeface(typeface)
     val terminalTheme = preferences.terminalTheme

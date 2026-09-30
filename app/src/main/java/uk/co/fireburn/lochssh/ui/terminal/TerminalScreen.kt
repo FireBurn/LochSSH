@@ -74,6 +74,7 @@ fun TerminalScreen(
 ) {
     val context = LocalContext.current
     val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
+    val sessionShortcuts by viewModel.sessionShortcuts.collectAsStateWithLifecycle()
     val terminalTypeface by viewModel.terminalTypeface.collectAsStateWithLifecycle()
     val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
     val keyboardLayout by viewModel.keyboardLayout.collectAsStateWithLifecycle()
@@ -482,16 +483,25 @@ fun TerminalScreen(
                             modifiers.clear()
                         },
                         onKey = { key ->
-                            val bytes = ImeKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt,
-                                usesApplicationCursor(), usesApplicationKeypad())
-                            if (bytes != null) {
-                                liveRequest++
-                                selectionClearKey++
-                                manager?.write(bytes)
-                                modifiers.clear()
+                            val direction = SessionShortcuts.direction(key, sessionShortcuts)
+                            if (direction != null) {
+                                if (key.repeatCount == 0) {
+                                    SessionShortcuts.destination(sessions.map { it.id }, sessionId, direction)
+                                        ?.let(onSwitchSession)
+                                }
                                 true
                             } else {
-                                false
+                                val bytes = ImeKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt,
+                                    usesApplicationCursor(), usesApplicationKeypad())
+                                if (bytes != null) {
+                                    liveRequest++
+                                    selectionClearKey++
+                                    manager?.write(bytes)
+                                    modifiers.clear()
+                                    true
+                                } else {
+                                    false
+                                }
                             }
                         },
                         onDelete = { n ->

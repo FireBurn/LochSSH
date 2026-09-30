@@ -24,6 +24,13 @@ class AppPreferences @Inject constructor(
     val terminalTheme: StateFlow<TerminalTheme> = _terminalTheme
     private val _terminalTypeface = MutableStateFlow(TerminalTypeface.decode(prefs.getString(KEY_TYPEFACE, null)))
     val terminalTypeface: StateFlow<TerminalTypeface> = _terminalTypeface
+    private val _sessionShortcuts = MutableStateFlow(prefs.getBoolean(KEY_SHORTCUTS, false))
+    val sessionShortcuts: StateFlow<Boolean> = _sessionShortcuts
+
+    fun setSessionShortcuts(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SHORTCUTS, enabled).apply()
+        _sessionShortcuts.value = enabled
+    }
 
     fun setTerminalTypeface(typeface: TerminalTypeface) {
         prefs.edit().putString(KEY_TYPEFACE, typeface.name).apply()
@@ -58,6 +65,7 @@ class AppPreferences @Inject constructor(
         _keyboardLayout.value = KeyboardLayout.DEFAULT
         _terminalTheme.value = TerminalTheme.LOCH
         _terminalTypeface.value = TerminalTypeface.NOTO
+        _sessionShortcuts.value = false
     }
 
     companion object {
@@ -70,5 +78,6 @@ class AppPreferences @Inject constructor(
         private const val KEY_KEYBOARD = "keyboard_layout"
         private const val KEY_THEME = "terminal_theme"
         private const val KEY_TYPEFACE = "terminal_typeface"
+        private const val KEY_SHORTCUTS = "session_shortcuts"
     }
 }

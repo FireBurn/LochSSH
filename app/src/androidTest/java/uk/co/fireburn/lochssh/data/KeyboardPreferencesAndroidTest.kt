@@ -7,6 +7,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import java.util.UUID
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Test
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTheme
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTypeface
@@ -22,18 +23,21 @@ class KeyboardPreferencesAndroidTest {
         }
         try {
             val preferences = AppPreferences(context)
+            assertFalse(preferences.sessionShortcuts.value)
             val layout = KeyboardLayout(listOf(listOf(
                 KeyboardButton(KeyboardAction.CTRL), KeyboardButton(KeyboardAction.TEXT, "c")
             )))
             preferences.setKeyboardLayout(layout)
             preferences.setTerminalTheme(TerminalTheme.PAPER)
             preferences.setTerminalTypeface(TerminalTypeface.JETBRAINS)
+            preferences.setSessionShortcuts(true)
             assertTrue(testContext.getSharedPreferences(fileName, Context.MODE_PRIVATE).edit().commit())
             assertEquals(layout, preferences.keyboardLayout.value)
             assertEquals(layout, AppPreferences(context).keyboardLayout.value)
             assertEquals(TerminalTheme.PAPER, AppPreferences(context).terminalTheme.value)
             assertEquals(TerminalTypeface.JETBRAINS, preferences.terminalTypeface.value)
             assertEquals(TerminalTypeface.JETBRAINS, AppPreferences(context).terminalTypeface.value)
+            assertTrue(AppPreferences(context).sessionShortcuts.value)
 
             preferences.reset()
 
@@ -43,6 +47,8 @@ class KeyboardPreferencesAndroidTest {
             assertEquals(TerminalTheme.LOCH, AppPreferences(context).terminalTheme.value)
             assertEquals(TerminalTypeface.NOTO, preferences.terminalTypeface.value)
             assertEquals(TerminalTypeface.NOTO, AppPreferences(context).terminalTypeface.value)
+            assertFalse(preferences.sessionShortcuts.value)
+            assertFalse(AppPreferences(context).sessionShortcuts.value)
         } finally {
             testContext.deleteSharedPreferences(fileName)
         }
