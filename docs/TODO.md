@@ -15,6 +15,10 @@ This list reflects the current app and the project conversations. The older
   declaration is compiled but not yet run. Actual service start, timeout
   delivery and long screen-off runs still need device checks.
   The special-use declaration needs review before Google Play publication.
+  The Android 13 emulator suite passes 21 tests; the Android 14+ declaration
+  test is skipped there. This does not verify the newer service type.
+  A separate legacy declaration test passes on Android 13, checking the
+  selected type and base foreground-service permission.
 - Check host-key review and removal on a device, including a changed server key.
   The app now lists fingerprints and removes a selected key after confirmation.
   First-seen keys now require fingerprint approval before being saved, including
@@ -185,7 +189,7 @@ This list reflects the current app and the project conversations. The older
   device. JVM tests now load and sign with those formats, including encrypted
   pasted and file-path keys; missing or wrong passphrases fail before login.
   Pasted keys no longer go through temporary files.
-  Three instrumented tests pass on the Android 16 phone: generated-key signing,
+  Three instrumented tests pass on the Android 16 phone and Android 13 emulator: generated-key signing,
   encrypted RSA import and signing, and missing-passphrase rejection. Server
   login with a generated key and the other import formats still need checks.
 - Confirm the foreground service and battery settings on supported Android
@@ -197,6 +201,7 @@ This list reflects the current app and the project conversations. The older
   No exemption is requested automatically, and other system limits still apply.
   Five phone tests cover the declared permission, system-state read, request
   intent, fallback pages and launch errors without changing the battery setting.
+  These five tests also pass on the Android 13 emulator.
 
 ## Broader SSH-client features
 
@@ -216,6 +221,8 @@ This list reflects the current app and the project conversations. The older
   strict server-key checks. The editor now selects a saved jump host; five
   chain tests reject missing hosts, loops and excessive chain length. An
   isolated phone test verifies the 6→7 migration and saved jump choices.
+  Both the 6→7 and 7→8 migration tests pass on the Android 13 emulator,
+  preserving saved hosts, identities, forwards and jump choices.
   Timed channel reads now carry JSch's handshake and keep-alive timeouts;
   a silent destination fails with a timeout in the local SSH integration test.
   Cancel signals the handshake before waiting for the connection lock; tests

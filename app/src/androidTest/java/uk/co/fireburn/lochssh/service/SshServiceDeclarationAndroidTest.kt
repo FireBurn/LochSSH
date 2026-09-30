@@ -13,6 +13,19 @@ import org.junit.Test
 
 class SshServiceDeclarationAndroidTest {
     @Test
+    fun declaresTheLegacyTypeAndPermission() {
+        assumeTrue(Build.VERSION.SDK_INT in 29..33)
+        val context = InstrumentationRegistry.getInstrumentation().targetContext
+        val info = context.packageManager.getServiceInfo(
+            ComponentName(context, SshForegroundService::class.java), 0)
+        val selected = SshServiceType.forAndroid(Build.VERSION.SDK_INT)
+        assertEquals(ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC, selected)
+        assertTrue(info.foregroundServiceType and selected == selected)
+        assertEquals(PackageManager.PERMISSION_GRANTED,
+            context.checkSelfPermission(Manifest.permission.FOREGROUND_SERVICE))
+    }
+
+    @Test
     fun declaresTheSelectedTypeAndItsPermission() {
         assumeTrue(Build.VERSION.SDK_INT >= 34)
         val context = InstrumentationRegistry.getInstrumentation().targetContext
