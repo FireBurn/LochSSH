@@ -19,6 +19,7 @@ class TerminalBuffer(
     private var wraparound = true
     private var originMode = false
     private val charsets = TerminalCharsets()
+    private var lastWritten: Point? = null
 
     var cursorCol = 0
         private set
@@ -58,7 +59,8 @@ class TerminalBuffer(
         val bottom: Int,
         val savedCursor: SavedCursor?,
         val origin: Boolean,
-        val charsets: TerminalCharsets.State
+        val charsets: TerminalCharsets.State,
+        val lastWritten: Point?
     )
     private var alternateState: AlternateState? = null
 
@@ -265,6 +267,7 @@ class TerminalBuffer(
 
     private fun reset(full: Boolean) {
         clearParser()
+        lastWritten = null
         fg = DEFAULT_FG
         bg = DEFAULT_BG
         bold = false
@@ -304,6 +307,11 @@ class TerminalBuffer(
     }
 
     private fun putCodePoint(code: Int) {
+        val type = Character.getType(code)
+        if (type == Character.NON_SPACING_MARK.toInt() || type == Character.ENCLOSING_MARK.toInt()) {
+            appendMark(code)
+            return
+        }
         if (cursorCol >= cols) {
             if (wraparound) {
                 cursorCol = 0
@@ -312,7 +320,19 @@ class TerminalBuffer(
         }
         val text = String(Character.toChars(charsets.translate(code)))
         grid[cursorRow][cursorCol] = cell(text)
+        lastWritten = Point(cursorRow, cursorCol)
         cursorCol = if (wraparound) cursorCol + 1 else (cursorCol + 1).coerceAtMost(cols - 1)
+    }
+
+    private fun appendMark(code: Int) {
+        val col = if (!wraparound && cursorCol == cols - 1 &&
+            lastWritten == Point(cursorRow, cursorCol)) cursorCol
+            else (cursorCol - 1).coerceIn(0, cols - 1)
+        val previous = grid[cursorRow][col]
+        val mark = String(Character.toChars(code))
+        if (previous.text.length + mark.length <= MAX_CELL_CODE_UNITS) {
+            grid[cursorRow][col] = previous.copy(text = previous.text + mark)
+        }
     }
 
     private fun cell(text: String) =
@@ -464,7 +484,7 @@ class TerminalBuffer(
     private fun enterAlternateScreen() {
         if (savedGrid != null) return
         alternateState = AlternateState(cursorRow, cursorCol, scrollTop, scrollBottom,
-            savedCursor, originMode, charsets.snapshot())
+            savedCursor, originMode, charsets.snapshot(), lastWritten)
         savedGrid = grid
         grid = blankGrid(cols, rows)
         cursorRow = 0
@@ -472,6 +492,7 @@ class TerminalBuffer(
         scrollTop = 0
         scrollBottom = rows - 1
         savedCursor = null
+        lastWritten = null
     }
 
     private fun leaveAlternateScreen() {
@@ -488,6 +509,7 @@ class TerminalBuffer(
         if (originMode) cursorRow = cursorRow.coerceIn(scrollTop, scrollBottom)
         savedCursor = state.savedCursor
         charsets.restore(state.charsets)
+        lastWritten = state.lastWritten
     }
 
     private fun saveCursor() {
@@ -646,6 +668,7 @@ class TerminalBuffer(
     private fun blankRow() = Array(cols) { blank() }
 
     companion object {
+        private const val MAX_CELL_CODE_UNITS = 128
         const val MAX_SCROLLBACK_ROWS = 2000
         const val DEFAULT_FG = 1
         const val DEFAULT_BG = 0

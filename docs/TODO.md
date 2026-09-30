@@ -97,14 +97,18 @@ This list reflects the current app and the project conversations. The older
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
   not been checked on a device.
-- Complete terminal character and mode support: wide and combining characters,
-  and application keypad.
+- Complete terminal character and mode support: wide characters, spacing marks,
+  joined emoji sequences and application keypad.
   The UTF-8 decoder now rejects overlong, surrogate and out-of-range sequences
   and preserves valid characters after broken input. Five tests cover every
   valid Unicode code point and malformed input. Cells now store complete text,
   and drawing, selection and export retain supplementary characters. Check glyphs
-  and font fallback on a device. Column widths and combining-mark attachment still
-  need implementation. Check editor and tmux output against a desktop
+  and font fallback on a device. Nonspacing and enclosing marks now stay with
+  their base cell without advancing or triggering a wrap. A cell is bounded to
+  128 UTF-16 units to prevent untrusted output growing it without limit. Seven
+  tests cover accents, edge wrapping, split input, screen changes and bounded cells. Check
+  accent shaping, selection and right-edge output on a device. Column widths,
+  spacing marks and joined emoji still need implementation. Check editor and tmux output against a desktop
   terminal, including screen changes and resizing.
 - Resolve Android Ed25519 without relying on local JSch JARs. PR
   [mwiede/jsch#1160](https://github.com/mwiede/jsch/pull/1160) now adds a separate
