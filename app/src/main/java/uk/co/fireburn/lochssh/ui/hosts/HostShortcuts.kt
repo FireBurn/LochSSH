@@ -13,6 +13,17 @@ object HostShortcuts {
     private const val ACTION = "uk.co.fireburn.lochssh.OPEN_HOST"
     private const val HOST_ID = "shortcut_host_id"
 
+    fun idsForRemoval(ids: List<String>, hostId: Long? = null): List<String> = ids.filter {
+        val id = if (it.startsWith("host-")) it.removePrefix("host-").toLongOrNull() else null
+        id != null && id > 0 && (hostId == null || hostId == id)
+    }
+
+    fun disable(context: Context, hostId: Long? = null) {
+        val shortcuts = ShortcutManagerCompat.getShortcuts(context, ShortcutManagerCompat.FLAG_MATCH_PINNED)
+        val ids = idsForRemoval(shortcuts.map { it.id }, hostId)
+        if (ids.isNotEmpty()) ShortcutManagerCompat.disableShortcuts(context, ids, "This saved host was removed")
+    }
+
     fun hostId(intent: Intent?): Long? {
         if (intent?.action != ACTION) return null
         return try { intent.getLongExtra(HOST_ID, -1).takeIf { it > 0 } }

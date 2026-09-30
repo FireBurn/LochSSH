@@ -18,6 +18,7 @@ import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 import uk.co.fireburn.lochssh.ssh.HostKeyTrust
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTheme
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTypeface
+import uk.co.fireburn.lochssh.ui.hosts.HostShortcuts
 import javax.inject.Inject
 
 @HiltViewModel
@@ -46,6 +47,7 @@ class SettingsViewModel @Inject constructor(
     fun clearAll() {
         viewModelScope.launch {
             runCatching {
+                withContext(Dispatchers.IO) { HostShortcuts.disable(context) }
                 history.clear()
                 withContext(Dispatchers.IO) {
                     database.clearAllTables()

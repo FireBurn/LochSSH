@@ -15,7 +15,7 @@ This list reflects the current app and the project conversations. The older
   declaration is compiled but not yet run. Actual service start, timeout
   delivery and long screen-off runs still need device checks.
   The special-use declaration needs review before Google Play publication.
-  The Android 13 emulator suite passes 21 tests; the Android 14+ declaration
+  The Android 13 emulator suite passes 27 tests; the Android 14+ declaration
   test is skipped there. This does not verify the newer service type.
   A separate legacy declaration test passes on Android 13, checking the
   selected type and base foreground-service permission.
@@ -150,6 +150,9 @@ This list reflects the current app and the project conversations. The older
   Three drawer UI tests and both navigation tests pass on an Android 33
   emulator, including repeated switches between sessions. Live connections,
   keyboard focus and the hiding toolbar still need interaction checks.
+  Investigate an intermittent drawer-test startup failure: No compose
+  hierarchies found before the first click. The navigation test passes in
+  isolation and a full-suite rerun; the cause is not established.
   Explicit resume commands and shell auto-commands are now queued before
   the UI receives the connection, so early typing cannot precede them.
   Automatic tmux/Screen startup now waits for discovery and queues its command
@@ -260,8 +263,8 @@ This list reflects the current app and the project conversations. The older
   JetBrains Mono v2.304 uses the no-ligature family, with regular and bold files
   and its licence bundled. Check font selection, persistence, reset, fallback
   glyphs, bold text and remote resizing on a device.
-  Two unit tests cover saved choices and defaults. The Android persistence,
-  reset and loaded-font width tests compile but have not run for this change.
+  Two unit tests cover saved choices and defaults. Android persistence,
+  reset and loaded-font width tests pass on the Android 13 emulator.
 - Check Save terminal text on a device: file selection, cancellation, UTF-8,
   failed writes and rotation while choosing a file. It exports retained
   scrollback and the screen after a warning about secrets. Two unit tests cover
@@ -277,8 +280,14 @@ This list reflects the current app and the project conversations. The older
   shortcut. Missing hosts and storage errors do not start a connection.
   Check launcher support, cancellation, deleted and renamed hosts, rotation
   and launching while another session is open on a device.
-  Android intent tests cover the explicit target, host-only contents, unrelated
-  actions and invalid IDs. Runtime confirmation and launcher tests remain.
+  Two Android intent tests pass on the Android 13 emulator, covering the
+  explicit target, host-only contents, unrelated actions and invalid IDs.
+  Runtime confirmation and launcher tests remain.
+  Host deletion disables its pinned shortcut after the database succeeds.
+  Clear all data disables saved-host shortcuts before removing rows. Cleanup
+  errors are reported; check both paths and launcher failures on a device.
+  Two unit tests cover selecting one host's shortcut and all saved-host
+  shortcuts without selecting unrelated IDs.
 - Add proxy settings and check IPv6 connections on Android.
   Three real-server IPv6 tests cover SSH authentication, local forwarding and
   SOCKS5 IPv6 requests. They require an explicit IPv6 address for the same
@@ -292,7 +301,7 @@ This list reflects the current app and the project conversations. The older
   Check the toggle, persistence, repeat handling and switching with a physical
   keyboard on a device.
   Three unit tests cover cycling, wraparound and missing sessions. Android
-  key-event, remote-encoding and preference tests still need a device run.
+  key-event, remote-encoding and preference tests pass on the Android 13 emulator.
   Ctrl punctuation and Alt+Ctrl character encoding now share the on-screen
   keyboard's encoder. Hardware F1–F12, Insert, Shift+Tab and modified navigation
   keys are encoded too; three Android tests pass on the phone. Check physical

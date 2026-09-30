@@ -1,5 +1,10 @@
 package uk.co.fireburn.lochssh.ui.hosts
 
+import android.content.Context
+import dagger.hilt.android.qualifiers.ApplicationContext
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
@@ -20,7 +25,8 @@ class HostsViewModel @Inject constructor(
     private val hostDao: SshHostDao,
     private val portForwardDao: PortForwardDao,
     private val registry: SessionRegistry,
-    private val database: LochSshDatabase
+    private val database: LochSshDatabase,
+    @ApplicationContext private val context: Context
 ) : ViewModel() {
 
     val hosts: Flow<List<SshHostEntity>> = hostDao.observeAll()
@@ -60,6 +66,9 @@ class HostsViewModel @Inject constructor(
                     portForwardDao.deleteByHost(id)
                     hostDao.delete(host)
                 }
+            }.onSuccess {
+                runCatching { withContext(Dispatchers.IO) { HostShortcuts.disable(context, id) } }
+                    .onFailure { _error.value = "Host deleted, but could not disable its shortcut: ${it.message ?: "launcher error"}" }
             }.onFailure { _error.value = "Could not delete host: ${it.message ?: "storage error"}" }
         }
     }
