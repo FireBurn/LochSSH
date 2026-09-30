@@ -8,6 +8,7 @@ import java.io.IOException
 import java.net.Socket
 import java.net.ServerSocket
 import java.net.InetAddress
+import java.net.InetSocketAddress
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
@@ -38,12 +39,23 @@ class SharedSshConnectionTest {
             }
             Socket("127.0.0.1", proxyPort).use { assertTrue(it.isConnected) }
 
-            connection.release()
+            Socket().use { localProbe ->
+                Socket().use { proxyProbe ->
+                    // Reserve source ports while listeners still own their ports.
+                    localProbe.bind(InetSocketAddress("127.0.0.1", 0))
+                    proxyProbe.bind(InetSocketAddress("127.0.0.1", 0))
+                    connection.release()
 
-            assertFalse(session.isConnected)
-            assertFalse(connection.acquire())
-            assertThrows(IOException::class.java) { Socket("127.0.0.1", localPort).close() }
-            assertThrows(IOException::class.java) { Socket("127.0.0.1", proxyPort).close() }
+                    assertFalse(session.isConnected)
+                    assertFalse(connection.acquire())
+                    assertThrows(IOException::class.java) {
+                        localProbe.connect(InetSocketAddress("127.0.0.1", localPort), 3_000)
+                    }
+                    assertThrows(IOException::class.java) {
+                        proxyProbe.connect(InetSocketAddress("127.0.0.1", proxyPort), 3_000)
+                    }
+                }
+            }
         } finally {
             proxy.stop()
         }
