@@ -68,10 +68,21 @@ This list reflects the current app and the project conversations. The older
   while resizing and switching terminals. Four parser tests cover reply
   contents, split reads, resizing and unsupported queries. A real-server test
   confirms the remote program receives the cursor report.
+  Arrow, Home and End keys now follow the remote application's cursor mode
+  on both keyboards. Modified keys keep their modifier sequences. Check tmux,
+  Screen and editor navigation after entering and leaving full-screen mode.
+  Three unit tests cover mode changes, modified keys and session state through
+  resizing. All four physical-key encoder tests pass on the Android emulator,
+  including application cursor mode and modified keys.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
   not been checked on a device.
+- Complete terminal character and mode support: supplementary Unicode, wide
+  and combining characters, line-drawing characters, origin and wraparound
+  modes, application keypad and terminal reset. The current grid stores one
+  Kotlin character per cell. Check editor and tmux output against a desktop
+  terminal, including screen changes and resizing.
 - Resolve Android Ed25519 without relying on local JSch JARs. PR
   [mwiede/jsch#1160](https://github.com/mwiede/jsch/pull/1160) now adds a separate
   Android artifact and passes Android emulator CI, Maven CI and the SonarCloud

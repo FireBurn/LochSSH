@@ -34,6 +34,7 @@ fun JuiceSshKeyboardBar(
     onImeToggle: () -> Unit,
     onFontSizeChange: (Int) -> Unit,
     layout: KeyboardLayout = KeyboardLayout.DEFAULT,
+    applicationCursor: () -> Boolean = { false },
     modifier: Modifier = Modifier
 ) {
     fun emit(button: KeyboardButton) {
@@ -46,7 +47,8 @@ fun JuiceSshKeyboardBar(
             KeyboardAction.FONT_DOWN -> onFontSizeChange(-1)
             else -> {
                 button.terminalKey()?.let { key ->
-                    TerminalKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt, modifiers.fn)?.let(onSend)
+                    TerminalKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt, modifiers.fn,
+                        applicationCursor())?.let(onSend)
                 }
                 modifiers.clear()
             }

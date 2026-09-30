@@ -25,6 +25,8 @@ class TerminalBuffer(
         private set
     var bracketedPaste = false
         private set
+    var applicationCursor = false
+        private set
     var version = 0
         private set
     var totalScrolled = 0L
@@ -394,6 +396,7 @@ class TerminalBuffer(
         val enable = final == 'h'
         for (mode in parts) {
             when (mode) {
+                1 -> applicationCursor = enable
                 25 -> cursorVisible = enable
                 2004 -> bracketedPaste = enable
                 // Full screen programs swap to their own screen and back.

@@ -20,7 +20,8 @@ sealed class TerminalKey {
 
 object TerminalKeyEncoder {
     // Returns null for keys the UI handles itself (modifier toggles, IME).
-    fun encode(key: TerminalKey, ctrl: Boolean, alt: Boolean, fn: Boolean): ByteArray? =
+    fun encode(key: TerminalKey, ctrl: Boolean, alt: Boolean, fn: Boolean,
+        applicationCursor: Boolean = false): ByteArray? =
         when (key) {
             is TerminalKey.Text -> {
                 val v = key.value
@@ -40,24 +41,37 @@ object TerminalKeyEncoder {
                 }
             }
             is TerminalKey.Arrow -> {
-                val mod = (if (ctrl) 4 else 0) + (if (alt) 2 else 0)
-                val suffix = if (mod == 0) key.final.toString() else "1;${mod + 1}${key.final}"
-                seq(suffix)
+                navigation(key.final.toString(), ctrl, alt, applicationCursor)
             }
             TerminalKey.Esc -> byteArrayOf(0x1B.toByte())
             TerminalKey.Tab -> byteArrayOf(0x09)
             TerminalKey.Enter -> byteArrayOf(0x0D)
-            TerminalKey.Home -> seq("H")
-            TerminalKey.End -> seq("F")
-            TerminalKey.PgUp -> seq("5~")
-            TerminalKey.PgDn -> seq("6~")
+            TerminalKey.Home -> navigation("H", ctrl, alt, applicationCursor)
+            TerminalKey.End -> navigation("F", ctrl, alt, applicationCursor)
+            TerminalKey.PgUp -> navigation("5~", ctrl, alt, applicationCursor)
+            TerminalKey.PgDn -> navigation("6~", ctrl, alt, applicationCursor)
             TerminalKey.Backspace -> byteArrayOf(0x7F)
-            TerminalKey.Del -> seq("3~")
+            TerminalKey.Del -> navigation("3~", ctrl, alt, applicationCursor)
             TerminalKey.Ctrl,
             TerminalKey.Alt,
             TerminalKey.Fn,
             TerminalKey.ImeToggle -> null
         }
+
+    fun navigation(key: String, modifier: Int = 1, applicationCursor: Boolean = false): ByteArray {
+        if (modifier == 1 && applicationCursor && key.length == 1) {
+            return "\u001BO$key".toByteArray()
+        }
+        val suffix = when {
+            modifier == 1 -> key
+            key.endsWith('~') -> "${key.dropLast(1)};$modifier~"
+            else -> "1;$modifier$key"
+        }
+        return seq(suffix)
+    }
+
+    private fun navigation(key: String, ctrl: Boolean, alt: Boolean, applicationCursor: Boolean) =
+        navigation(key, 1 + (if (ctrl) 4 else 0) + (if (alt) 2 else 0), applicationCursor)
 
     private fun seq(s: String) =
         byteArrayOf(0x1B.toByte(), '['.code.toByte()) + s.toByteArray()

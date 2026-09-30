@@ -86,7 +86,8 @@ fun TerminalImeInput(
 
 // Encodes IME/hardware key events as terminal byte sequences.
 object ImeKeyEncoder {
-    fun encode(event: KeyEvent, latchedCtrl: Boolean = false, latchedAlt: Boolean = false): ByteArray? {
+    fun encode(event: KeyEvent, latchedCtrl: Boolean = false, latchedAlt: Boolean = false,
+        applicationCursor: Boolean = false): ByteArray? {
         if (event.action != KeyEvent.ACTION_DOWN) return null
         val ctrl = event.isCtrlPressed || latchedCtrl
         val alt = event.isAltPressed || latchedAlt
@@ -99,7 +100,7 @@ object ImeKeyEncoder {
                 val final = ('P'.code + number).toChar()
                 return if (modifier == 1) "\u001bO$final".toByteArray() else seq("1;$modifier$final")
             }
-            return navigation("${listOf(15, 17, 18, 19, 20, 21, 23, 24)[number - 4]}~", modifier)
+            return TerminalKeyEncoder.navigation("${listOf(15, 17, 18, 19, 20, 21, 23, 24)[number - 4]}~", modifier)
         }
 
         when (code) {
@@ -107,16 +108,16 @@ object ImeKeyEncoder {
             KeyEvent.KEYCODE_DEL -> return byteArrayOf(0x7F)
             KeyEvent.KEYCODE_TAB -> return if (event.isShiftPressed) seq("Z") else byteArrayOf(0x09)
             KeyEvent.KEYCODE_ESCAPE -> return byteArrayOf(0x1B)
-            KeyEvent.KEYCODE_DPAD_UP -> return navigation("A", modifier)
-            KeyEvent.KEYCODE_DPAD_DOWN -> return navigation("B", modifier)
-            KeyEvent.KEYCODE_DPAD_LEFT -> return navigation("D", modifier)
-            KeyEvent.KEYCODE_DPAD_RIGHT -> return navigation("C", modifier)
-            KeyEvent.KEYCODE_MOVE_HOME -> return navigation("H", modifier)
-            KeyEvent.KEYCODE_MOVE_END -> return navigation("F", modifier)
-            KeyEvent.KEYCODE_PAGE_UP -> return navigation("5~", modifier)
-            KeyEvent.KEYCODE_PAGE_DOWN -> return navigation("6~", modifier)
-            KeyEvent.KEYCODE_FORWARD_DEL -> return navigation("3~", modifier)
-            KeyEvent.KEYCODE_INSERT -> return navigation("2~", modifier)
+            KeyEvent.KEYCODE_DPAD_UP -> return TerminalKeyEncoder.navigation("A", modifier, applicationCursor)
+            KeyEvent.KEYCODE_DPAD_DOWN -> return TerminalKeyEncoder.navigation("B", modifier, applicationCursor)
+            KeyEvent.KEYCODE_DPAD_LEFT -> return TerminalKeyEncoder.navigation("D", modifier, applicationCursor)
+            KeyEvent.KEYCODE_DPAD_RIGHT -> return TerminalKeyEncoder.navigation("C", modifier, applicationCursor)
+            KeyEvent.KEYCODE_MOVE_HOME -> return TerminalKeyEncoder.navigation("H", modifier, applicationCursor)
+            KeyEvent.KEYCODE_MOVE_END -> return TerminalKeyEncoder.navigation("F", modifier, applicationCursor)
+            KeyEvent.KEYCODE_PAGE_UP -> return TerminalKeyEncoder.navigation("5~", modifier)
+            KeyEvent.KEYCODE_PAGE_DOWN -> return TerminalKeyEncoder.navigation("6~", modifier)
+            KeyEvent.KEYCODE_FORWARD_DEL -> return TerminalKeyEncoder.navigation("3~", modifier)
+            KeyEvent.KEYCODE_INSERT -> return TerminalKeyEncoder.navigation("2~", modifier)
         }
 
         val textModifiers = event.metaState and
@@ -132,15 +133,6 @@ object ImeKeyEncoder {
         return requireNotNull(TerminalKeyEncoder.encode(
             TerminalKey.Text(text.replace('\n', '\r')), ctrl, alt, false
         ))
-    }
-
-    private fun navigation(key: String, modifier: Int): ByteArray {
-        val suffix = when {
-            modifier == 1 -> key
-            key.endsWith('~') -> "${key.dropLast(1)};$modifier~"
-            else -> "1;$modifier$key"
-        }
-        return seq(suffix)
     }
 
     private fun seq(s: String) = byteArrayOf(0x1B.toByte(), '['.code.toByte()) + s.toByteArray()

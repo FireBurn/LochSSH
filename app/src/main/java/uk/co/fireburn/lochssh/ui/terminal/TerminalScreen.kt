@@ -164,6 +164,10 @@ fun TerminalScreen(
         onBack()
     }
 
+    fun usesApplicationCursor(): Boolean = manager?.terminal?.buffer?.let { buffer ->
+        buffer.read { buffer.applicationCursor }
+    } == true
+
     if (confirmExport) {
         AlertDialog(onDismissRequest = { confirmExport = false },
             title = { Text("Save terminal text?") },
@@ -472,7 +476,8 @@ fun TerminalScreen(
                             modifiers.clear()
                         },
                         onKey = { key ->
-                            val bytes = ImeKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt)
+                            val bytes = ImeKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt,
+                                usesApplicationCursor())
                             if (bytes != null) {
                                 liveRequest++
                                 selectionClearKey++
@@ -496,6 +501,7 @@ fun TerminalScreen(
                     )
                     JuiceSshKeyboardBar(
                         layout = keyboardLayout,
+                        applicationCursor = ::usesApplicationCursor,
                         modifiers = modifiers,
                         onSend = {
                             liveRequest++

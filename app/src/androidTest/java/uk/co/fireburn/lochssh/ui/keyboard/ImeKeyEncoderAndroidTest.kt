@@ -6,6 +6,23 @@ import org.junit.Test
 
 class ImeKeyEncoderAndroidTest {
     @Test
+    fun hardwareCursorKeysFollowApplicationMode() {
+        val keys = mapOf(
+            KeyEvent.KEYCODE_DPAD_UP to "A", KeyEvent.KEYCODE_DPAD_DOWN to "B",
+            KeyEvent.KEYCODE_DPAD_RIGHT to "C", KeyEvent.KEYCODE_DPAD_LEFT to "D",
+            KeyEvent.KEYCODE_MOVE_HOME to "H", KeyEvent.KEYCODE_MOVE_END to "F"
+        )
+        keys.forEach { (code, final) ->
+            val event = KeyEvent(KeyEvent.ACTION_DOWN, code)
+            assertArrayEquals("\u001BO$final".toByteArray(),
+                ImeKeyEncoder.encode(event, applicationCursor = true))
+            assertArrayEquals("\u001B[$final".toByteArray(), ImeKeyEncoder.encode(event))
+        }
+        val shifted = KeyEvent(0, 0, KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_DPAD_UP, 0, KeyEvent.META_SHIFT_ON)
+        assertArrayEquals("\u001B[1;2A".toByteArray(), ImeKeyEncoder.encode(shifted, applicationCursor = true))
+    }
+
+    @Test
     fun encodesFunctionAndNavigationKeys() {
         val codes = listOf("\u001bOP", "\u001bOQ", "\u001bOR", "\u001bOS",
             "\u001b[15~", "\u001b[17~", "\u001b[18~", "\u001b[19~",
