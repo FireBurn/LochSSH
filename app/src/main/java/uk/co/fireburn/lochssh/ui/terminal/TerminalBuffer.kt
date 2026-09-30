@@ -17,6 +17,7 @@ class TerminalBuffer(
     private var bold = false
     private var inverse = false
     private var wraparound = true
+    private var originMode = false
 
     var cursorCol = 0
         private set
@@ -43,13 +44,18 @@ class TerminalBuffer(
     private var scrollTop = 0
     private var scrollBottom = rows - 1
 
-    private var savedCursor: Triple<Int, Int, Boolean>? = null
+    private data class SavedCursor(
+        val row: Int, val col: Int, val fg: Int, val bg: Int,
+        val bold: Boolean, val inverse: Boolean, val origin: Boolean, val wrap: Boolean
+    )
+    private var savedCursor: SavedCursor? = null
     private data class AlternateState(
         val row: Int,
         val col: Int,
         val top: Int,
         val bottom: Int,
-        val savedCursor: Triple<Int, Int, Boolean>?
+        val savedCursor: SavedCursor?,
+        val origin: Boolean
     )
     private var alternateState: AlternateState? = null
 
@@ -165,6 +171,7 @@ class TerminalBuffer(
                 scrollBottom = (oldBottom + rowShift).coerceIn(scrollTop, newRows - 1)
             }
             cursorRow = (cursorRow + rowShift).coerceIn(0, newRows - 1)
+            if (originMode) cursorRow = cursorRow.coerceIn(scrollTop, scrollBottom)
             cursorCol = cursorCol.coerceIn(0, newCols - 1)
             version++
         }
@@ -341,7 +348,8 @@ class TerminalBuffer(
                 first == 5 && !csiPrivate -> onReply("\u001B[0n")
                 first == 6 -> {
                     val prefix = if (csiPrivate) "?" else ""
-                    onReply("\u001B[$prefix${cursorRow + 1};${cursorCol.coerceAtMost(cols - 1) + 1}R")
+                    val row = cursorRow - (if (originMode) scrollTop else 0) + 1
+                    onReply("\u001B[$prefix$row;${cursorCol.coerceAtMost(cols - 1) + 1}R")
                 }
             }
             return
@@ -356,31 +364,31 @@ class TerminalBuffer(
             't' -> if (first == 18 && parts.size == 1) onReply("\u001B[8;$rows;${cols}t")
             'm' -> applySgr(parts)
             'H', 'f' -> {
-                cursorRow = (parts.getOrNull(0) ?: 1).coerceAtLeast(1).coerceAtMost(rows) - 1
+                cursorRow = absoluteRow(parts.getOrNull(0) ?: 1)
                 cursorCol = (parts.getOrNull(1) ?: 1).coerceAtLeast(1).coerceAtMost(cols) - 1
             }
             'A' -> {
                 cursorCol = cursorCol.coerceAtMost(cols - 1)
-                cursorRow = (cursorRow - count).coerceAtLeast(0)
+                cursorRow = (cursorRow - count).coerceAtLeast(firstRow())
             }
             'B' -> {
                 cursorCol = cursorCol.coerceAtMost(cols - 1)
-                cursorRow = (cursorRow + count).coerceAtMost(rows - 1)
+                cursorRow = (cursorRow + count).coerceAtMost(lastRow())
             }
             'C' -> cursorCol = (cursorCol + count).coerceAtMost(cols - 1)
             'D' -> cursorCol = (cursorCol.coerceAtMost(cols - 1) - count).coerceAtLeast(0)
             'E' -> {
-                cursorRow = (cursorRow + count).coerceAtMost(rows - 1)
+                cursorRow = (cursorRow + count).coerceAtMost(lastRow())
                 cursorCol = 0
             }
             'F' -> {
-                cursorRow = (cursorRow - count).coerceAtLeast(0)
+                cursorRow = (cursorRow - count).coerceAtLeast(firstRow())
                 cursorCol = 0
             }
             'G', '`' -> cursorCol = first.coerceAtLeast(1).coerceAtMost(cols) - 1
             'd' -> {
                 cursorCol = cursorCol.coerceAtMost(cols - 1)
-                cursorRow = first.coerceAtLeast(1).coerceAtMost(rows) - 1
+                cursorRow = absoluteRow(first)
             }
             'J' -> clearDisplay(first)
             'K' -> clearLine(first)
@@ -394,10 +402,11 @@ class TerminalBuffer(
             'r' -> {
                 val top = (parts.getOrNull(0) ?: 1).coerceAtLeast(1) - 1
                 val bottom = (parts.getOrNull(1)?.takeIf { it > 0 } ?: rows) - 1
-                scrollTop = top.coerceIn(0, rows - 1)
-                scrollBottom = bottom.coerceIn(scrollTop, rows - 1)
-                cursorRow = scrollTop
-                cursorCol = 0
+                if (top < bottom && top in 0 until rows && bottom in 0 until rows) {
+                    scrollTop = top
+                    scrollBottom = bottom
+                    homeCursor()
+                }
             }
             's' -> saveCursor()
             'u' -> restoreCursor()
@@ -411,6 +420,10 @@ class TerminalBuffer(
         for (mode in parts) {
             when (mode) {
                 1 -> applicationCursor = enable
+                6 -> {
+                    originMode = enable
+                    homeCursor()
+                }
                 7 -> {
                     wraparound = enable
                     cursorCol = cursorCol.coerceAtMost(cols - 1)
@@ -425,7 +438,7 @@ class TerminalBuffer(
 
     private fun enterAlternateScreen() {
         if (savedGrid != null) return
-        alternateState = AlternateState(cursorRow, cursorCol, scrollTop, scrollBottom, savedCursor)
+        alternateState = AlternateState(cursorRow, cursorCol, scrollTop, scrollBottom, savedCursor, originMode)
         savedGrid = grid
         grid = blankGrid(cols, rows)
         cursorRow = 0
@@ -445,18 +458,37 @@ class TerminalBuffer(
         cursorCol = state.col.coerceIn(0, cols - 1)
         scrollTop = state.top.coerceIn(0, rows - 1)
         scrollBottom = state.bottom.coerceIn(scrollTop, rows - 1)
+        originMode = state.origin
+        if (originMode) cursorRow = cursorRow.coerceIn(scrollTop, scrollBottom)
         savedCursor = state.savedCursor
     }
 
     private fun saveCursor() {
-        savedCursor = Triple(cursorRow, cursorCol, bold)
+        savedCursor = SavedCursor(cursorRow, cursorCol, fg, bg, bold, inverse, originMode, wraparound)
     }
 
     private fun restoreCursor() {
         val saved = savedCursor ?: return
-        cursorRow = saved.first.coerceIn(0, rows - 1)
-        cursorCol = saved.second.coerceIn(0, cols - 1)
-        bold = saved.third
+        originMode = saved.origin
+        wraparound = saved.wrap
+        cursorRow = saved.row.coerceIn(firstRow(), lastRow())
+        cursorCol = saved.col.coerceIn(0, cols - 1)
+        fg = saved.fg
+        bg = saved.bg
+        bold = saved.bold
+        inverse = saved.inverse
+    }
+
+    private fun firstRow() = if (originMode) scrollTop else 0
+
+    private fun lastRow() = if (originMode) scrollBottom else rows - 1
+
+    private fun absoluteRow(row: Int) =
+        firstRow() + row.coerceIn(1, lastRow() - firstRow() + 1) - 1
+
+    private fun homeCursor() {
+        cursorRow = firstRow()
+        cursorCol = 0
     }
 
     private fun deleteChars(count: Int) {

@@ -78,13 +78,18 @@ This list reflects the current app and the project conversations. The older
   movement cancels a pending wrap instead of skipping another row. Tests cover
   full lines, disabled wrapping, mode changes, backspace and cursor movement.
   Check right-edge output in editors and after terminal resizing on a device.
+  Origin mode now makes cursor addresses and reports relative to the scrolling
+  region. Cursor movement stays within its margins, invalid margins are ignored,
+  and saved cursor state retains origin, wrapping and text colours. Six unit
+  tests cover positioning, reports, margins, saved state and resizing. Check these
+  modes with editors and tmux while resizing and switching screens on a device.
 - Compare the launcher and splash icons with the amber Nessie Gemini artwork at
   actual device sizes. The vectors trace that artwork and the launcher mark was
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
   not been checked on a device.
 - Complete terminal character and mode support: supplementary Unicode, wide
-  and combining characters, line-drawing characters, origin
-  modes, application keypad and terminal reset. The current grid stores one
+  and combining characters, line-drawing characters, application keypad and
+  terminal reset. The current grid stores one
   Kotlin character per cell. Check editor and tmux output against a desktop
   terminal, including screen changes and resizing.
 - Resolve Android Ed25519 without relying on local JSch JARs. PR

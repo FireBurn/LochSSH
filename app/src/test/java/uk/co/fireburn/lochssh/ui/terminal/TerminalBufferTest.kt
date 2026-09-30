@@ -136,7 +136,7 @@ class TerminalBufferTest {
         buffer.feed("\u001B[3;4H\u001B7\u001B[2;4r")
         buffer.feed("\u001B[?1049h\u001B[5;7H\u001B7\u001B[1;2r")
         buffer.feed("\u001B[?1049l")
-        assertEquals(1 to 0, buffer.cursor)
+        assertEquals(0 to 0, buffer.cursor)
 
         buffer.feed("\u001B8")
         assertEquals(2 to 3, buffer.cursor)
