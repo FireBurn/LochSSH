@@ -14,6 +14,10 @@ Defined as resources in `res/values/colors.xml`.
 The current Nessy icon is traced from the amber Gemini artwork. It uses amber
 for the creature, green for the small prompt mark, and dark green for the water.
 
+The installed icon is checked in the Android 13 emulator's circular launcher
+mask. The creature and prompt remain legible, with no clipping of the head.
+Other launcher masks, themed icons and the splash still need device checks.
+
 ## Assets
 
 | File | Use |
