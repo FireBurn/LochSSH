@@ -19,7 +19,7 @@ interface IdentityDao {
     suspend fun insert(identity: IdentityEntity): Long
 
     @Update
-    suspend fun update(identity: IdentityEntity)
+    suspend fun update(identity: IdentityEntity): Int
 
     @Delete
     suspend fun delete(identity: IdentityEntity)

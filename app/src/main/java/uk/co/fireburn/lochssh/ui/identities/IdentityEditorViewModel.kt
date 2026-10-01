@@ -121,7 +121,11 @@ class IdentityEditorViewModel @Inject constructor(
                             keyMaterialRef = keyMaterialRef,
                             secretRef = secretRef
                         )
-                        if (existing != null) identityDao.update(entity) else identityDao.insert(entity)
+                        if (existing != null) {
+                            check(identityDao.update(entity) == 1) { "This identity no longer exists" }
+                        } else {
+                            identityDao.insert(entity)
+                        }
 
                         listOfNotNull(existing?.secretRef, existing?.keyMaterialRef)
                             .filter { it != secretRef && it != keyMaterialRef }

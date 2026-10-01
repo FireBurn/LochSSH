@@ -97,7 +97,7 @@ class IdentityEditorLoadAndroidTest {
         override fun observeAll() = flowOf(emptyList<IdentityEntity>())
         override suspend fun getById(id: Long) = lookup(id)
         override suspend fun insert(identity: IdentityEntity): Long { writes++; return 1 }
-        override suspend fun update(identity: IdentityEntity) { writes++ }
+        override suspend fun update(identity: IdentityEntity): Int { writes++; return 1 }
         override suspend fun delete(identity: IdentityEntity) { error("Unexpected delete") }
         override suspend fun deleteIfUnused(id: Long): Int = error("Unexpected delete")
         override suspend fun countUsages(id: Long) = 0
