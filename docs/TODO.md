@@ -20,6 +20,8 @@ checks listed below.
   Settings now has Wrap long lines, enabled by default. Turning it off clips
   new output at the right edge, keeping carriage-return progress on one row.
   Two unit tests cover progress updates and remote attempts to restore wrapping.
+  A third checks that changing wrapping waits for the buffer's shared lock,
+  avoiding an unsynchronized change while SSH output is being parsed.
   An isolated Android 13 preferences test checks the default, saved choice on
   reopening preferences and reset. Check the switch and an actual process
   restart on the phone. Existing output is not

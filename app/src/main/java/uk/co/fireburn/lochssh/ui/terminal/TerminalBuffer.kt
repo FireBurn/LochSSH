@@ -19,8 +19,9 @@ class TerminalBuffer(
     private var wraparound = true
     private var lineWrapping = true
 
-    @Synchronized
-    fun setLineWrapping(enabled: Boolean) { lineWrapping = enabled }
+    fun setLineWrapping(enabled: Boolean) {
+        synchronized(lock) { lineWrapping = enabled }
+    }
     private var originMode = false
     private val charsets = TerminalCharsets()
     private var lastWritten: Point? = null
