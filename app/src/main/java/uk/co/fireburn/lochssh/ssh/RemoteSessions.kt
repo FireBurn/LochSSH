@@ -78,7 +78,7 @@ object RemoteSessions {
         RemoteSessionModes.TMUX -> "tmux attach-session -t ${quote(entry.id)}"
         RemoteSessionModes.SCREEN -> {
             val action = if (entry.attached) "-d -r" else "-r"
-            "screen $action ${quote(entry.id)}"
+            "screen -A $action ${quote(entry.id)}"
         }
         else -> throw IllegalArgumentException("Unknown remote session tool")
     }
@@ -91,7 +91,7 @@ object RemoteSessions {
 
     fun automatic(tool: String): String = when (tool) {
         RemoteSessionModes.TMUX -> "tmux new-session -A -s lochssh"
-        RemoteSessionModes.SCREEN -> "screen -d -RR"
+        RemoteSessionModes.SCREEN -> "screen -A -d -RR"
         else -> throw IllegalArgumentException("Unknown remote session tool")
     }
 

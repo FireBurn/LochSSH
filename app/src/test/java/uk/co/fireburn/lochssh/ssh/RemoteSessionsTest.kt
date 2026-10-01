@@ -123,7 +123,7 @@ class RemoteSessionsTest {
     fun quotesShellCharactersInScreenNames() {
         val session = RemoteSessions.parseScreen("\t1234.work';echo bad\t(Detached)\n").single()
 
-        assertEquals("screen -r '1234.work'\\'';echo bad'", RemoteSessions.attach(session))
+        assertEquals("screen -A -r '1234.work'\\'';echo bad'", RemoteSessions.attach(session))
     }
 
     @Test
@@ -132,8 +132,8 @@ class RemoteSessionsTest {
         val screen = RemoteSessionEntry(RemoteSessionModes.SCREEN, "1234.work", "work", true)
 
         assertEquals("tmux attach-session -t '\$0'", RemoteSessions.attach(tmux))
-        assertEquals("screen -d -r '1234.work'", RemoteSessions.attach(screen))
+        assertEquals("screen -A -d -r '1234.work'", RemoteSessions.attach(screen))
         assertEquals("tmux new-session -A -s lochssh", RemoteSessions.automatic(RemoteSessionModes.TMUX))
-        assertEquals("screen -d -RR", RemoteSessions.automatic(RemoteSessionModes.SCREEN))
+        assertEquals("screen -A -d -RR", RemoteSessions.automatic(RemoteSessionModes.SCREEN))
     }
 }
