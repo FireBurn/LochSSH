@@ -22,7 +22,6 @@ import uk.co.fireburn.lochssh.data.db.SshHostEntity
 import javax.inject.Inject
 import uk.co.fireburn.lochssh.ssh.KeepAlive
 import uk.co.fireburn.lochssh.ssh.JumpHostChain
-import uk.co.fireburn.lochssh.data.db.AuthTypes
 
 @HiltViewModel
 class HostEditorViewModel @Inject constructor(
@@ -143,11 +142,7 @@ class HostEditorViewModel @Inject constructor(
             agentForwarding = agentForwarding
         )
         database.withTransaction {
-            if (agentForwarding) {
-                require(identityId?.let { identityDao.getById(it)?.authType } == AuthTypes.PUBLIC_KEY) {
-                    "Choose a private-key identity for agent forwarding"
-                }
-            }
+            HostIdentity.check(identityId, agentForwarding, identityDao::getById)
             JumpHostChain.resolve(entity, hostDao::getById)
             val hostId = if (existing != null) {
                 hostDao.update(entity)

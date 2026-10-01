@@ -46,6 +46,11 @@ This list reflects the current app and the project conversations. The older
   rows used by saved hosts, and failed deletes keep stored secrets. Cleanup
   failures are reported separately after a successful row deletion. Check
   confirmation, host usage and error messages on a device.
+  Host saves check selected identities inside the database transaction, even
+  without agent forwarding. Check deleting an unused identity while its host
+  editor is open: Save must report the missing identity without changing rows.
+  Four unit tests pass for missing and existing identities, no identity and
+  the private-key requirement for agent forwarding.
   Five unit tests pass for deletion order, host usage, database errors,
   cleanup errors and cancellation. The guarded delete also passes a local
   SQLite check with two host references. The Room test passes on the Android
