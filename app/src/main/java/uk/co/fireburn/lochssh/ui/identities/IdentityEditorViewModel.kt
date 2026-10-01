@@ -14,6 +14,8 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uk.co.fireburn.lochssh.data.EncryptedStorageManager
+import uk.co.fireburn.lochssh.data.SecretRemoval
+import java.io.IOException
 import uk.co.fireburn.lochssh.data.db.AuthTypes
 import uk.co.fireburn.lochssh.data.db.IdentityDao
 import uk.co.fireburn.lochssh.data.db.IdentityEntity
@@ -82,6 +84,7 @@ class IdentityEditorViewModel @Inject constructor(
             try {
                 val saved = withContext(Dispatchers.IO + NonCancellable) {
                     val created = mutableListOf<String>()
+                    var rowSaved = false
                     fun saveNew(value: String): String {
                         val ref = secrets.newReference()
                         created += ref
@@ -127,16 +130,18 @@ class IdentityEditorViewModel @Inject constructor(
                         } else {
                             entity.copy(id = identityDao.insert(entity))
                         }
+                        rowSaved = true
 
-                        var cleanupFailed = false
-                        listOfNotNull(existing?.secretRef, existing?.keyMaterialRef)
+                        val oldReferences = listOfNotNull(existing?.secretRef, existing?.keyMaterialRef)
                             .filter { it != secretRef && it != keyMaterialRef }
-                            .forEach {
-                                if (runCatching { secrets.deleteSecret(it) }.isFailure) cleanupFailed = true
-                            }
-                        savedEntity to cleanupFailed
+                        val remaining = SecretRemoval.remove(oldReferences, secrets::deleteSecret)
+                        savedEntity to remaining.isNotEmpty()
                     } catch (e: Exception) {
-                        created.forEach { runCatching { secrets.deleteSecret(it) } }
+                        if (rowSaved) throw e
+                        val remaining = SecretRemoval.remove(created, secrets::deleteSecret)
+                        if (remaining.isNotEmpty() && e !is CancellationException) {
+                            throw IOException("${e.message ?: "Could not save identity"}; could not remove new stored secrets", e)
+                        }
                         throw e
                     }
                 }

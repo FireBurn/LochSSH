@@ -1,6 +1,7 @@
 package uk.co.fireburn.lochssh.ui.identities
 
 import kotlinx.coroutines.CancellationException
+import uk.co.fireburn.lochssh.data.SecretRemoval
 import uk.co.fireburn.lochssh.data.db.IdentityEntity
 
 internal object IdentityRemoval {
@@ -18,16 +19,7 @@ internal object IdentityRemoval {
         } catch (e: Exception) {
             return "Could not delete identity: ${e.message ?: "storage error"}"
         }
-        var cleanupFailed = false
-        listOfNotNull(identity.secretRef, identity.keyMaterialRef).distinct().forEach {
-            try {
-                deleteSecret(it)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (_: Exception) {
-                cleanupFailed = true
-            }
-        }
-        return if (cleanupFailed) "Identity deleted, but could not remove all stored secrets" else null
+        val remaining = SecretRemoval.remove(listOfNotNull(identity.secretRef, identity.keyMaterialRef), deleteSecret)
+        return if (remaining.isNotEmpty()) "Identity deleted, but could not remove all stored secrets" else null
     }
 }

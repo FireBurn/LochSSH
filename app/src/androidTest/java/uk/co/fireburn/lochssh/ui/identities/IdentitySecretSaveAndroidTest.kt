@@ -3,10 +3,13 @@ package uk.co.fireburn.lochssh.ui.identities
 import android.content.Context
 import android.content.SharedPreferences
 import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.viewModelScope
 import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import java.util.UUID
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -105,6 +108,70 @@ class IdentitySecretSaveAndroidTest {
         }
         assertEquals("Could not save secret", save(load(database.identityDao(), failing)))
         assertOriginalIsKept()
+    }
+
+    @Test
+    fun cancellationDuringOldSecretCleanupKeepsTheNewCredentials() = runBlocking {
+        val cleanupStarted = CompletableDeferred<Unit>()
+        val failing = object : SharedPreferences by preferences {
+            override fun edit(): SharedPreferences.Editor {
+                val editor = preferences.edit()
+                return object : SharedPreferences.Editor by editor {
+                    override fun remove(key: String?): SharedPreferences.Editor {
+                        if (key == "old-key") {
+                            cleanupStarted.complete(Unit)
+                            throw CancellationException("cleanup cancelled")
+                        }
+                        return editor.remove(key)
+                    }
+                }
+            }
+        }
+        val editor = load(database.identityDao(), failing)
+        instrumentation.runOnMainSync {
+            editor.save("Changed", "user", AuthTypes.PUBLIC_KEY, KeySources.PASTE,
+                "", "replacement key", "replacement passphrase") {}
+        }
+        withTimeout(5_000) { cleanupStarted.await() }
+        var jobs = emptyList<Job>()
+        instrumentation.runOnMainSync {
+            jobs = editor.viewModelScope.coroutineContext[Job]!!.children.toList()
+        }
+        withTimeout(5_000) { jobs.forEach { it.join() } }
+        val saved = requireNotNull(database.identityDao().getById(id))
+        assertEquals("Changed", saved.name)
+        assertEquals("replacement key", preferences.getString(saved.keyMaterialRef, null))
+        assertEquals("replacement passphrase", preferences.getString(saved.secretRef, null))
+    }
+
+    @Test
+    fun failedSaveReportsWhenNewSecretCleanupAlsoFails() = runBlocking {
+        val failing = object : SharedPreferences by preferences {
+            override fun edit(): SharedPreferences.Editor {
+                val editor = preferences.edit()
+                var removing = false
+                return object : SharedPreferences.Editor by editor {
+                    override fun putString(key: String?, value: String?): SharedPreferences.Editor {
+                        editor.putString(key, value)
+                        return this
+                    }
+                    override fun remove(key: String?): SharedPreferences.Editor {
+                        removing = true
+                        return this
+                    }
+                    override fun commit(): Boolean {
+                        if (!removing) editor.commit()
+                        return false
+                    }
+                }
+            }
+        }
+        val editor = load(database.identityDao(), failing)
+        assertEquals("Could not save secret; could not remove new stored secrets", save(editor))
+        assertEquals(original.copy(id = id), database.identityDao().getById(id))
+        assertEquals("original key", preferences.getString("old-key", null))
+        assertEquals("original passphrase", preferences.getString("old-secret", null))
+        assertEquals(3, preferences.all.size)
     }
 
     @Test
