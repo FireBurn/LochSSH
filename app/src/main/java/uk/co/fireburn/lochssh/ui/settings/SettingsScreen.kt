@@ -150,16 +150,7 @@ fun SettingsScreen(
                     Text("Recent connections and their outcomes")
                 }
             }
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text("Stored secret cleanup", style = MaterialTheme.typography.titleMedium)
-                    Text("Retry removing unused secrets left after a failed save or deletion.")
-                    cleanupError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                    TextButton(onClick = viewModel::retrySecretCleanup, enabled = !cleanupRunning) {
-                        Text(if (cleanupRunning) "Checking…" else "Retry cleanup")
-                    }
-                }
-            }
+            SecretCleanupCard(cleanupError, cleanupRunning, viewModel::retrySecretCleanup)
             Card(
                 onClick = { confirmClear = true },
                 modifier = Modifier.fillMaxWidth()

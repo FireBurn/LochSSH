@@ -4,7 +4,7 @@ This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
 The 1 October checks pass: build, lint, 250 local tests with real SSH/SFTP and
-IPv6 enabled, and 56 Android 13 tests. One Android 14+ test is skipped. This
+IPv6 enabled, and 58 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -20,7 +20,7 @@ checks listed below.
   declaration is compiled but not yet run. Actual service start, timeout
   delivery and long screen-off runs still need device checks.
   The special-use declaration needs review before Google Play publication.
-  The last Android 13 emulator run passed 56 tests; the Android 14+ declaration
+  The last Android 13 emulator run passed 58 tests; the Android 14+ declaration
   test is skipped there. This does not verify the newer service type.
   A separate legacy declaration test passes on Android 13, checking the
   selected type and base foreground-service permission.
@@ -112,7 +112,7 @@ checks listed below.
   Settings shows cleanup failures and offers Retry cleanup.
   Identity saves, identity deletion and Clear all data now share a secret-change
   lock. Both suspension and cancelled-waiter unit tests pass. The last Android
-  13 regression run passed 56 tests with one API 34+ test skipped. Check
+  13 regression run passed 58 tests with one API 34+ test skipped. Check
   concurrent save, deletion and Clear all data in the UI; the suite does not
   cover those operations running together. Startup and manual cleanup use
   the same lock.
@@ -146,9 +146,12 @@ checks listed below.
   by retry and a failed database read. All nine encrypted-storage tests pass
   on Android 13, including cancelled recovery leaving secrets queued. Room
   cancelling an internal job after database closure reports a storage failure;
-  cancelling the caller still cancels recovery. Check startup with queued work,
-  the Settings button/error display,
-  Clear all data during recovery and actual process death on Android.
+  cancelling the caller still cancels recovery. The Settings cleanup card is
+  reachable by scrolling, and an empty-queue retry leaves the screen usable
+  without an error on Android 13. Two Compose tests pass for the error message,
+  retry callback, disabled button while checking and restored button afterwards.
+  Check Settings with a real queued failure, startup with queued work, Clear
+  all data during recovery and actual process death on Android.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen
