@@ -1,6 +1,7 @@
 package uk.co.fireburn.lochssh.ui.identities
 
 import androidx.lifecycle.ViewModelStore
+import androidx.room.Room
 import androidx.test.platform.app.InstrumentationRegistry
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.NonCancellable
@@ -18,20 +19,26 @@ import uk.co.fireburn.lochssh.data.EncryptedStorageManager
 import uk.co.fireburn.lochssh.data.db.AuthTypes
 import uk.co.fireburn.lochssh.data.db.IdentityDao
 import uk.co.fireburn.lochssh.data.db.IdentityEntity
+import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 
 class IdentityEditorLoadAndroidTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
     private val store = ViewModelStore()
     private val dao = TestDao()
+    private val database = Room.inMemoryDatabaseBuilder(
+        instrumentation.targetContext, LochSshDatabase::class.java).build()
     private lateinit var editor: IdentityEditorViewModel
 
     private fun start() = instrumentation.runOnMainSync {
-        editor = IdentityEditorViewModel(dao, EncryptedStorageManager(instrumentation.targetContext))
+        editor = IdentityEditorViewModel(dao, EncryptedStorageManager(instrumentation.targetContext), database)
         store.put("editor", editor)
     }
 
     @After
-    fun close() = instrumentation.runOnMainSync { store.clear() }
+    fun close() {
+        instrumentation.runOnMainSync { store.clear() }
+        database.close()
+    }
 
     @Test
     fun missingIdentityCannotBeSavedAsANewOne() {

@@ -16,6 +16,7 @@ import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import uk.co.fireburn.lochssh.data.EncryptedStorageManager
 import uk.co.fireburn.lochssh.data.db.AuthTypes
@@ -47,7 +48,7 @@ class IdentitySecretSaveAndroidTest {
             .putString("old-secret", "original passphrase").commit()
         lateinit var editor: IdentityEditorViewModel
         instrumentation.runOnMainSync {
-            editor = IdentityEditorViewModel(dao, EncryptedStorageManager(preferences))
+            editor = IdentityEditorViewModel(dao, EncryptedStorageManager(preferences), database)
             store.put("editor", editor)
             editor.load(id)
         }
@@ -75,6 +76,7 @@ class IdentitySecretSaveAndroidTest {
     private suspend fun assertOriginalIsKept() {
         assertEquals(original.copy(id = id), database.identityDao().getById(id))
         assertEquals(mapOf("old-key" to "original key", "old-secret" to "original passphrase"), preferences.all)
+        assertTrue(database.secretCleanupDao().pending().isEmpty())
     }
 
     @Test
@@ -142,6 +144,7 @@ class IdentitySecretSaveAndroidTest {
         assertEquals("Changed", saved.name)
         assertEquals("replacement key", preferences.getString(saved.keyMaterialRef, null))
         assertEquals("replacement passphrase", preferences.getString(saved.secretRef, null))
+        assertEquals(listOf("old-key"), database.secretCleanupDao().pending())
     }
 
     @Test
@@ -172,6 +175,9 @@ class IdentitySecretSaveAndroidTest {
         assertEquals("original key", preferences.getString("old-key", null))
         assertEquals("original passphrase", preferences.getString("old-secret", null))
         assertEquals(3, preferences.all.size)
+        val queued = database.secretCleanupDao().pending()
+        assertEquals(1, queued.size)
+        assertEquals("replacement passphrase", preferences.getString(queued.single(), null))
     }
 
     @Test
@@ -196,8 +202,10 @@ class IdentitySecretSaveAndroidTest {
         assertNull(saved.keyMaterialRef)
         instrumentation.runOnMainSync { assertEquals(saved, editor.identity) }
         assertEquals(mapOf("old-key" to "original key", "old-secret" to "original passphrase"), preferences.all)
+        assertEquals(listOf("old-key"), database.secretCleanupDao().pending())
         assertNull(save(editor, KeySources.PATH))
         assertEquals(saved, database.identityDao().getById(id))
+        assertEquals(listOf("old-key"), database.secretCleanupDao().pending())
     }
 
     @Test
@@ -208,5 +216,29 @@ class IdentitySecretSaveAndroidTest {
         assertNull(saved.keyMaterialRef)
         assertEquals("old-secret", saved.secretRef)
         assertEquals(mapOf("old-secret" to "original passphrase"), preferences.all)
+        assertTrue(database.secretCleanupDao().pending().isEmpty())
+    }
+
+    @Test
+    fun failedOldReferenceQueueWriteRollsBackTheSavedRow() = runBlocking {
+        val editor = load(database.identityDao(), preferences)
+        database.openHelper.writableDatabase.execSQL(
+            "CREATE TRIGGER fail_old_cleanup BEFORE INSERT ON secret_cleanup " +
+                "WHEN NEW.reference = 'old-key' BEGIN SELECT RAISE(ABORT, 'queue write failed'); END"
+        )
+        assertTrue(save(editor, KeySources.PATH)?.contains("queue write failed") == true)
+        assertOriginalIsKept()
+    }
+
+    @Test
+    fun keepsCredentialsChangedAfterTheEditorLoaded() = runBlocking {
+        val editor = load(database.identityDao(), preferences)
+        preferences.edit().putString("current-secret", "current passphrase").commit()
+        database.identityDao().update(original.copy(id = id, secretRef = "current-secret"))
+        assertNull(save(editor, KeySources.PATH))
+        assertEquals("current-secret", database.identityDao().getById(id)?.secretRef)
+        assertEquals("current passphrase", preferences.getString("current-secret", null))
+        assertNull(preferences.getString("old-key", null))
+        assertTrue(database.secretCleanupDao().pending().isEmpty())
     }
 }

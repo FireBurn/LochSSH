@@ -103,19 +103,18 @@ This list reflects the current app and the project conversations. The older
   Database version 9 adds a durable secret-cleanup queue without secret values.
   Migration and queue tests pass on the Android 13 emulator for preserved
   rows, duplicate references, reopening and references used by either
-  credential field. Recording cleanup
-  entries with saves and startup retry
-  still need wiring before the queue can remove leftover secrets safely.
+  credential field. Startup retry still needs wiring before recovery after
+  reopening is enabled.
   Identity saves, identity deletion and Clear all data now share a secret-change
-  lock. Both suspension and cancelled-waiter unit tests pass. The Android 13
-  last regression run passed 46 tests with one API 34+ test skipped. Check
+  lock. Both suspension and cancelled-waiter unit tests pass. The last Android
+  13 regression run passed 46 tests with one API 34+ test skipped. Check
   concurrent save, deletion and Clear all data in the UI; the suite does not
   cover those operations running together. Cleanup retry must use the same
   lock before it is enabled.
   The retry helper has five passing unit tests: live references are kept,
   failed usage checks do not delete secrets, deletion failures retain entries,
   failed queue removal can retry and cancellation stops processing. It is not
-  connected to production saves or startup yet. An Android 13 test
+  connected to startup yet. An Android 13 test
   uses Room and separate encrypted preferences: a failed deletion stays queued
   after database reopening, retry removes the unused secret and both live
   credential fields survive. This is not a process-death test; interrupted
@@ -127,6 +126,16 @@ This list reflects the current app and the project conversations. The older
   Android tests compile for shared credentials, host-blocked deletion and a
   failed queue insert rolling back deletion. They have not run: no device is
   available. Check failed secret deletion, process death and UI errors too.
+  Identity saves now queue new references before writing secrets. The row
+  transaction queues replaced references and removes the newly used entries.
+  Failed rollback keeps its cleanup entry, and old-secret cleanup checks other
+  identities. Saves reload and validate current credentials under the shared
+  lock rather than reusing an older editor snapshot. Build, lint and 11 selected
+  cleanup/lock/input unit tests pass. Eight save Android tests compile, with
+  queue assertions plus new cases for failed queue insertion and credentials
+  changed after loading. They have not run against this change; no device is
+  available. Process-death recovery, encrypted rollback and concurrent UI
+  operations remain unverified.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen

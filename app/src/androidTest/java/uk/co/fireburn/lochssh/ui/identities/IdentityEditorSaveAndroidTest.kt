@@ -34,7 +34,7 @@ class IdentityEditorSaveAndroidTest {
         lateinit var editor: IdentityEditorViewModel
         instrumentation.runOnMainSync {
             editor = IdentityEditorViewModel(database.identityDao(),
-                EncryptedStorageManager(instrumentation.targetContext))
+                EncryptedStorageManager(instrumentation.targetContext), database)
             store.put("editor", editor)
             editor.load(id)
         }
