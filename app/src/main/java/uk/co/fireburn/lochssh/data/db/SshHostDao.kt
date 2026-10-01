@@ -21,7 +21,7 @@ interface SshHostDao {
     suspend fun insert(host: SshHostEntity): Long
 
     @Update
-    suspend fun update(host: SshHostEntity)
+    suspend fun update(host: SshHostEntity): Int
 
     @Delete
     suspend fun delete(host: SshHostEntity)

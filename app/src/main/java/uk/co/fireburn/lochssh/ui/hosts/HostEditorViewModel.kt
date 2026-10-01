@@ -8,6 +8,8 @@ import androidx.lifecycle.viewModelScope
 import androidx.room.withTransaction
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
@@ -39,16 +41,33 @@ class HostEditorViewModel @Inject constructor(
         private set
     var loaded by mutableStateOf(false)
         private set
+    var loadError by mutableStateOf<String?>(null)
+        private set
+    private var loading: Job? = null
 
     fun load(id: Long) {
-        viewModelScope.launch {
-            host = if (id > 0) hostDao.getById(id) else null
-            forwards = if (id > 0) portForwardDao.getByHost(id) else emptyList()
-            loaded = true
+        loading?.cancel()
+        loaded = false
+        host = null
+        forwards = emptyList()
+        loadError = null
+        loading = viewModelScope.launch {
+            val result = HostLookup.load(id) { hostId ->
+                database.withTransaction {
+                    val saved = hostDao.getById(hostId) ?: return@withTransaction null
+                    HostDetails(saved, portForwardDao.getByHost(hostId))
+                }
+            }
+            coroutineContext.ensureActive()
+            host = result.details?.host
+            forwards = result.details?.forwards.orEmpty()
+            loadError = result.error
+            loaded = result.error == null
         }
     }
 
     fun addForward(type: String, localPort: String, remoteHost: String, remotePort: String): Boolean {
+        if (!loaded) return false
         val lp = localPort.toIntOrNull() ?: return false
         val rp = if (type == ForwardTypes.DYNAMIC) 0 else remotePort.toIntOrNull() ?: return false
         val minLocalPort = if (type == ForwardTypes.REMOTE) 1 else 1024
@@ -109,6 +128,7 @@ class HostEditorViewModel @Inject constructor(
         jumpHostId: Long?,
         agentForwarding: Boolean
     ) {
+        check(loaded) { loadError ?: "Wait for the host to load" }
         val existing = host
         require(name.isNotBlank()) { "Enter a name" }
         require(hostName.isNotBlank()) { "Enter a host" }
@@ -145,7 +165,7 @@ class HostEditorViewModel @Inject constructor(
             HostIdentity.check(identityId, agentForwarding, identityDao::getById)
             JumpHostChain.resolve(entity, hostDao::getById)
             val hostId = if (existing != null) {
-                hostDao.update(entity)
+                check(hostDao.update(entity) == 1) { "This host no longer exists" }
                 existing.id
             } else {
                 hostDao.insert(entity)

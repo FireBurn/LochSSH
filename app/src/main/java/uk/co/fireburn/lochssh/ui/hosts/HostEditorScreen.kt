@@ -55,10 +55,10 @@ fun HostEditorScreen(
     )
     val forwards = viewModel.forwards
     val hosts by viewModel.hosts.collectAsStateWithLifecycle(emptyList())
-    var jumpHostId by remember { mutableStateOf<Long?>(null) }
-    var jumpMenu by remember { mutableStateOf(false) }
-    var agentForwarding by remember { mutableStateOf(false) }
-    var confirmAgent by remember { mutableStateOf(false) }
+    var jumpHostId by remember(hostId) { mutableStateOf<Long?>(null) }
+    var jumpMenu by remember(hostId) { mutableStateOf(false) }
+    var agentForwarding by remember(hostId) { mutableStateOf(false) }
+    var confirmAgent by remember(hostId) { mutableStateOf(false) }
     if (confirmAgent) {
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { confirmAgent = false },
@@ -73,27 +73,28 @@ fun HostEditorScreen(
     }
     LaunchedEffect(hostId) { viewModel.load(hostId) }
 
-    var name by remember { mutableStateOf("") }
-    var host by remember { mutableStateOf("") }
-    var port by remember { mutableStateOf("22") }
-    var keepAlive by remember { mutableStateOf("30") }
-    var group by remember { mutableStateOf("") }
-    var autoCommand by remember { mutableStateOf("") }
-    var remoteSessionMode by remember { mutableStateOf(RemoteSessionModes.SHELL) }
-    var identityId by remember { mutableStateOf<Long?>(null) }
-    var identityMenu by remember { mutableStateOf(false) }
-    var saveError by remember { mutableStateOf<String?>(null) }
-    var saving by remember { mutableStateOf(false) }
+    var name by remember(hostId) { mutableStateOf("") }
+    var host by remember(hostId) { mutableStateOf("") }
+    var port by remember(hostId) { mutableStateOf("22") }
+    var keepAlive by remember(hostId) { mutableStateOf("30") }
+    var group by remember(hostId) { mutableStateOf("") }
+    var autoCommand by remember(hostId) { mutableStateOf("") }
+    var remoteSessionMode by remember(hostId) { mutableStateOf(RemoteSessionModes.SHELL) }
+    var identityId by remember(hostId) { mutableStateOf<Long?>(null) }
+    var identityMenu by remember(hostId) { mutableStateOf(false) }
+    var saveError by remember(hostId) { mutableStateOf<String?>(null) }
+    var saving by remember(hostId) { mutableStateOf(false) }
 
-    var adding by remember { mutableStateOf(false) }
-    var draftType by remember { mutableStateOf(ForwardTypes.LOCAL) }
-    var draftLocal by remember { mutableStateOf("") }
-    var draftRemoteHost by remember { mutableStateOf("localhost") }
-    var draftRemote by remember { mutableStateOf("") }
+    var adding by remember(hostId) { mutableStateOf(false) }
+    var draftType by remember(hostId) { mutableStateOf(ForwardTypes.LOCAL) }
+    var draftLocal by remember(hostId) { mutableStateOf("") }
+    var draftRemoteHost by remember(hostId) { mutableStateOf("localhost") }
+    var draftRemote by remember(hostId) { mutableStateOf("") }
 
-    LaunchedEffect(viewModel.loaded) {
+    LaunchedEffect(hostId, viewModel.loaded, viewModel.host) {
         if (!viewModel.loaded) return@LaunchedEffect
         viewModel.host?.let {
+            if (it.id != hostId) return@let
             name = it.name
             host = it.host
             port = it.port.toString()
@@ -117,7 +118,7 @@ fun HostEditorScreen(
     val validDraftRemote = draftType == ForwardTypes.DYNAMIC ||
         draftRemote.toIntOrNull() in 1..65535
     val validDraftHost = draftType != ForwardTypes.LOCAL || draftRemoteHost.isNotBlank()
-    val canAddTunnel = validDraftLocal && validDraftRemote && validDraftHost
+    val canAddTunnel = viewModel.loaded && validDraftLocal && validDraftRemote && validDraftHost
 
     Scaffold(
         topBar = {
@@ -155,6 +156,10 @@ fun HostEditorScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            viewModel.loadError?.let { message ->
+                Text(message, color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { viewModel.load(hostId) }) { Text("Retry") }
+            }
             saveError?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)
             }

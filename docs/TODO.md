@@ -15,7 +15,7 @@ This list reflects the current app and the project conversations. The older
   declaration is compiled but not yet run. Actual service start, timeout
   delivery and long screen-off runs still need device checks.
   The special-use declaration needs review before Google Play publication.
-  The Android 13 emulator suite passes 28 tests; the Android 14+ declaration
+  The Android 13 emulator suite passes 32 tests; the Android 14+ declaration
   test is skipped there. This does not verify the newer service type.
   A separate legacy declaration test passes on Android 13, checking the
   selected type and base foreground-service permission.
@@ -34,6 +34,14 @@ This list reflects the current app and the project conversations. The older
   code. Zero disables it; oversized values disable Save and show the limit.
   Boundary and invalid-input unit tests cover the shared parser; check the field
   and its error message on a device.
+  Host-editor load errors and missing rows now keep Save disabled and offer
+  Retry. Host and tunnel rows load together in a transaction; partial results
+  are not kept. Switching hosts resets form fields and cancels the old lookup.
+  Check failed host and tunnel reads, retry, switching hosts during a slow
+  lookup and attempting Save after the host was removed on a device.
+  Saves now check that an existing host was updated before replacing tunnels.
+  Six lookup unit tests pass. The Android 13 emulator test removes a loaded
+  host and confirms Save reports an error without recreating its tunnels.
 - Check Clear all data on a device. It now clears the open Room database and
   encrypted preferences instead of deleting an unrelated file path.
 - Add device tests for identity changes and failures. The editor now saves new
@@ -63,7 +71,8 @@ This list reflects the current app and the project conversations. The older
   changes. Check that switching identities cannot carry credentials across.
   Six lookup unit tests pass for new and existing identities, missing rows,
   invalid IDs, storage errors and cancellation. Android editor-load tests
-  cover the save guard, retry and a cancelled lookup returning late; run them.
+  pass on the Android 13 emulator for the save guard, retry and a cancelled
+  lookup returning late. Form interactions and credential reset checks remain.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen
