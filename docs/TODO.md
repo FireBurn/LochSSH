@@ -101,6 +101,12 @@ This list reflects the current app and the project conversations. The older
   credential field. Recording cleanup
   entries with saves/deletes, serialising secret changes and startup retry
   still need wiring before the queue can remove leftover secrets safely.
+  Identity saves, identity deletion and Clear all data now share a secret-change
+  lock. Both suspension and cancelled-waiter unit tests pass. The Android 13
+  regression suite passes with 45 tests and one API 34+ test skipped. Check
+  concurrent save, deletion and Clear all data in the UI; the suite does not
+  cover those operations running together. Cleanup retry must use the same
+  lock before it is enabled.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen

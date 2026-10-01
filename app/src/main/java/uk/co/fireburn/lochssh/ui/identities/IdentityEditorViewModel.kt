@@ -83,66 +83,68 @@ class IdentityEditorViewModel @Inject constructor(
             }
             try {
                 val saved = withContext(Dispatchers.IO + NonCancellable) {
-                    val created = mutableListOf<String>()
-                    var rowSaved = false
-                    fun saveNew(value: String): String {
-                        val ref = secrets.newReference()
-                        created += ref
-                        secrets.putSecret(ref, value)
-                        return ref
-                    }
+                    secrets.change {
+                        val created = mutableListOf<String>()
+                        var rowSaved = false
+                        fun saveNew(value: String): String {
+                            val ref = secrets.newReference()
+                            created += ref
+                            secrets.putSecret(ref, value)
+                            return ref
+                        }
 
-                    try {
-                        val secretRef = when {
-                            authType == AuthTypes.NONE -> null
-                            secret.isNotBlank() -> saveNew(secret)
-                            existing?.authType == authType -> existing.secretRef
-                            else -> null
-                        }
-                        val pasted = authType == AuthTypes.PUBLIC_KEY && keySource == KeySources.PASTE
-                        val keyMaterialRef = when {
-                            !pasted -> null
-                            keyMaterial.isNotBlank() -> saveNew(keyMaterial)
-                            else -> existing?.keyMaterialRef
-                        }
-                        val keyPathFinal = if (authType == AuthTypes.PUBLIC_KEY && !pasted) {
-                            keyPath.ifBlank { null }
-                        } else null
+                        try {
+                            val secretRef = when {
+                                authType == AuthTypes.NONE -> null
+                                secret.isNotBlank() -> saveNew(secret)
+                                existing?.authType == authType -> existing.secretRef
+                                else -> null
+                            }
+                            val pasted = authType == AuthTypes.PUBLIC_KEY && keySource == KeySources.PASTE
+                            val keyMaterialRef = when {
+                                !pasted -> null
+                                keyMaterial.isNotBlank() -> saveNew(keyMaterial)
+                                else -> existing?.keyMaterialRef
+                            }
+                            val keyPathFinal = if (authType == AuthTypes.PUBLIC_KEY && !pasted) {
+                                keyPath.ifBlank { null }
+                            } else null
 
-                        val entity = existing?.copy(
-                            name = name,
-                            username = username,
-                            authType = authType,
-                            keyPath = keyPathFinal,
-                            keyMaterialRef = keyMaterialRef,
-                            secretRef = secretRef
-                        ) ?: IdentityEntity(
-                            name = name,
-                            username = username,
-                            authType = authType,
-                            keyPath = keyPathFinal,
-                            keyMaterialRef = keyMaterialRef,
-                            secretRef = secretRef
-                        )
-                        val savedEntity = if (existing != null) {
-                            check(identityDao.update(entity) == 1) { "This identity no longer exists" }
-                            entity
-                        } else {
-                            entity.copy(id = identityDao.insert(entity))
-                        }
-                        rowSaved = true
+                            val entity = existing?.copy(
+                                name = name,
+                                username = username,
+                                authType = authType,
+                                keyPath = keyPathFinal,
+                                keyMaterialRef = keyMaterialRef,
+                                secretRef = secretRef
+                            ) ?: IdentityEntity(
+                                name = name,
+                                username = username,
+                                authType = authType,
+                                keyPath = keyPathFinal,
+                                keyMaterialRef = keyMaterialRef,
+                                secretRef = secretRef
+                            )
+                            val savedEntity = if (existing != null) {
+                                check(identityDao.update(entity) == 1) { "This identity no longer exists" }
+                                entity
+                            } else {
+                                entity.copy(id = identityDao.insert(entity))
+                            }
+                            rowSaved = true
 
-                        val oldReferences = listOfNotNull(existing?.secretRef, existing?.keyMaterialRef)
-                            .filter { it != secretRef && it != keyMaterialRef }
-                        val remaining = SecretRemoval.remove(oldReferences, secrets::deleteSecret)
-                        savedEntity to remaining.isNotEmpty()
-                    } catch (e: Exception) {
-                        if (rowSaved) throw e
-                        val remaining = SecretRemoval.remove(created, secrets::deleteSecret)
-                        if (remaining.isNotEmpty() && e !is CancellationException) {
-                            throw IOException("${e.message ?: "Could not save identity"}; could not remove new stored secrets", e)
+                            val oldReferences = listOfNotNull(existing?.secretRef, existing?.keyMaterialRef)
+                                .filter { it != secretRef && it != keyMaterialRef }
+                            val remaining = SecretRemoval.remove(oldReferences, secrets::deleteSecret)
+                            savedEntity to remaining.isNotEmpty()
+                        } catch (e: Exception) {
+                            if (rowSaved) throw e
+                            val remaining = SecretRemoval.remove(created, secrets::deleteSecret)
+                            if (remaining.isNotEmpty() && e !is CancellationException) {
+                                throw IOException("${e.message ?: "Could not save identity"}; could not remove new stored secrets", e)
+                            }
+                            throw e
                         }
-                        throw e
                     }
                 }
                 identity = saved.first

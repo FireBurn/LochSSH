@@ -18,6 +18,9 @@ class EncryptedStorageManager private constructor(createPreferences: () -> Share
     internal constructor(preferences: SharedPreferences) : this({ preferences })
 
     private val prefs: SharedPreferences by lazy(createPreferences)
+    private val changes = SecretChanges()
+
+    internal suspend fun <T> change(block: suspend () -> T): T = changes.run(block)
 
     fun newReference(): String = UUID.randomUUID().toString()
 

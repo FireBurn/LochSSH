@@ -47,13 +47,15 @@ class SettingsViewModel @Inject constructor(
     fun clearAll() {
         viewModelScope.launch {
             runCatching {
-                withContext(Dispatchers.IO) { HostShortcuts.disable(context) }
-                history.clear()
                 withContext(Dispatchers.IO) {
-                    database.clearAllTables()
-                    secrets.clear()
-                    HostKeyTrust.clear(context)
-                    preferences.reset()
+                    secrets.change {
+                        HostShortcuts.disable(context)
+                        history.clear()
+                        database.clearAllTables()
+                        secrets.clear()
+                        HostKeyTrust.clear(context)
+                        preferences.reset()
+                    }
                 }
             }.onFailure { _error.value = "Could not clear all data: ${it.message ?: "storage error"}" }
         }
