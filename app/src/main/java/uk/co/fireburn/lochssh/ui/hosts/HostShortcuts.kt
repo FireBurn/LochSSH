@@ -5,6 +5,9 @@ import android.content.Intent
 import androidx.core.content.pm.ShortcutInfoCompat
 import androidx.core.content.pm.ShortcutManagerCompat
 import androidx.core.graphics.drawable.IconCompat
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import uk.co.fireburn.lochssh.MainActivity
 import uk.co.fireburn.lochssh.R
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
@@ -37,7 +40,11 @@ object HostShortcuts {
             .addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
     }
 
-    fun pin(context: Context, host: SshHostEntity): String? = try {
+    suspend fun pin(context: Context, host: SshHostEntity): String? = withContext(Dispatchers.IO) {
+        requestPin(context, host)
+    }
+
+    private fun requestPin(context: Context, host: SshHostEntity): String? = try {
         if (!ShortcutManagerCompat.isRequestPinShortcutSupported(context)) {
             "This launcher does not support pinned shortcuts"
         } else {
@@ -49,6 +56,8 @@ object HostShortcuts {
             if (ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)) null
             else "The launcher could not add the shortcut"
         }
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         "Could not add shortcut: ${e.message ?: "launcher error"}"
     }

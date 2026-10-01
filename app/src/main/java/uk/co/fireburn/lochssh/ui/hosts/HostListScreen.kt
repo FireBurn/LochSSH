@@ -32,6 +32,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -40,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
 import uk.co.fireburn.lochssh.service.SshForegroundService
 
@@ -63,6 +65,7 @@ fun HostListScreen(
     var pendingDelete by remember { mutableStateOf<SshHostEntity?>(null) }
     var shortcutError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
 
     Scaffold(
         topBar = {
@@ -131,7 +134,7 @@ fun HostListScreen(
                     onEdit = { onEdit(host.id) },
                     onDuplicate = { viewModel.duplicateHost(host.id) },
                     onDelete = { pendingDelete = host },
-                    onShortcut = { shortcutError = HostShortcuts.pin(context, host) }
+                    onShortcut = { scope.launch { shortcutError = HostShortcuts.pin(context, host) } }
                 )
             }
         }
