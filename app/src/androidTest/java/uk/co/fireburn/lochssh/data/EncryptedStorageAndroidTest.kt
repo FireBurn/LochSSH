@@ -10,6 +10,9 @@ import java.security.KeyStore
 import java.util.UUID
 import java.io.IOException
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -226,5 +229,36 @@ class EncryptedStorageAndroidTest {
         assertEquals("Could not check stored secret cleanup. Try again.", recovery.error.value)
         assertFalse(recovery.running.value)
         assertEquals("dummy passphrase", storage.getSecret("kept"))
+    }
+
+    @Test
+    fun cancelledRecoveryDoesNotRemoveSecretsOrReportAStorageError() = runBlocking {
+        withTimeout(5_000) {
+            val database = Room.inMemoryDatabaseBuilder(context, LochSshDatabase::class.java).build()
+            try {
+                val storage = open()
+                storage.putSecret("unused", "dummy secret")
+                database.secretCleanupDao().add(SecretCleanupEntity("unused"))
+                val entered = CompletableDeferred<Unit>()
+                val release = CompletableDeferred<Unit>()
+                val owner = launch { storage.change { entered.complete(Unit); release.await() } }
+                entered.await()
+                val recovery = SecretRecovery(database, storage)
+                val started = CompletableDeferred<Unit>()
+                val retry = launch { started.complete(Unit); recovery.retry() }
+                started.await()
+                retry.cancel()
+                retry.join()
+                release.complete(Unit)
+                owner.join()
+                assertTrue(retry.isCancelled)
+                assertFalse(recovery.running.value)
+                assertNull(recovery.error.value)
+                assertEquals(listOf("unused"), database.secretCleanupDao().pending())
+                assertEquals("dummy secret", storage.getSecret("unused"))
+            } finally {
+                database.close()
+            }
+        }
     }
 }

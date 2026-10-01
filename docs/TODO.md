@@ -3,6 +3,11 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
+The 1 October checks pass: build, lint, 250 local tests with real SSH/SFTP and
+IPv6 enabled, and 56 Android 13 tests. One Android 14+ test is skipped. This
+does not replace the live-session, launcher, concurrency and process-death
+checks listed below.
+
 ## Fix before wider use
 
 - Check long-lived SSH service behavior on a device. Android 14 and later now
@@ -15,7 +20,7 @@ This list reflects the current app and the project conversations. The older
   declaration is compiled but not yet run. Actual service start, timeout
   delivery and long screen-off runs still need device checks.
   The special-use declaration needs review before Google Play publication.
-  The last Android 13 emulator run passed 46 tests; the Android 14+ declaration
+  The last Android 13 emulator run passed 56 tests; the Android 14+ declaration
   test is skipped there. This does not verify the newer service type.
   A separate legacy declaration test passes on Android 13, checking the
   selected type and base foreground-service permission.
@@ -67,8 +72,8 @@ This list reflects the current app and the project conversations. The older
   Deletion reloads the current identity inside the shared secret-change lock,
   so an old list or confirmation snapshot does not choose credential references
   for cleanup. Four new unit tests pass for current references, a missing row,
-  read failure and cancellation. Two new Room tests compile for changed
-  references and missing rows but have not run: the emulator disconnected.
+  read failure and cancellation. The Room tests pass on Android 13 for changed
+  references and missing rows.
   Editor load errors and missing rows now keep Save disabled and offer Retry.
   Starting another lookup cancels the previous one. Check failed loads, retry,
   missing rows and switching identities before a lookup finishes on a device.
@@ -107,7 +112,7 @@ This list reflects the current app and the project conversations. The older
   Settings shows cleanup failures and offers Retry cleanup.
   Identity saves, identity deletion and Clear all data now share a secret-change
   lock. Both suspension and cancelled-waiter unit tests pass. The last Android
-  13 regression run passed 46 tests with one API 34+ test skipped. Check
+  13 regression run passed 56 tests with one API 34+ test skipped. Check
   concurrent save, deletion and Clear all data in the UI; the suite does not
   cover those operations running together. Startup and manual cleanup use
   the same lock.
@@ -123,24 +128,26 @@ This list reflects the current app and the project conversations. The older
   in one Room transaction, under the shared lock. Cleanup checks other
   identities before deleting each secret; failed cleanup leaves its entry.
   Build, lint and 12 selected lock/removal unit tests pass. Three new encrypted
-  Android tests compile for shared credentials, host-blocked deletion and a
-  failed queue insert rolling back deletion. They have not run: no device is
-  available. Check failed secret deletion, process death and UI errors too.
+  Android tests pass on Android 13 for shared credentials, host-blocked deletion
+  and a failed queue insert rolling back deletion. Check failed secret deletion
+  during row deletion, process death and UI errors too.
   Identity saves now queue new references before writing secrets. The row
   transaction queues replaced references and removes the newly used entries.
   Failed rollback keeps its cleanup entry, and old-secret cleanup checks other
   identities. Saves reload and validate current credentials under the shared
   lock rather than reusing an older editor snapshot. Build, lint and 11 selected
-  cleanup/lock/input unit tests pass. Eight save Android tests compile, with
+  cleanup/lock/input unit tests pass. Eight save Android tests pass, with
   queue assertions plus new cases for failed queue insertion and credentials
-  changed after loading. They have not run against this change; no device is
-  available. Process-death recovery, encrypted rollback and concurrent UI
+  changed after loading. Process-death recovery, encrypted rollback and concurrent UI
   operations remain unverified.
   Startup/manual recovery builds and lints successfully; seven selected
   cleanup/lock unit tests pass. The reopening test now calls the production
   recovery class, and two new encrypted tests cover a failed removal followed
-  by retry and a failed database read. These compile but have not run against
-  this change. Check startup, the Settings button/error display, cancellation,
+  by retry and a failed database read. All nine encrypted-storage tests pass
+  on Android 13, including cancelled recovery leaving secrets queued. Room
+  cancelling an internal job after database closure reports a storage failure;
+  cancelling the caller still cancels recovery. Check startup with queued work,
+  the Settings button/error display,
   Clear all data during recovery and actual process death on Android.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The

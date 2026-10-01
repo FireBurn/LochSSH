@@ -7,6 +7,8 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
@@ -38,8 +40,9 @@ class SecretRecovery @Inject constructor(
                     secrets::deleteSecret, cleanup::remove)
                 _error.value = if (remaining.isEmpty()) null
                 else "Could not remove all unused stored secrets. Try again."
-            } catch (e: CancellationException) {
-                throw e
+            } catch (_: CancellationException) {
+                currentCoroutineContext().ensureActive()
+                _error.value = "Could not check stored secret cleanup. Try again."
             } catch (_: Exception) {
                 _error.value = "Could not check stored secret cleanup. Try again."
             } finally {
