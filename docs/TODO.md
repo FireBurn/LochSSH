@@ -4,7 +4,7 @@ This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
 The 1 October checks pass: build, lint, 252 local tests with real SSH/SFTP and
-IPv6 enabled, and 59 Android 13 tests. One Android 14+ test is skipped. This
+IPv6 enabled, and 60 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -61,6 +61,12 @@ checks listed below.
   host and confirms Save reports an error without recreating its tunnels.
 - Check Clear all data on a device. It now clears the open Room database and
   encrypted preferences instead of deleting an unrelated file path.
+  Saved rows and their credential references are now removed in one database
+  transaction while preserving the secret-cleanup list. The list is emptied
+  only after encrypted storage clears successfully, so a failed clear can be
+  retried by startup cleanup. The Android 13 database test checks both credential
+  fields, existing cleanup entries, repeated clearing and final queue removal.
+  Check encrypted-storage failure and restart through the Settings action.
 - Add device tests for identity changes and failures. The editor now saves new
   secrets before updating the row and removes old secrets afterward, but this
   needs tests for key-source switches, failed writes, and cleanup failures.

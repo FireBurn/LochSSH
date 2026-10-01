@@ -61,8 +61,9 @@ class SettingsViewModel @Inject constructor(
                     secrets.change {
                         HostShortcuts.disable(context)
                         history.clear()
-                        database.clearAllTables()
+                        database.clearDataDao().clearSavedData()
                         secrets.clear()
+                        database.clearDataDao().clearCleanup()
                         HostKeyTrust.clear(context)
                         preferences.reset()
                         recovery.clearError()

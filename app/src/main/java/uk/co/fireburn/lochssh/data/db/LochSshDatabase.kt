@@ -23,6 +23,7 @@ abstract class LochSshDatabase : RoomDatabase() {
     abstract fun savedCommandDao(): SavedCommandDao
     abstract fun connectionHistoryDao(): ConnectionHistoryDao
     abstract fun secretCleanupDao(): SecretCleanupDao
+    abstract fun clearDataDao(): ClearDataDao
 
     companion object {
         const val NAME = "lochssh.db"
