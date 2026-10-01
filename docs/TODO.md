@@ -15,7 +15,7 @@ This list reflects the current app and the project conversations. The older
   declaration is compiled but not yet run. Actual service start, timeout
   delivery and long screen-off runs still need device checks.
   The special-use declaration needs review before Google Play publication.
-  The Android 13 emulator suite passes 45 tests; the Android 14+ declaration
+  The Android 13 emulator suite passes 46 tests; the Android 14+ declaration
   test is skipped there. This does not verify the newer service type.
   A separate legacy declaration test passes on Android 13, checking the
   selected type and base foreground-service permission.
@@ -103,15 +103,18 @@ This list reflects the current app and the project conversations. The older
   still need wiring before the queue can remove leftover secrets safely.
   Identity saves, identity deletion and Clear all data now share a secret-change
   lock. Both suspension and cancelled-waiter unit tests pass. The Android 13
-  regression suite passes with 45 tests and one API 34+ test skipped. Check
+  regression suite passes with 46 tests and one API 34+ test skipped. Check
   concurrent save, deletion and Clear all data in the UI; the suite does not
   cover those operations running together. Cleanup retry must use the same
   lock before it is enabled.
   The retry helper has five passing unit tests: live references are kept,
   failed usage checks do not delete secrets, deletion failures retain entries,
   failed queue removal can retry and cancellation stops processing. It is not
-  connected to the database or startup yet. Check it with Room and encrypted
-  storage, including reopening after interrupted cleanup, before enabling it.
+  connected to production saves, deletion or startup yet. An Android 13 test
+  uses Room and separate encrypted preferences: a failed deletion stays queued
+  after database reopening, retry removes the unused secret and both live
+  credential fields survive. This is not a process-death test; interrupted
+  recording and concurrent writers still need checks before enabling recovery.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen
