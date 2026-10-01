@@ -19,6 +19,7 @@ import uk.co.fireburn.lochssh.data.db.AuthTypes
 import uk.co.fireburn.lochssh.data.db.IdentityEntity
 import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 import uk.co.fireburn.lochssh.data.db.SecretCleanupEntity
+import uk.co.fireburn.lochssh.data.db.SshHostEntity
 
 class EncryptedStorageAndroidTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
@@ -105,6 +106,70 @@ class EncryptedStorageAndroidTest {
         } finally {
             database.close()
             context.deleteDatabase(databaseName)
+        }
+    }
+
+    @Test
+    fun deletionKeepsSecretsSharedWithAnotherIdentity() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(context, LochSshDatabase::class.java).build()
+        try {
+            val storage = open()
+            storage.putSecret("shared", "dummy shared passphrase")
+            storage.putSecret("private", "dummy private key")
+            val first = database.identityDao().insert(IdentityEntity(name = "First",
+                authType = AuthTypes.PUBLIC_KEY, secretRef = "shared", keyMaterialRef = "private"))
+            val second = database.identityDao().insert(IdentityEntity(name = "Second",
+                authType = AuthTypes.PASSWORD, secretRef = "shared"))
+            assertNull(IdentityDeletion(database, storage).delete(first))
+            assertNull(database.identityDao().getById(first))
+            assertNull(storage.getSecret("private"))
+            assertEquals("dummy shared passphrase", storage.getSecret("shared"))
+            assertTrue(database.secretCleanupDao().pending().isEmpty())
+            assertNull(IdentityDeletion(database, storage).delete(second))
+            assertNull(storage.getSecret("shared"))
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun blockedDeletionKeepsTheRowAndDoesNotQueueItsSecrets() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(context, LochSshDatabase::class.java).build()
+        try {
+            val storage = open()
+            storage.putSecret("used", "dummy passphrase")
+            val id = database.identityDao().insert(IdentityEntity(name = "Test",
+                authType = AuthTypes.PASSWORD, secretRef = "used"))
+            database.sshHostDao().insert(SshHostEntity(name = "Test", host = "test.invalid", identityId = id))
+            assertEquals("Could not delete identity: Identity is used by a saved host",
+                IdentityDeletion(database, storage).delete(id))
+            assertEquals("used", database.identityDao().getById(id)?.secretRef)
+            assertEquals("dummy passphrase", storage.getSecret("used"))
+            assertTrue(database.secretCleanupDao().pending().isEmpty())
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun failedQueueWriteRollsBackIdentityDeletion() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(context, LochSshDatabase::class.java).build()
+        try {
+            val storage = open()
+            storage.putSecret("kept", "dummy passphrase")
+            val id = database.identityDao().insert(IdentityEntity(name = "Test",
+                authType = AuthTypes.PASSWORD, secretRef = "kept"))
+            database.openHelper.writableDatabase.execSQL(
+                "CREATE TRIGGER fail_cleanup BEFORE INSERT ON secret_cleanup " +
+                    "BEGIN SELECT RAISE(ABORT, 'queue write failed'); END"
+            )
+            val error = IdentityDeletion(database, storage).delete(id)
+            assertTrue(error?.startsWith("Could not delete identity:") == true)
+            assertEquals("kept", database.identityDao().getById(id)?.secretRef)
+            assertEquals("dummy passphrase", storage.getSecret("kept"))
+            assertTrue(database.secretCleanupDao().pending().isEmpty())
+        } finally {
+            database.close()
         }
     }
 }

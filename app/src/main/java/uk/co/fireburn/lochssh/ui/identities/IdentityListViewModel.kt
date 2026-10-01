@@ -10,7 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import uk.co.fireburn.lochssh.data.EncryptedStorageManager
+import uk.co.fireburn.lochssh.data.IdentityDeletion
 import uk.co.fireburn.lochssh.data.db.IdentityDao
 import uk.co.fireburn.lochssh.data.db.IdentityEntity
 import javax.inject.Inject
@@ -18,7 +18,7 @@ import javax.inject.Inject
 @HiltViewModel
 class IdentityListViewModel @Inject constructor(
     private val identityDao: IdentityDao,
-    private val secrets: EncryptedStorageManager
+    private val deletion: IdentityDeletion
 ) : ViewModel() {
 
     val identities: Flow<List<IdentityEntity>> = identityDao.observeAll()
@@ -30,10 +30,7 @@ class IdentityListViewModel @Inject constructor(
     fun delete(identity: IdentityEntity) {
         viewModelScope.launch {
             _error.value = withContext(Dispatchers.IO + NonCancellable) {
-                secrets.change {
-                    IdentityRemoval.removeCurrent(identity.id, identityDao::getById,
-                        identityDao::deleteIfUnused, secrets::deleteSecret)
-                }
+                deletion.delete(identity.id)
             }
         }
     }
