@@ -66,6 +66,8 @@ checks listed below.
   only after encrypted storage clears successfully, so a failed clear can be
   retried by startup cleanup. The Android 13 database test checks both credential
   fields, existing cleanup entries, repeated clearing and final queue removal.
+  A second Android 13 test forces identity deletion to fail and verifies that
+  the transaction restores the host, identity and original cleanup list.
   Check encrypted-storage failure and restart through the Settings action.
 - Add device tests for identity changes and failures. The editor now saves new
   secrets before updating the row and removes old secrets afterward, but this
