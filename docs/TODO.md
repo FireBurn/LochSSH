@@ -15,7 +15,7 @@ This list reflects the current app and the project conversations. The older
   declaration is compiled but not yet run. Actual service start, timeout
   delivery and long screen-off runs still need device checks.
   The special-use declaration needs review before Google Play publication.
-  The Android 13 emulator suite passes 38 tests; the Android 14+ declaration
+  The Android 13 emulator suite passes 42 tests; the Android 14+ declaration
   test is skipped there. This does not verify the newer service type.
   A separate legacy declaration test passes on Android 13, checking the
   selected type and base foreground-service permission.
@@ -81,11 +81,20 @@ This list reflects the current app and the project conversations. The older
   database failure, a secret write that reports failure after applying, and
   switching from a pasted key to a path.
   They use dummy values in separate plain preferences, not the app's encrypted
-  store. Encrypted storage and failed cleanup writes still need checks.
+  store. UI warnings and rollback with encrypted preferences still need checks.
   Successful identity saves now report old-secret cleanup failures and retain
   the saved row in the editor before offering retry. The Android 13 emulator
-  cleanup-failure test passes; check the warning in the UI. Failed-save cleanup failures still
-  need reporting, and orphaned-secret removal needs a retry path.
+  cleanup-failure test passes; check the warning in the UI. Failed-save cleanup
+  failures now include a separate warning. The new partial-write test passes.
+  Orphaned-secret removal needs a durable retry path. Cancellation during old
+  secret cleanup keeps newly saved credentials; the Android test passes.
+  Eight selected unit tests pass for removal failures, cancellation and
+  identity deletion. Two encrypted-storage tests pass on the Android 13
+  emulator for save/reload, hidden plain references and values, deletion,
+  clearing and saving after clear. They use separate test
+  preferences and a separate Android Keystore alias, removed after each test.
+  They do not verify rollback against the encrypted backend or recovery after
+  a lost keystore key.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen
