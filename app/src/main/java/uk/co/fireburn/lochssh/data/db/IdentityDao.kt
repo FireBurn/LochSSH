@@ -24,6 +24,10 @@ interface IdentityDao {
     @Delete
     suspend fun delete(identity: IdentityEntity)
 
+    @Query("DELETE FROM identities WHERE id = :id AND NOT EXISTS " +
+        "(SELECT 1 FROM ssh_hosts WHERE identity_id = :id)")
+    suspend fun deleteIfUnused(id: Long): Int
+
     @Query("SELECT COUNT(*) FROM ssh_hosts WHERE identity_id = :id")
     suspend fun countUsages(id: Long): Int
 }

@@ -15,7 +15,7 @@ This list reflects the current app and the project conversations. The older
   declaration is compiled but not yet run. Actual service start, timeout
   delivery and long screen-off runs still need device checks.
   The special-use declaration needs review before Google Play publication.
-  The Android 13 emulator suite passes 27 tests; the Android 14+ declaration
+  The Android 13 emulator suite passes 28 tests; the Android 14+ declaration
   test is skipped there. This does not verify the newer service type.
   A separate legacy declaration test passes on Android 13, checking the
   selected type and base foreground-service permission.
@@ -42,6 +42,18 @@ This list reflects the current app and the project conversations. The older
   Save errors now return to the editor on the UI thread; check the messages on
   a device. Required usernames and credentials are checked before saving, but
   that validation also needs a device check.
+  Identity deletion now asks for confirmation. Its database delete refuses
+  rows used by saved hosts, and failed deletes keep stored secrets. Cleanup
+  failures are reported separately after a successful row deletion. Check
+  confirmation, host usage and error messages on a device.
+  Five unit tests pass for deletion order, host usage, database errors,
+  cleanup errors and cancellation. The guarded delete also passes a local
+  SQLite check with two host references. The Room test passes on the Android
+  13 emulator: both host references block deletion, removing one still blocks
+  it, and removing the last reference allows deletion without removing hosts.
+  Handle editor load errors and missing identity rows before allowing Save.
+  A failed lookup currently escapes the load coroutine; a missing row can
+  leave the editor treating an existing identity as a new one.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen

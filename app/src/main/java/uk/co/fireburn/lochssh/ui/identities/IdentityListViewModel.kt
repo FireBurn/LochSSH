@@ -6,6 +6,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uk.co.fireburn.lochssh.data.EncryptedStorageManager
@@ -20,13 +22,15 @@ class IdentityListViewModel @Inject constructor(
 ) : ViewModel() {
 
     val identities: Flow<List<IdentityEntity>> = identityDao.observeAll()
+    private val _error = MutableStateFlow<String?>(null)
+    val error = _error.asStateFlow()
+
+    fun clearError() { _error.value = null }
 
     fun delete(identity: IdentityEntity) {
         viewModelScope.launch {
-            withContext(Dispatchers.IO + NonCancellable) {
-                identityDao.delete(identity)
-                listOfNotNull(identity.secretRef, identity.keyMaterialRef)
-                    .forEach { runCatching { secrets.deleteSecret(it) } }
+            _error.value = withContext(Dispatchers.IO + NonCancellable) {
+                IdentityRemoval.remove(identity, identityDao::deleteIfUnused, secrets::deleteSecret)
             }
         }
     }

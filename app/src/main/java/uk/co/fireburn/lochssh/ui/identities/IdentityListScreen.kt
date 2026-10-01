@@ -14,6 +14,8 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.Card
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.DropdownMenuItem
@@ -49,6 +51,8 @@ fun IdentityListScreen(
         emptyList(),
         LocalLifecycleOwner.current.lifecycle
     )
+    val error by viewModel.error.collectAsStateWithLifecycle()
+    var pendingDelete by remember { mutableStateOf<IdentityEntity?>(null) }
 
     Scaffold(
         topBar = {
@@ -76,10 +80,29 @@ fun IdentityListScreen(
                 IdentityRow(
                     identity = identity,
                     onEdit = { onEdit(identity.id) },
-                    onDelete = { viewModel.delete(identity) }
+                    onDelete = { pendingDelete = identity }
                 )
             }
         }
+    }
+    pendingDelete?.let { identity ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text("Delete identity?") },
+            text = { Text("Delete ${identity.name} and its stored credentials? Remove it from saved hosts first.") },
+            confirmButton = {
+                TextButton(onClick = { pendingDelete = null; viewModel.delete(identity) }) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { pendingDelete = null }) { Text("Cancel") } }
+        )
+    }
+    error?.let { message ->
+        AlertDialog(
+            onDismissRequest = viewModel::clearError,
+            title = { Text("Identity") },
+            text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::clearError) { Text("OK") } }
+        )
     }
 }
 
