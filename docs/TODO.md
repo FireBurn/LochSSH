@@ -64,6 +64,11 @@ This list reflects the current app and the project conversations. The older
   SQLite check with two host references. The Room test passes on the Android
   13 emulator: both host references block deletion, removing one still blocks
   it, and removing the last reference allows deletion without removing hosts.
+  Deletion reloads the current identity inside the shared secret-change lock,
+  so an old list or confirmation snapshot does not choose credential references
+  for cleanup. Four new unit tests pass for current references, a missing row,
+  read failure and cancellation. Two new Room tests compile for changed
+  references and missing rows but have not run: the emulator disconnected.
   Editor load errors and missing rows now keep Save disabled and offer Retry.
   Starting another lookup cancels the previous one. Check failed loads, retry,
   missing rows and switching identities before a lookup finishes on a device.

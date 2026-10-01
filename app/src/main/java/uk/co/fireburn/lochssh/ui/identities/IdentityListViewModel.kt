@@ -31,7 +31,8 @@ class IdentityListViewModel @Inject constructor(
         viewModelScope.launch {
             _error.value = withContext(Dispatchers.IO + NonCancellable) {
                 secrets.change {
-                    IdentityRemoval.remove(identity, identityDao::deleteIfUnused, secrets::deleteSecret)
+                    IdentityRemoval.removeCurrent(identity.id, identityDao::getById,
+                        identityDao::deleteIfUnused, secrets::deleteSecret)
                 }
             }
         }

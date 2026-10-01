@@ -5,6 +5,22 @@ import uk.co.fireburn.lochssh.data.SecretRemoval
 import uk.co.fireburn.lochssh.data.db.IdentityEntity
 
 internal object IdentityRemoval {
+    suspend fun removeCurrent(
+        id: Long,
+        load: suspend (Long) -> IdentityEntity?,
+        deleteRow: suspend (Long) -> Int,
+        deleteSecret: (String) -> Unit
+    ): String? {
+        val identity = try {
+            load(id) ?: return "This identity no longer exists"
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            return "Could not delete identity: ${e.message ?: "storage error"}"
+        }
+        return remove(identity, deleteRow, deleteSecret)
+    }
+
     suspend fun remove(
         identity: IdentityEntity,
         deleteRow: suspend (Long) -> Int,

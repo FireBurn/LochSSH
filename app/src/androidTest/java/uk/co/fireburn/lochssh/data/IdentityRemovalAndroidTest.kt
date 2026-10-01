@@ -12,6 +12,7 @@ import uk.co.fireburn.lochssh.data.db.AuthTypes
 import uk.co.fireburn.lochssh.data.db.IdentityEntity
 import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
+import uk.co.fireburn.lochssh.ui.identities.IdentityRemoval
 
 class IdentityRemovalAndroidTest {
     private val database = Room.inMemoryDatabaseBuilder(
@@ -41,5 +42,30 @@ class IdentityRemovalAndroidTest {
         assertNull(identities.getById(id))
         assertEquals(0, identities.deleteIfUnused(id))
         assertNotNull(hosts.getById(secondId))
+    }
+
+    @Test
+    fun removesCurrentCredentialsRatherThanAnOldListSnapshot() = runBlocking {
+        val identities = database.identityDao()
+        val original = IdentityEntity(name = "Test", authType = AuthTypes.PUBLIC_KEY,
+            keyMaterialRef = "old-key", secretRef = "old-passphrase")
+        val id = identities.insert(original)
+        val snapshot = original.copy(id = id)
+        identities.update(snapshot.copy(keyMaterialRef = "new-key", secretRef = "new-passphrase"))
+        val deleted = mutableListOf<String>()
+        assertNull(IdentityRemoval.removeCurrent(snapshot.id, identities::getById,
+            identities::deleteIfUnused) { deleted += it })
+        assertEquals(listOf("new-passphrase", "new-key"), deleted)
+        assertNull(identities.getById(id))
+    }
+
+    @Test
+    fun missingCurrentRowDoesNotDeleteSecrets() = runBlocking {
+        val identities = database.identityDao()
+        val deleted = mutableListOf<String>()
+        assertEquals("This identity no longer exists",
+            IdentityRemoval.removeCurrent(99, identities::getById,
+                identities::deleteIfUnused) { deleted += it })
+        assertEquals(emptyList<String>(), deleted)
     }
 }
