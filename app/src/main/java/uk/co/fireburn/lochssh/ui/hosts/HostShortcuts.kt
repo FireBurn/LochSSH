@@ -53,7 +53,14 @@ object HostShortcuts {
                 .setIcon(IconCompat.createWithResource(context, R.mipmap.ic_launcher))
                 .setIntent(intent(context, host.id))
                 .build()
-            if (ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)) null
+            val existing = ShortcutManagerCompat.getShortcuts(context, ShortcutManagerCompat.FLAG_MATCH_PINNED)
+                .any { it.id == shortcut.id }
+            val updated = if (existing) {
+                ShortcutManagerCompat.enableShortcuts(context, listOf(shortcut))
+                ShortcutManagerCompat.updateShortcuts(context, listOf(shortcut))
+            } else true
+            if (!updated) "Could not update the shortcut; try again"
+            else if (ShortcutManagerCompat.requestPinShortcut(context, shortcut, null)) null
             else "The launcher could not add the shortcut"
         }
     } catch (e: CancellationException) {

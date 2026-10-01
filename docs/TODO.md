@@ -369,9 +369,11 @@ This list reflects the current app and the project conversations. The older
   Two unit tests cover selecting one host's shortcut and all saved-host
   shortcuts without selecting unrelated IDs.
   Shortcut requests run off the UI thread. Check launcher delays and leaving
-  the host list while a request is running. Re-adding an existing disabled
-  shortcut needs recovery: Android rejects pin requests for disabled IDs.
-  Check renamed-host labels when requesting an existing shortcut again.
+  the host list while a request is running. Re-pinning an existing shortcut
+  now re-enables it and updates its label before requesting pinning. Failed
+  updates report an error and do not request pinning. Build and lint pass;
+  disabled-ID recovery, renamed labels and launcher rate limits still need
+  runtime checks. No device was available for these checks.
 - Add proxy settings and check IPv6 connections on Android.
   Three real-server IPv6 tests cover SSH authentication, local forwarding and
   SOCKS5 IPv6 requests. They require an explicit IPv6 address for the same
