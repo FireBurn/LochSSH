@@ -80,7 +80,7 @@ class IdentityEditorViewModel @Inject constructor(
                 return@launch
             }
             try {
-                withContext(Dispatchers.IO + NonCancellable) {
+                val saved = withContext(Dispatchers.IO + NonCancellable) {
                     val created = mutableListOf<String>()
                     fun saveNew(value: String): String {
                         val ref = secrets.newReference()
@@ -121,21 +121,28 @@ class IdentityEditorViewModel @Inject constructor(
                             keyMaterialRef = keyMaterialRef,
                             secretRef = secretRef
                         )
-                        if (existing != null) {
+                        val savedEntity = if (existing != null) {
                             check(identityDao.update(entity) == 1) { "This identity no longer exists" }
+                            entity
                         } else {
-                            identityDao.insert(entity)
+                            entity.copy(id = identityDao.insert(entity))
                         }
 
+                        var cleanupFailed = false
                         listOfNotNull(existing?.secretRef, existing?.keyMaterialRef)
                             .filter { it != secretRef && it != keyMaterialRef }
-                            .forEach { runCatching { secrets.deleteSecret(it) } }
+                            .forEach {
+                                if (runCatching { secrets.deleteSecret(it) }.isFailure) cleanupFailed = true
+                            }
+                        savedEntity to cleanupFailed
                     } catch (e: Exception) {
                         created.forEach { runCatching { secrets.deleteSecret(it) } }
                         throw e
                     }
                 }
-                onFinished(null)
+                identity = saved.first
+                hasKeyMaterial = saved.first.keyMaterialRef != null
+                onFinished(if (saved.second) "Identity saved, but could not remove old stored secrets" else null)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

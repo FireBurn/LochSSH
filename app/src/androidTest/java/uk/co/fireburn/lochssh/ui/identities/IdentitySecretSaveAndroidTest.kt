@@ -108,6 +108,32 @@ class IdentitySecretSaveAndroidTest {
     }
 
     @Test
+    fun failedOldKeyCleanupReportsTheSavedRowAndAllowsRetry() = runBlocking {
+        val failing = object : SharedPreferences by preferences {
+            override fun edit(): SharedPreferences.Editor {
+                val editor = preferences.edit()
+                var blocked = false
+                return object : SharedPreferences.Editor by editor {
+                    override fun remove(key: String?): SharedPreferences.Editor {
+                        if (key == "old-key") blocked = true else editor.remove(key)
+                        return this
+                    }
+                    override fun commit(): Boolean = if (blocked) false else editor.commit()
+                }
+            }
+        }
+        val editor = load(database.identityDao(), failing)
+        assertEquals("Identity saved, but could not remove old stored secrets", save(editor, KeySources.PATH))
+        val saved = requireNotNull(database.identityDao().getById(id))
+        assertEquals("/test/key", saved.keyPath)
+        assertNull(saved.keyMaterialRef)
+        instrumentation.runOnMainSync { assertEquals(saved, editor.identity) }
+        assertEquals(mapOf("old-key" to "original key", "old-secret" to "original passphrase"), preferences.all)
+        assertNull(save(editor, KeySources.PATH))
+        assertEquals(saved, database.identityDao().getById(id))
+    }
+
+    @Test
     fun switchingToAKeyPathRemovesOnlyThePastedKey() = runBlocking {
         assertNull(save(load(database.identityDao(), preferences), KeySources.PATH))
         val saved = requireNotNull(database.identityDao().getById(id))
