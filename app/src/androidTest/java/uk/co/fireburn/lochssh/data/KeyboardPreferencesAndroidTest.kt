@@ -24,6 +24,7 @@ class KeyboardPreferencesAndroidTest {
         try {
             val preferences = AppPreferences(context)
             assertFalse(preferences.sessionShortcuts.value)
+            assertTrue(preferences.wrapLines.value)
             val layout = KeyboardLayout(listOf(listOf(
                 KeyboardButton(KeyboardAction.CTRL), KeyboardButton(KeyboardAction.TEXT, "c")
             )))
@@ -31,6 +32,7 @@ class KeyboardPreferencesAndroidTest {
             preferences.setTerminalTheme(TerminalTheme.PAPER)
             preferences.setTerminalTypeface(TerminalTypeface.JETBRAINS)
             preferences.setSessionShortcuts(true)
+            preferences.setWrapLines(false)
             assertTrue(testContext.getSharedPreferences(fileName, Context.MODE_PRIVATE).edit().commit())
             assertEquals(layout, preferences.keyboardLayout.value)
             assertEquals(layout, AppPreferences(context).keyboardLayout.value)
@@ -38,6 +40,8 @@ class KeyboardPreferencesAndroidTest {
             assertEquals(TerminalTypeface.JETBRAINS, preferences.terminalTypeface.value)
             assertEquals(TerminalTypeface.JETBRAINS, AppPreferences(context).terminalTypeface.value)
             assertTrue(AppPreferences(context).sessionShortcuts.value)
+            assertFalse(preferences.wrapLines.value)
+            assertFalse(AppPreferences(context).wrapLines.value)
 
             preferences.reset()
 
@@ -49,6 +53,8 @@ class KeyboardPreferencesAndroidTest {
             assertEquals(TerminalTypeface.NOTO, AppPreferences(context).terminalTypeface.value)
             assertFalse(preferences.sessionShortcuts.value)
             assertFalse(AppPreferences(context).sessionShortcuts.value)
+            assertTrue(preferences.wrapLines.value)
+            assertTrue(AppPreferences(context).wrapLines.value)
         } finally {
             testContext.deleteSharedPreferences(fileName)
         }

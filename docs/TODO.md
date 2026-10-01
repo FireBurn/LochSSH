@@ -20,7 +20,9 @@ checks listed below.
   Settings now has Wrap long lines, enabled by default. Turning it off clips
   new output at the right edge, keeping carriage-return progress on one row.
   Two unit tests cover progress updates and remote attempts to restore wrapping.
-  Check the switch and its saved value on the phone. Existing output is not
+  An isolated Android 13 preferences test checks the default, saved choice on
+  reopening preferences and reset. Check the switch and an actual process
+  restart on the phone. Existing output is not
   reflowed, and programs inside a multiplexer can wrap before sending output.
 - Check long-lived SSH service behavior on a device. Android 14 and later now
   use `specialUse` with an explicit SSH purpose instead of the `dataSync` type
