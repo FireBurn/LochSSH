@@ -26,6 +26,13 @@ class AppPreferences @Inject constructor(
     val terminalTypeface: StateFlow<TerminalTypeface> = _terminalTypeface
     private val _sessionShortcuts = MutableStateFlow(prefs.getBoolean(KEY_SHORTCUTS, false))
     val sessionShortcuts: StateFlow<Boolean> = _sessionShortcuts
+    private val _wrapLines = MutableStateFlow(prefs.getBoolean(KEY_WRAP_LINES, true))
+    val wrapLines: StateFlow<Boolean> = _wrapLines
+
+    fun setWrapLines(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_WRAP_LINES, enabled).apply()
+        _wrapLines.value = enabled
+    }
 
     fun setSessionShortcuts(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_SHORTCUTS, enabled).apply()
@@ -66,6 +73,7 @@ class AppPreferences @Inject constructor(
         _terminalTheme.value = TerminalTheme.LOCH
         _terminalTypeface.value = TerminalTypeface.NOTO
         _sessionShortcuts.value = false
+        _wrapLines.value = true
     }
 
     companion object {
@@ -79,5 +87,6 @@ class AppPreferences @Inject constructor(
         private const val KEY_THEME = "terminal_theme"
         private const val KEY_TYPEFACE = "terminal_typeface"
         private const val KEY_SHORTCUTS = "session_shortcuts"
+        private const val KEY_WRAP_LINES = "wrap_lines"
     }
 }

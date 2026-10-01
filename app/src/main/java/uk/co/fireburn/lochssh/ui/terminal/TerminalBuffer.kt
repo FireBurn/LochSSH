@@ -17,6 +17,10 @@ class TerminalBuffer(
     private var bold = false
     private var inverse = false
     private var wraparound = true
+    private var lineWrapping = true
+
+    @Synchronized
+    fun setLineWrapping(enabled: Boolean) { lineWrapping = enabled }
     private var originMode = false
     private val charsets = TerminalCharsets()
     private var lastWritten: Point? = null
@@ -329,6 +333,7 @@ class TerminalBuffer(
             return
         }
         if (cursorCol >= cols) {
+            if (!lineWrapping) return
             if (wraparound) {
                 cursorCol = 0
                 lineFeed()
@@ -342,7 +347,7 @@ class TerminalBuffer(
             text = "\uFFFD"
         }
         if (cursorCol + width > cols) {
-            if (!wraparound) return
+            if (!wraparound || !lineWrapping) return
             clearCell(grid[cursorRow], cursorCol)
             cursorCol = 0
             lineFeed()
@@ -352,7 +357,8 @@ class TerminalBuffer(
         row[cursorCol] = cell(text).copy(columns = width)
         if (width == 2) row[cursorCol + 1] = row[cursorCol].copy(text = "", columns = 0)
         lastWritten = Point(cursorRow, cursorCol)
-        cursorCol = if (wraparound) cursorCol + width else (cursorCol + width).coerceAtMost(cols - 1)
+        cursorCol = if (wraparound || !lineWrapping) cursorCol + width
+        else (cursorCol + width).coerceAtMost(cols - 1)
     }
 
     private fun appendMark(code: Int) {

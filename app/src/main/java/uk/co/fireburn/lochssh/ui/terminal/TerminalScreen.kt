@@ -76,6 +76,7 @@ fun TerminalScreen(
     val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
     val sessionShortcuts by viewModel.sessionShortcuts.collectAsStateWithLifecycle()
     val terminalTypeface by viewModel.terminalTypeface.collectAsStateWithLifecycle()
+    val wrapLines by viewModel.wrapLines.collectAsStateWithLifecycle()
     val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
     val keyboardLayout by viewModel.keyboardLayout.collectAsStateWithLifecycle()
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
@@ -458,6 +459,7 @@ fun TerminalScreen(
                             manager = manager,
                             fontSize = fontSize.sp,
                             typeface = terminalTypeface,
+                            wrapLines = wrapLines,
                             theme = terminalTheme,
                             scrollToLiveKey = liveRequest,
                             clearSelectionKey = selectionClearKey,

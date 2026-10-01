@@ -3,13 +3,25 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 1 October checks pass: build, lint, 250 local tests with real SSH/SFTP and
-IPv6 enabled, and 58 Android 13 tests. One Android 14+ test is skipped. This
+The 1 October checks pass: build, lint, 252 local tests with real SSH/SFTP and
+IPv6 enabled, and 59 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
 ## Fix before wider use
 
+- Retest attaching tmux on the phone. Two captured crashes came from drawing
+  text outside the terminal's visible area. Text is now measured before drawing;
+  an Android test covers drawing beyond each edge without crashing.
+  Resizing now fits the visible area and keeps size changes made before SSH
+  finishes connecting. Screen attachment uses `-A` to fit its windows.
+  Check rotation, keyboard changes and reattachment with live screen and tmux;
+  tmux's own window-size setting can limit resizing with multiple clients.
+  Settings now has Wrap long lines, enabled by default. Turning it off clips
+  new output at the right edge, keeping carriage-return progress on one row.
+  Two unit tests cover progress updates and remote attempts to restore wrapping.
+  Check the switch and its saved value on the phone. Existing output is not
+  reflowed, and programs inside a multiplexer can wrap before sending output.
 - Check long-lived SSH service behavior on a device. Android 14 and later now
   use `specialUse` with an explicit SSH purpose instead of the `dataSync` type
   subject to a [six-hour background limit](https://developer.android.com/develop/background-work/services/fgs/timeout).

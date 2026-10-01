@@ -35,6 +35,7 @@ class TerminalViewModel @Inject constructor(
     val fontSize = preferences.terminalFontSize
     val sessionShortcuts = preferences.sessionShortcuts
     val terminalTypeface = preferences.terminalTypeface
+    val wrapLines = preferences.wrapLines
     val terminalTheme = preferences.terminalTheme
     val keyboardLayout = preferences.keyboardLayout
     val sessions = registry.sessions

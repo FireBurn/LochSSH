@@ -49,6 +49,7 @@ fun SettingsScreen(
     val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
     val sessionShortcuts by viewModel.sessionShortcuts.collectAsStateWithLifecycle()
     val terminalTypeface by viewModel.terminalTypeface.collectAsStateWithLifecycle()
+    val wrapLines by viewModel.wrapLines.collectAsStateWithLifecycle()
     val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val cleanupError by viewModel.cleanupError.collectAsStateWithLifecycle()
@@ -138,6 +139,15 @@ fun SettingsScreen(
                 }
             }
             BatterySettingsCard()
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Wrap long lines", style = MaterialTheme.typography.titleMedium)
+                        Text("When off, text beyond the right edge is hidden. Applies to new output.")
+                    }
+                    Switch(checked = wrapLines, onCheckedChange = viewModel::setWrapLines)
+                }
+            }
             Card(onClick = onHostKeys, modifier = Modifier.fillMaxWidth()) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Saved host keys", style = MaterialTheme.typography.titleMedium)

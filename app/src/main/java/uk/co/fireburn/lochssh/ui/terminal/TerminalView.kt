@@ -15,11 +15,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextMeasurer
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntSize
@@ -44,6 +44,7 @@ fun TerminalView(
     manager: SshConnectionManager? = null,
     fontSize: TextUnit = 14.sp,
     typeface: TerminalTypeface = TerminalTypeface.NOTO,
+    wrapLines: Boolean = true,
     theme: TerminalTheme = TerminalTheme.LOCH,
     scrollToLiveKey: Int = 0,
     clearSelectionKey: Int = 0,
@@ -74,6 +75,10 @@ fun TerminalView(
     }
 
     LaunchedEffect(buffer) { onBuffer(buffer) }
+    LaunchedEffect(buffer, wrapLines) {
+        buffer.setLineWrapping(wrapLines)
+        frame.intValue++
+    }
     LaunchedEffect(manager) { scrollOffset.intValue = 0 }
     LaunchedEffect(scrollToLiveKey) { scrollOffset.intValue = 0 }
     LaunchedEffect(scrollOffset.intValue) { onScrollOffsetChanged(scrollOffset.intValue) }
@@ -87,8 +92,8 @@ fun TerminalView(
     LaunchedEffect(canvasSize, metrics, manager) {
         if (canvasSize.width == 0 || canvasSize.height == 0) return@LaunchedEffect
         delay(RESIZE_DELAY_MS)
-        val cols = (canvasSize.width / metrics.width).toInt().coerceAtLeast(MIN_COLS)
-        val rows = (canvasSize.height / metrics.height).toInt().coerceAtLeast(MIN_ROWS)
+        val cols = (canvasSize.width / metrics.width).toInt().coerceAtLeast(1)
+        val rows = (canvasSize.height / metrics.height).toInt().coerceAtLeast(1)
         if (buffer.read { buffer.cols == cols && buffer.rows == rows }) return@LaunchedEffect
         selection = null
         onSelectionChanged(null)
@@ -165,7 +170,9 @@ fun TerminalView(
         // Read in the draw lambda: the root layer observes reads made while
         // drawing, so the canvas invalidates on every output chunk.
         frame.intValue
-        drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue, selection, theme)
+        clipRect {
+            drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue, selection, theme)
+        }
     }
 }
 
@@ -209,7 +216,7 @@ private fun DrawScope.drawTerminal(
                     size = Size(metrics.width * cell.columns, metrics.height))
                 val under = cell.text
                 if (under != " ") {
-                    drawText(textMeasurer, under, origin, style.copy(color = Color(theme.background)))
+                    drawTerminalText(textMeasurer, under, origin, style.copy(color = Color(theme.background)))
                 }
             }
         }
@@ -290,7 +297,7 @@ private fun DrawScope.drawRowText(
         ) {
             col++
         }
-        drawText(
+        drawTerminalText(
             textMeasurer,
             buffer.visibleRowText(row, runStart, col, scrollOffset),
             Offset(runStart * metrics.width, y),

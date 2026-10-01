@@ -16,6 +16,7 @@ import uk.co.fireburn.lochssh.ui.terminal.TerminalSession
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
 
 class SshConnectionManager(
@@ -32,6 +33,7 @@ class SshConnectionManager(
     private val connectingSessions = ConnectingSessions()
     private val connectingChannels = ConnectingChannels()
     private val sessionChannels = SessionChannels()
+    private val windowSize = AtomicReference(config.initialCols to config.initialRows)
     val terminal = TerminalSession(config.initialCols, config.initialRows) {
         write(it.toByteArray(Charsets.US_ASCII))
     }
@@ -159,7 +161,8 @@ class SshConnectionManager(
         connectingChannels.add(ch)
         ch.setAgentForwarding(config.agentForwarding)
         ch.setPty(true)
-        ch.setPtyType(PTY_TYPE, config.initialCols, config.initialRows, 0, 0)
+        val initialSize = windowSize.get()
+        ch.setPtyType(PTY_TYPE, initialSize.first, initialSize.second, 0, 0)
         ch.setEnv("TERM", PTY_TYPE)
         // Both streams have to be taken before connect, or jsch wires up its
         // own and the keyboard has nothing to write to.
@@ -172,6 +175,7 @@ class SshConnectionManager(
         ch.connect()
         connectionAttempt.checkCancelled()
         writer = Executors.newSingleThreadExecutor { r -> Thread(r, "ssh-writer") }
+        queueResize(ch)
         running = true
         readerThread = thread(name = "ssh-reader") {
             ShellOutputReader.read(
@@ -270,11 +274,18 @@ class SshConnectionManager(
 
     // Sends the SSH window-change request; the remote side raises SIGWINCH.
     fun resize(cols: Int, rows: Int) {
+        require(cols > 0 && rows > 0)
+        windowSize.set(cols to rows)
         val ch = channel ?: return
+        queueResize(ch)
+    }
+
+    private fun queueResize(ch: ChannelShell) {
         try {
             writer?.execute {
                 try {
-                    ch.setPtySize(cols, rows, 0, 0)
+                    val size = windowSize.get()
+                    ch.setPtySize(size.first, size.second, 0, 0)
                 } catch (e: Exception) {
                     Log.w(TAG, "Window change for ${config.host} failed", e)
                 }
