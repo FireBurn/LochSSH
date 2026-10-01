@@ -1,6 +1,7 @@
 package uk.co.fireburn.lochssh.data
 
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.room.Room
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
@@ -13,6 +14,7 @@ import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import uk.co.fireburn.lochssh.data.db.AuthTypes
@@ -27,12 +29,13 @@ class EncryptedStorageAndroidTest {
     private val fileName = "encrypted-storage-test-$id"
     private val alias = "lochssh-storage-test-$id"
 
-    private fun open(): EncryptedStorageManager {
+    private fun open(): EncryptedStorageManager = EncryptedStorageManager(openPreferences())
+
+    private fun openPreferences(): SharedPreferences {
         val key = MasterKey.Builder(context, alias).setKeyScheme(MasterKey.KeyScheme.AES256_GCM).build()
-        val preferences = EncryptedSharedPreferences.create(context, fileName, key,
+        return EncryptedSharedPreferences.create(context, fileName, key,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM)
-        return EncryptedStorageManager(preferences)
     }
 
     @After
@@ -95,10 +98,10 @@ class EncryptedStorageAndroidTest {
             val reopened = open()
             val pending = database.secretCleanupDao()
             assertEquals(listOf("unused"), pending.pending())
-            reopened.change {
-                assertTrue(SecretCleanup.retry(pending.pending(), pending::isUsed,
-                    reopened::deleteSecret, pending::remove).isEmpty())
-            }
+            val recovery = SecretRecovery(database, reopened)
+            recovery.retry()
+            assertNull(recovery.error.value)
+            assertFalse(recovery.running.value)
             assertTrue(pending.pending().isEmpty())
             assertNull(open().getSecret("unused"))
             assertEquals("dummy private key", open().getSecret("key"))
@@ -171,5 +174,57 @@ class EncryptedStorageAndroidTest {
         } finally {
             database.close()
         }
+    }
+
+    @Test
+    fun recoveryReportsFailedRemovalAndClearsTheErrorAfterRetry() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(context, LochSshDatabase::class.java).build()
+        try {
+            val preferences = openPreferences()
+            var failRemoval = true
+            val failing = object : SharedPreferences by preferences {
+                override fun edit(): SharedPreferences.Editor {
+                    val editor = preferences.edit()
+                    return object : SharedPreferences.Editor by editor {
+                        override fun remove(key: String?): SharedPreferences.Editor {
+                            if (!failRemoval) editor.remove(key)
+                            return this
+                        }
+                        override fun commit(): Boolean = if (failRemoval) false else editor.commit()
+                    }
+                }
+            }
+            open().putSecret("unused", "unused dummy secret")
+            database.secretCleanupDao().add(SecretCleanupEntity("unused"))
+            val recovery = SecretRecovery(database, EncryptedStorageManager(failing))
+            recovery.retry()
+            assertNotNull(recovery.error.value)
+            assertFalse(recovery.running.value)
+            assertEquals(listOf("unused"), database.secretCleanupDao().pending())
+            assertEquals("unused dummy secret", open().getSecret("unused"))
+            failRemoval = false
+            recovery.retry()
+            assertNull(recovery.error.value)
+            assertFalse(recovery.running.value)
+            assertTrue(database.secretCleanupDao().pending().isEmpty())
+            assertNull(open().getSecret("unused"))
+        } finally {
+            database.close()
+        }
+    }
+
+    @Test
+    fun recoveryReportsDatabaseFailureWithoutRemovingSecrets() = runBlocking {
+        val database = Room.inMemoryDatabaseBuilder(context, LochSshDatabase::class.java).build()
+        val storage = open()
+        storage.putSecret("kept", "dummy passphrase")
+        database.identityDao().insert(IdentityEntity(name = "Test",
+            authType = AuthTypes.PASSWORD, secretRef = "kept"))
+        database.close()
+        val recovery = SecretRecovery(database, storage)
+        recovery.retry()
+        assertEquals("Could not check stored secret cleanup. Try again.", recovery.error.value)
+        assertFalse(recovery.running.value)
+        assertEquals("dummy passphrase", storage.getSecret("kept"))
     }
 }

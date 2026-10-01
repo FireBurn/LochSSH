@@ -103,22 +103,22 @@ This list reflects the current app and the project conversations. The older
   Database version 9 adds a durable secret-cleanup queue without secret values.
   Migration and queue tests pass on the Android 13 emulator for preserved
   rows, duplicate references, reopening and references used by either
-  credential field. Startup retry still needs wiring before recovery after
-  reopening is enabled.
+  credential field. Startup now retries queued cleanup off the UI thread.
+  Settings shows cleanup failures and offers Retry cleanup.
   Identity saves, identity deletion and Clear all data now share a secret-change
   lock. Both suspension and cancelled-waiter unit tests pass. The last Android
   13 regression run passed 46 tests with one API 34+ test skipped. Check
   concurrent save, deletion and Clear all data in the UI; the suite does not
-  cover those operations running together. Cleanup retry must use the same
-  lock before it is enabled.
+  cover those operations running together. Startup and manual cleanup use
+  the same lock.
   The retry helper has five passing unit tests: live references are kept,
   failed usage checks do not delete secrets, deletion failures retain entries,
-  failed queue removal can retry and cancellation stops processing. It is not
-  connected to startup yet. An Android 13 test
+  failed queue removal can retry and cancellation stops processing. Before
+  startup wiring, an Android 13 test
   uses Room and separate encrypted preferences: a failed deletion stays queued
   after database reopening, retry removes the unused secret and both live
   credential fields survive. This is not a process-death test; interrupted
-  recording and concurrent writers still need checks before enabling recovery.
+  recording and concurrent writers still need checks.
   Identity deletion now removes the current row and records cleanup references
   in one Room transaction, under the shared lock. Cleanup checks other
   identities before deleting each secret; failed cleanup leaves its entry.
@@ -136,6 +136,12 @@ This list reflects the current app and the project conversations. The older
   changed after loading. They have not run against this change; no device is
   available. Process-death recovery, encrypted rollback and concurrent UI
   operations remain unverified.
+  Startup/manual recovery builds and lints successfully; seven selected
+  cleanup/lock unit tests pass. The reopening test now calls the production
+  recovery class, and two new encrypted tests cover a failed removal followed
+  by retry and a failed database read. These compile but have not run against
+  this change. Check startup, the Settings button/error display, cancellation,
+  Clear all data during recovery and actual process death on Android.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen

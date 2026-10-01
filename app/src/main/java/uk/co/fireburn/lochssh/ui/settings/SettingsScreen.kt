@@ -51,6 +51,8 @@ fun SettingsScreen(
     val terminalTypeface by viewModel.terminalTypeface.collectAsStateWithLifecycle()
     val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
+    val cleanupError by viewModel.cleanupError.collectAsStateWithLifecycle()
+    val cleanupRunning by viewModel.cleanupRunning.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -146,6 +148,16 @@ fun SettingsScreen(
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("Connection history", style = MaterialTheme.typography.titleMedium)
                     Text("Recent connections and their outcomes")
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Stored secret cleanup", style = MaterialTheme.typography.titleMedium)
+                    Text("Retry removing unused secrets left after a failed save or deletion.")
+                    cleanupError?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                    TextButton(onClick = viewModel::retrySecretCleanup, enabled = !cleanupRunning) {
+                        Text(if (cleanupRunning) "Checking…" else "Retry cleanup")
+                    }
                 }
             }
             Card(

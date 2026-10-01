@@ -14,6 +14,7 @@ import uk.co.fireburn.lochssh.data.AppPreferences
 import uk.co.fireburn.lochssh.data.KeyboardLayout
 import uk.co.fireburn.lochssh.data.ConnectionHistoryRecorder
 import uk.co.fireburn.lochssh.data.EncryptedStorageManager
+import uk.co.fireburn.lochssh.data.SecretRecovery
 import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 import uk.co.fireburn.lochssh.ssh.HostKeyTrust
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTheme
@@ -27,7 +28,8 @@ class SettingsViewModel @Inject constructor(
     private val preferences: AppPreferences,
     private val database: LochSshDatabase,
     private val secrets: EncryptedStorageManager,
-    private val history: ConnectionHistoryRecorder
+    private val history: ConnectionHistoryRecorder,
+    private val recovery: SecretRecovery
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize
@@ -41,6 +43,12 @@ class SettingsViewModel @Inject constructor(
     fun setKeyboardLayout(layout: KeyboardLayout) = preferences.setKeyboardLayout(layout)
     private val _error = MutableStateFlow<String?>(null)
     val error = _error.asStateFlow()
+    val cleanupError = recovery.error
+    val cleanupRunning = recovery.running
+
+    fun retrySecretCleanup() {
+        viewModelScope.launch { recovery.retry() }
+    }
 
     fun changeFontSize(step: Int) = preferences.changeTerminalFontSize(step)
 
@@ -55,6 +63,7 @@ class SettingsViewModel @Inject constructor(
                         secrets.clear()
                         HostKeyTrust.clear(context)
                         preferences.reset()
+                        recovery.clearError()
                     }
                 }
             }.onFailure { _error.value = "Could not clear all data: ${it.message ?: "storage error"}" }
