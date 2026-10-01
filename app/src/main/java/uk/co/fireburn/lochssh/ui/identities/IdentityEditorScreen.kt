@@ -47,23 +47,24 @@ fun IdentityEditorScreen(
 ) {
     LaunchedEffect(identityId) { viewModel.load(identityId) }
 
-    var name by remember { mutableStateOf("") }
-    var username by remember { mutableStateOf("") }
-    var authType by remember { mutableStateOf(AuthTypes.PASSWORD) }
-    var keySource by remember { mutableStateOf(KeySources.PATH) }
-    var keyPath by remember { mutableStateOf("") }
-    var keyMaterial by remember { mutableStateOf("") }
-    var secret by remember { mutableStateOf("") }
-    var generatedKey by remember { mutableStateOf<GeneratedKey?>(null) }
-    var showPubKey by remember { mutableStateOf(false) }
-    var genError by remember { mutableStateOf<String?>(null) }
-    var saveError by remember { mutableStateOf<String?>(null) }
-    var saving by remember { mutableStateOf(false) }
+    var name by remember(identityId) { mutableStateOf("") }
+    var username by remember(identityId) { mutableStateOf("") }
+    var authType by remember(identityId) { mutableStateOf(AuthTypes.PASSWORD) }
+    var keySource by remember(identityId) { mutableStateOf(KeySources.PATH) }
+    var keyPath by remember(identityId) { mutableStateOf("") }
+    var keyMaterial by remember(identityId) { mutableStateOf("") }
+    var secret by remember(identityId) { mutableStateOf("") }
+    var generatedKey by remember(identityId) { mutableStateOf<GeneratedKey?>(null) }
+    var showPubKey by remember(identityId) { mutableStateOf(false) }
+    var genError by remember(identityId) { mutableStateOf<String?>(null) }
+    var saveError by remember(identityId) { mutableStateOf<String?>(null) }
+    var saving by remember(identityId) { mutableStateOf(false) }
     val clipboard = LocalClipboardManager.current
 
-    LaunchedEffect(viewModel.loaded) {
+    LaunchedEffect(identityId, viewModel.loaded, viewModel.identity) {
         if (!viewModel.loaded) return@LaunchedEffect
         viewModel.identity?.let {
+            if (it.id != identityId) return@let
             name = it.name
             username = it.username
             authType = it.authType
@@ -105,6 +106,10 @@ fun IdentityEditorScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
+            viewModel.loadError?.let { message ->
+                Text(message, color = MaterialTheme.colorScheme.error)
+                TextButton(onClick = { viewModel.load(identityId) }) { Text("Retry") }
+            }
             saveError?.let {
                 Text(it, color = MaterialTheme.colorScheme.error)
             }

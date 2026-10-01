@@ -51,9 +51,14 @@ This list reflects the current app and the project conversations. The older
   SQLite check with two host references. The Room test passes on the Android
   13 emulator: both host references block deletion, removing one still blocks
   it, and removing the last reference allows deletion without removing hosts.
-  Handle editor load errors and missing identity rows before allowing Save.
-  A failed lookup currently escapes the load coroutine; a missing row can
-  leave the editor treating an existing identity as a new one.
+  Editor load errors and missing rows now keep Save disabled and offer Retry.
+  Starting another lookup cancels the previous one. Check failed loads, retry,
+  missing rows and switching identities before a lookup finishes on a device.
+  Editor fields, including pasted keys and passwords, reset when the identity
+  changes. Check that switching identities cannot carry credentials across.
+  Six lookup unit tests pass for new and existing identities, missing rows,
+  invalid IDs, storage errors and cancellation. Android editor-load tests
+  cover the save guard, retry and a cancelled lookup returning late; run them.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen

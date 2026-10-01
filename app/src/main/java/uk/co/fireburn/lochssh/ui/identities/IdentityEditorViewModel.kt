@@ -9,6 +9,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import uk.co.fireburn.lochssh.data.EncryptedStorageManager
@@ -34,13 +36,23 @@ class IdentityEditorViewModel @Inject constructor(
         private set
     var loaded by mutableStateOf(false)
         private set
+    var loadError by mutableStateOf<String?>(null)
+        private set
+    private var loading: Job? = null
 
     fun load(id: Long) {
-        viewModelScope.launch {
-            val e = if (id > 0) identityDao.getById(id) else null
-            identity = e
-            hasKeyMaterial = e?.keyMaterialRef != null
-            loaded = true
+        loading?.cancel()
+        loaded = false
+        identity = null
+        hasKeyMaterial = false
+        loadError = null
+        loading = viewModelScope.launch {
+            val result = IdentityLookup.load(id, identityDao::getById)
+            coroutineContext.ensureActive()
+            identity = result.identity
+            hasKeyMaterial = result.identity?.keyMaterialRef != null
+            loadError = result.error
+            loaded = result.error == null
         }
     }
 
@@ -55,6 +67,10 @@ class IdentityEditorViewModel @Inject constructor(
         onFinished: (String?) -> Unit
     ) {
         viewModelScope.launch {
+            if (!loaded) {
+                onFinished(loadError ?: "Wait for the identity to load")
+                return@launch
+            }
             val existing = identity
             val inputError = IdentityInput.error(
                 name, username, authType, keySource, keyPath, keyMaterial, secret, existing
