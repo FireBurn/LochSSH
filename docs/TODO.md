@@ -99,7 +99,7 @@ This list reflects the current app and the project conversations. The older
   Migration and queue tests pass on the Android 13 emulator for preserved
   rows, duplicate references, reopening and references used by either
   credential field. Recording cleanup
-  entries with saves/deletes, serialising secret changes and startup retry
+  entries with saves/deletes and startup retry
   still need wiring before the queue can remove leftover secrets safely.
   Identity saves, identity deletion and Clear all data now share a secret-change
   lock. Both suspension and cancelled-waiter unit tests pass. The Android 13
@@ -107,6 +107,11 @@ This list reflects the current app and the project conversations. The older
   concurrent save, deletion and Clear all data in the UI; the suite does not
   cover those operations running together. Cleanup retry must use the same
   lock before it is enabled.
+  The retry helper has five passing unit tests: live references are kept,
+  failed usage checks do not delete secrets, deletion failures retain entries,
+  failed queue removal can retry and cancellation stops processing. It is not
+  connected to the database or startup yet. Check it with Room and encrypted
+  storage, including reopening after interrupted cleanup, before enabling it.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen
