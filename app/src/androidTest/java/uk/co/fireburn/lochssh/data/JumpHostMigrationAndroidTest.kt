@@ -18,6 +18,9 @@ class JumpHostMigrationAndroidTest {
     @Test
     fun preservesExistingJumpWhenAddingAgentSetting() = migrate(7)
 
+    @Test
+    fun preservesExistingRowsWhenAddingSecretCleanup() = migrate(8)
+
     private fun migrate(startVersion: Int) = runBlocking {
         val context = InstrumentationRegistry.getInstrumentation().targetContext
         val name = "jump_migration_${UUID.randomUUID()}.db"
@@ -32,19 +35,22 @@ class JumpHostMigrationAndroidTest {
                 old.execSQL("INSERT INTO identities VALUES(1, 'test', 'tester', 'NONE', NULL, NULL, NULL)")
                 old.execSQL("INSERT INTO ssh_hosts VALUES(1, 'destination', 'example.test', 2222, 1, 30, 'group', 'pwd', 'SHELL')")
                 old.execSQL("INSERT INTO port_forwards VALUES(1, 1, 'LOCAL', 8080, 'localhost', 80)")
-                if (startVersion == 7) {
+                if (startVersion >= 7) {
                     old.execSQL("ALTER TABLE ssh_hosts ADD COLUMN jump_host_id INTEGER DEFAULT NULL")
                     old.execSQL("INSERT INTO ssh_hosts VALUES(2, 'jump', 'jump.test', 22, 1, 30, '', '', 'SHELL', NULL)")
                     old.execSQL("UPDATE ssh_hosts SET jump_host_id = 2 WHERE id = 1")
                 }
+                if (startVersion >= 8) old.execSQL("ALTER TABLE ssh_hosts ADD COLUMN agent_forwarding INTEGER NOT NULL DEFAULT 0")
                 old.version = startVersion
             }
             val migrated = Room.databaseBuilder(context, LochSshDatabase::class.java, name)
-                .addMigrations(LochSshDatabase.MIGRATION_6_7, LochSshDatabase.MIGRATION_7_8).build()
+                .addMigrations(LochSshDatabase.MIGRATION_6_7, LochSshDatabase.MIGRATION_7_8,
+                    LochSshDatabase.MIGRATION_8_9).build()
             database = migrated
             val host = requireNotNull(migrated.sshHostDao().getById(1))
             if (startVersion == 6) assertNull(host.jumpHostId) else assertEquals(2L, host.jumpHostId)
             assertFalse(host.agentForwarding)
+            assertTrue(migrated.secretCleanupDao().pending().isEmpty())
             assertEquals("pwd", host.autoCommand)
             assertEquals(2222, host.port)
             assertEquals("tester", migrated.identityDao().getById(1)?.username)
