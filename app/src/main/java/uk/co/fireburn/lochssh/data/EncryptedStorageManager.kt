@@ -11,21 +11,13 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 @Singleton
-class EncryptedStorageManager @Inject constructor(
-    @ApplicationContext context: Context
-) {
-    private val prefs: SharedPreferences by lazy {
-        val masterKey = MasterKey.Builder(context)
-            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
-            .build()
-        EncryptedSharedPreferences.create(
-            context,
-            FILE_NAME,
-            masterKey,
-            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
-            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
-        )
-    }
+class EncryptedStorageManager private constructor(createPreferences: () -> SharedPreferences) {
+    @Inject
+    constructor(@ApplicationContext context: Context) : this({ openPreferences(context) })
+
+    internal constructor(preferences: SharedPreferences) : this({ preferences })
+
+    private val prefs: SharedPreferences by lazy(createPreferences)
 
     fun newReference(): String = UUID.randomUUID().toString()
 
@@ -51,5 +43,18 @@ class EncryptedStorageManager @Inject constructor(
 
     companion object {
         private const val FILE_NAME = "lochssh_secrets"
+
+        private fun openPreferences(context: Context): SharedPreferences {
+            val masterKey = MasterKey.Builder(context)
+                .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+                .build()
+            return EncryptedSharedPreferences.create(
+                context,
+                FILE_NAME,
+                masterKey,
+                EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+                EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+            )
+        }
     }
 }

@@ -15,7 +15,7 @@ This list reflects the current app and the project conversations. The older
   declaration is compiled but not yet run. Actual service start, timeout
   delivery and long screen-off runs still need device checks.
   The special-use declaration needs review before Google Play publication.
-  The Android 13 emulator suite passes 34 tests; the Android 14+ declaration
+  The Android 13 emulator suite passes 37 tests; the Android 14+ declaration
   test is skipped there. This does not verify the newer service type.
   A separate legacy declaration test passes on Android 13, checking the
   selected type and base foreground-service permission.
@@ -77,6 +77,11 @@ This list reflects the current app and the project conversations. The older
   after loading produces an error; newly written secrets follow the failed-save
   cleanup path. Two Android 13 emulator tests pass for removed and existing
   identity saves. They use no-auth rows and do not verify encrypted secret cleanup.
+  Three isolated identity-secret tests pass on the Android 13 emulator for
+  database failure, a secret write that reports failure after applying, and
+  switching from a pasted key to a path.
+  They use dummy values in separate plain preferences, not the app's encrypted
+  store. Encrypted storage and failed cleanup writes still need checks.
 - Check terminal behavior on a device with long output, full-screen programs,
   command history, resizing, reconnecting, and multiple open sessions. The
   Claude conversation reported stale text in command history, odd full-screen
