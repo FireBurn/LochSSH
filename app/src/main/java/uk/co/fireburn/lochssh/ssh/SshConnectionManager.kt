@@ -62,9 +62,7 @@ class SshConnectionManager(
         private set
 
     @Volatile private var hasInput = false
-    val isUnusedShell: Boolean get() = startupCommand == null && !hasInput &&
-        config.autoCommand.isBlank() && config.remoteSessionMode !in
-        setOf(RemoteSessionModes.TMUX, RemoteSessionModes.SCREEN)
+    val isUnusedShell: Boolean get() = ShellCleanup.canClose(config, startupCommand, hasInput, terminal.buffer)
 
     val isConnected: Boolean
         get() = running && channel?.isConnected == true && session?.isConnected == true

@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 2 October checks pass: build, lint, 278 local tests with real SSH/SFTP and
+The 2 October checks pass: build, lint, 283 local tests with real SSH/SFTP and
 IPv6 enabled, and 68 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
@@ -23,6 +23,9 @@ checks listed below.
   title updates and reconnecting. Unused shells close only after a replacement
   connects; shells with sent input stay open. A missing registry entry returns to
   the host list. The terminal menu opens Background connections settings.
+  Cleanup also preserves full-screen or mouse-using programs started by login
+  files, even before any user input. Five unit tests cover untouched shells,
+  sent input/startup commands, automatic sessions and program screen/mouse modes.
   Two Android tests check missing connections returning to hosts and dropped
   connections offering Reconnect and Manage hosts. Four unit tests cover tmux
   descriptions, connect-all discovery and preserving remote names/replacements.
@@ -78,8 +81,8 @@ checks listed below.
   declaration is compiled but not yet run. Actual service start, timeout
   delivery and long screen-off runs still need device checks.
   The special-use declaration needs review before Google Play publication.
-  The last Android 13 emulator run passed 58 tests; the Android 14+ declaration
-  test is skipped there. This does not verify the newer service type.
+  The Android 14+ declaration test is skipped on Android 13. This does not verify
+  the newer service type.
   A separate legacy declaration test passes on Android 13, checking the
   selected type and base foreground-service permission.
 - Check host-key review and removal on a device, including a changed server key.

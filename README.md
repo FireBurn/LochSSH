@@ -81,6 +81,7 @@ one opens a separate terminal; it never types the attach command into the curren
 program. An unused shell closes after the new connection succeeds. A shell where
 you have sent input stays open. Tmux names include the active program and window;
 these descriptions are read when sessions are discovered.
+Full-screen or mouse-using programs started by login files also stay open.
 
 Hold an arrow or Page Up/Down key to repeat it. Dragging sends wheel events when
 the remote program enables mouse input; otherwise it scrolls terminal history.

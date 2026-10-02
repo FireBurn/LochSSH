@@ -51,6 +51,9 @@ class TerminalBuffer(
     val scrollbackSize: Int
         get() = history.size
 
+    val isAlternateScreen: Boolean
+        get() = savedGrid != null
+
     val cursor: Pair<Int, Int>
         get() = cursorRow to cursorCol
 
