@@ -32,6 +32,49 @@ class HostEditorSaveAndroidTest {
     }
 
     @Test
+    fun savesReloadsAndDisablesPortKnocking() = runBlocking {
+        val id = database.sshHostDao().insert(SshHostEntity(name = "Test", host = "test.invalid"))
+        val editor = openEditor(id, "first")
+        assertNull(saveKnocking(editor, "7000,8000:udp", "150"))
+        val reopened = openEditor(id, "reopened")
+        instrumentation.runOnMainSync {
+            assertEquals("7000,8000:udp", reopened.host?.knockSequence)
+            assertEquals(150L, reopened.host?.knockPause)
+        }
+        assertEquals("Ports must be between 1 and 65535", saveKnocking(reopened, "65536", "150"))
+        assertEquals("7000,8000:udp", database.sshHostDao().getById(id)?.knockSequence)
+        assertNull(saveKnocking(reopened, "", "invalid"))
+        assertEquals("", database.sshHostDao().getById(id)?.knockSequence)
+        assertEquals(200L, database.sshHostDao().getById(id)?.knockPause)
+    }
+
+    private suspend fun openEditor(id: Long, key: String): HostEditorViewModel {
+        lateinit var editor: HostEditorViewModel
+        instrumentation.runOnMainSync {
+            editor = HostEditorViewModel(database.sshHostDao(), database.identityDao(), database.portForwardDao(), database)
+            store.put(key, editor)
+            editor.load(id)
+        }
+        withTimeout(5000) {
+            var loaded = false
+            while (!loaded) {
+                instrumentation.runOnMainSync { loaded = editor.loaded }
+                if (!loaded) delay(10)
+            }
+        }
+        return editor
+    }
+
+    private suspend fun saveKnocking(editor: HostEditorViewModel, sequence: String, pause: String): String? {
+        val finished = CompletableDeferred<String?>()
+        instrumentation.runOnMainSync {
+            editor.save("Test", "test.invalid", "22", "30", "", null, "",
+                RemoteSessionModes.SHELL, null, false, sequence, pause) { finished.complete(it) }
+        }
+        return withTimeout(5000) { finished.await() }
+    }
+
+    @Test
     fun savingARemovedHostDoesNotRecreateItsTunnels() = runBlocking {
         val hosts = database.sshHostDao()
         val tunnels = database.portForwardDao()
