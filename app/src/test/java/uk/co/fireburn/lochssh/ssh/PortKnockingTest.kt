@@ -33,6 +33,40 @@ class PortKnockingTest {
     }
 
     @Test
+    fun sendsTcpAndUdpOverIpv6Loopback() = runBlocking {
+        val address = InetAddress.getByName("::1")
+        ServerSocket(0, 1, address).use { tcp ->
+            DatagramSocket(0, address).use { udp ->
+                tcp.soTimeout = 3000
+                udp.soTimeout = 3000
+                PortKnocking.send("::1", listOf(
+                    KnockSequence.Step(tcp.localPort, KnockSequence.Protocol.TCP),
+                    KnockSequence.Step(udp.localPort, KnockSequence.Protocol.UDP)), 0)
+                tcp.accept().use { assertEquals(-1, it.getInputStream().read()) }
+                val packet = DatagramPacket(ByteArray(8), 8)
+                udp.receive(packet)
+                assertEquals(1, packet.length)
+                assertEquals(address, packet.address)
+            }
+        }
+    }
+
+    @Test
+    fun aRefusedTcpKnockDoesNotStopTheUdpKnock() = runBlocking {
+        val address = InetAddress.getByName("127.0.0.1")
+        val closedPort = ServerSocket(0, 1, address).use { it.localPort }
+        DatagramSocket(0, address).use { udp ->
+            udp.soTimeout = 3000
+            PortKnocking.send("127.0.0.1", listOf(
+                KnockSequence.Step(closedPort, KnockSequence.Protocol.TCP),
+                KnockSequence.Step(udp.localPort, KnockSequence.Protocol.UDP)), 0)
+            val packet = DatagramPacket(ByteArray(8), 8)
+            udp.receive(packet)
+            assertEquals(1, packet.length)
+        }
+    }
+
+    @Test
     fun keepsRepeatedStepsInOrder() = runBlocking {
         val steps = KnockSequence.parse("7000,8000:udp,7000")
         val sent = mutableListOf<KnockSequence.Step>()

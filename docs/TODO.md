@@ -475,14 +475,15 @@ checks listed below.
   or `:udp`, preserving order and repeated ports. Blank disables it. Three unit
   tests cover mixed protocols, boundaries and invalid input. The host editor
   now has an optional setting. The sender supports ordered TCP/UDP steps and
-  a pause between them. Three tests cover local listeners, repeated steps and
-  cancellation during a pause. New SSH transports send configured knocks before
+  a pause between them. Five tests cover IPv4/IPv6 local listeners, continuing
+  after a refused TCP knock, repeated steps and cancellation during a pause.
+  New SSH transports send configured knocks before
   connecting; shared transports do not repeat them. The saved pause accepts
   0–5000 milliseconds. Database version 10 defaults existing hosts to disabled;
   Android upgrade tests from versions 6–9 preserve hosts and store the new fields.
   Only directly reachable hosts and the first jump host support knocking;
   unreachable destinations in a jump chain are rejected instead of being knocked
-  from the phone. Check the editor, IPv6, startup cancellation, DNS delays,
+  from the phone. Check the editor, IPv6 on Android, startup cancellation, DNS delays,
   actual knockd rules and reconnecting shared transports on a device.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
   behavior. Implement it as a separate session type.
