@@ -8,6 +8,17 @@ import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 
 class RemoteSessionsTest {
     @Test
+    fun automaticCommandsRequireTheSelectedToolAndNeverRunForShellOrAsk() {
+        val both = RemoteSessionOptions(tmuxAvailable = true, screenAvailable = true)
+        assertEquals("tmux new-session -A -s lochssh", RemoteSessions.startupCommand(RemoteSessionModes.TMUX, both))
+        assertEquals("screen -A -d -RR", RemoteSessions.startupCommand(RemoteSessionModes.SCREEN, both))
+        assertEquals(null, RemoteSessions.startupCommand(RemoteSessionModes.TMUX, RemoteSessionOptions(screenAvailable = true)))
+        assertEquals(null, RemoteSessions.startupCommand(RemoteSessionModes.SCREEN, RemoteSessionOptions(tmuxAvailable = true)))
+        assertEquals(null, RemoteSessions.startupCommand(RemoteSessionModes.SHELL, both))
+        assertEquals(null, RemoteSessions.startupCommand(RemoteSessionModes.ASK, both))
+    }
+
+    @Test
     fun automaticStartupChecksOnlyTheSelectedTool() {
         for (mode in listOf(RemoteSessionModes.TMUX, RemoteSessionModes.SCREEN)) {
             val checked = mutableListOf<String>()

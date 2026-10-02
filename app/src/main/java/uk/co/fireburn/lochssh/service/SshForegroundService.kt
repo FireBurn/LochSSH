@@ -243,7 +243,7 @@ class SshForegroundService : Service() {
     ) {
         if (managers[sessionId] !== manager) return
         val options = try {
-            withContext(Dispatchers.IO) {
+            manager.startupOptions ?: withContext(Dispatchers.IO) {
                 RemoteSessions.startupOptions(config.remoteSessionMode,
                     manager::remoteSessionAvailable, manager::discoverRemoteSessions)
             }
@@ -254,14 +254,7 @@ class SshForegroundService : Service() {
             RemoteSessionOptions(error = "Could not check remote sessions")
         }
         if (managers[sessionId] !== manager) return
-        val command = when (config.remoteSessionMode) {
-            RemoteSessionModes.TMUX -> if (options.tmuxAvailable) RemoteSessions.automatic(RemoteSessionModes.TMUX) else null
-            RemoteSessionModes.SCREEN -> if (options.screenAvailable) RemoteSessions.automatic(RemoteSessionModes.SCREEN) else null
-            else -> null
-        }
-        if (command != null) {
-            manager.write((command + "\n").toByteArray(Charsets.UTF_8))
-        } else {
+        if (RemoteSessions.startupCommand(config.remoteSessionMode, options) == null) {
             val missing = when (config.remoteSessionMode) {
                 RemoteSessionModes.TMUX -> "tmux is not installed"
                 RemoteSessionModes.SCREEN -> "Screen is not installed"

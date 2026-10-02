@@ -17,6 +17,8 @@ checks listed below.
   A missing terminal record now offers Manage hosts rather than an empty grid.
   Explicit remote-session commands use an SSH command request with a terminal,
   not text typed into a login shell which may already have attached tmux.
+  Automatic screen/tmux startup now uses the same command-request path after
+  checking the selected tool. The shell remains available when it is missing.
   A local SSH test runs a command with a terminal and confirms its input only
   receives the subsequent user bytes. A registry test checks the attach target
   survives failed connections, reopening and service failure.

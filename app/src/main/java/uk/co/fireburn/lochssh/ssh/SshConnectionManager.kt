@@ -57,6 +57,9 @@ class SshConnectionManager(
     @Volatile
     private var running = false
 
+    var startupOptions: RemoteSessionOptions? = null
+        private set
+
     val isConnected: Boolean
         get() = session?.isConnected == true
 
@@ -158,7 +161,8 @@ class SshConnectionManager(
 
     private fun openShell(s: Session) {
         val initialSize = windowSize.get()
-        val ch = TerminalChannel.open(s, startupCommand, initialSize.first, initialSize.second, config.agentForwarding)
+        val command = startupCommand ?: automaticCommand()
+        val ch = TerminalChannel.open(s, command, initialSize.first, initialSize.second, config.agentForwarding)
         channel = ch
         connectingChannels.add(ch)
         // Both streams have to be taken before connect, or jsch wires up its
@@ -191,6 +195,14 @@ class SshConnectionManager(
                 }
             )
         }
+    }
+
+    private fun automaticCommand(): String? {
+        val mode = config.remoteSessionMode
+        if (mode != RemoteSessionModes.TMUX && mode != RemoteSessionModes.SCREEN) return null
+        val options = RemoteSessions.startupOptions(mode, ::remoteSessionAvailable, ::discoverRemoteSessions)
+        startupOptions = options
+        return RemoteSessions.startupCommand(mode, options)
     }
 
     fun write(bytes: ByteArray) {

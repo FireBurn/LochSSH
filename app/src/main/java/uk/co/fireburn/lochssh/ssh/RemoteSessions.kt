@@ -17,6 +17,12 @@ data class RemoteSessionOptions(
 )
 
 object RemoteSessions {
+    fun startupCommand(mode: String, options: RemoteSessionOptions): String? = when (mode) {
+        RemoteSessionModes.TMUX -> if (options.tmuxAvailable) automatic(mode) else null
+        RemoteSessionModes.SCREEN -> if (options.screenAvailable) automatic(mode) else null
+        else -> null
+    }
+
     fun startupOptions(mode: String, available: (String) -> Boolean,
         discover: () -> RemoteSessionOptions): RemoteSessionOptions = when (mode) {
         RemoteSessionModes.TMUX -> RemoteSessionOptions(tmuxAvailable = available(mode))
