@@ -13,8 +13,9 @@ checks listed below.
 - Check bulk remote-session connection and recovery on a device. The remote
   session chooser now offers Connect all and avoids duplicating open targets.
   It also reuses dropped rows instead of adding a second row, and recognizes
-  Screen targets despite changes in their attached/detached state. Three unit
-  tests cover row reuse, opening connections and targets on another host.
+  Screen targets despite changes in their attached/detached state. Five unit
+  tests cover row reuse, opening connections, targets on another host,
+  preserving server-key review and preferring an opening row over a failed one.
   The session drawer offers Reconnect all dropped sessions. Failed connections
   retain their host and attach command; explicit disconnect removes the entry.
   A missing terminal record now offers Manage hosts rather than an empty grid.
