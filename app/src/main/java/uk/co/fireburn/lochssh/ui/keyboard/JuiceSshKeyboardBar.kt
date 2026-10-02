@@ -37,7 +37,7 @@ fun JuiceSshKeyboardBar(
     applicationCursor: () -> Boolean = { false },
     modifier: Modifier = Modifier
 ) {
-    fun emit(button: KeyboardButton) {
+    fun emit(button: KeyboardButton, clearModifiers: Boolean = true) {
         when (button.action) {
             KeyboardAction.CTRL -> modifiers.ctrl = !modifiers.ctrl
             KeyboardAction.ALT -> modifiers.alt = !modifiers.alt
@@ -50,7 +50,7 @@ fun JuiceSshKeyboardBar(
                     TerminalKeyEncoder.encode(key, modifiers.ctrl, modifiers.alt, modifiers.fn,
                         applicationCursor())?.let(onSend)
                 }
-                modifiers.clear()
+                if (clearModifiers) modifiers.clear()
             }
         }
     }
@@ -74,7 +74,12 @@ fun JuiceSshKeyboardBar(
                             KeyboardAction.FN -> modifiers.fn
                             else -> false
                         }
-                        Key(button.label, Modifier.weight(1f), active) { emit(button) }
+                        val repeats = button.action in setOf(KeyboardAction.UP, KeyboardAction.DOWN,
+                            KeyboardAction.LEFT, KeyboardAction.RIGHT, KeyboardAction.PAGE_UP,
+                            KeyboardAction.PAGE_DOWN)
+                        Key(button.label, Modifier.weight(1f), active, repeats, modifiers::clear) {
+                            emit(button, clearModifiers = !repeats)
+                        }
                     }
                 }
             }
@@ -87,11 +92,21 @@ private fun Key(
     label: String,
     modifier: Modifier = Modifier,
     active: Boolean = false,
+    repeats: Boolean = false,
+    onRelease: () -> Unit = {},
     onClick: () -> Unit
 ) {
+    val keyModifier = modifier.height(40.dp).repeatingKey(repeats, onRelease, onClick)
+    val colour = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
+    val contentColour = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+    if (repeats) {
+        Surface(modifier = keyModifier, shape = RoundedCornerShape(6.dp),
+            color = colour, contentColor = contentColour) { KeyLabel(label) }
+        return
+    }
     Surface(
         onClick = onClick,
-        modifier = modifier.height(40.dp),
+        modifier = keyModifier,
         shape = RoundedCornerShape(6.dp),
         color = if (active) {
             MaterialTheme.colorScheme.primary
@@ -113,6 +128,14 @@ private fun Key(
                 fontSize = 11.sp
             )
         }
+    }
+}
+
+@Composable
+private fun KeyLabel(label: String) {
+    Box(contentAlignment = Alignment.Center) {
+        Text(label, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center,
+            maxLines = 1, fontSize = 11.sp)
     }
 }
 
