@@ -471,6 +471,13 @@ checks listed below.
   keys are encoded too; three Android tests pass on the phone. Check physical
   keyboard input and application shortcuts in a live terminal.
 - Add port knocking and a lightweight remote performance view.
+  The port-sequence parser accepts comma-separated ports with optional `:tcp`
+  or `:udp`, preserving order and repeated ports. Blank disables it. Three unit
+  tests cover mixed protocols, boundaries and invalid input. This does not
+  yet send packets or expose a host setting. Add saved opt-in configuration,
+  timing, cancellation, IPv6 and local TCP/UDP tests before enabling it.
+  Define how jump hosts and shared SSH connections affect knocking; do not
+  silently send knocks to an unreachable destination from the phone.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
   behavior. Implement it as a separate session type.
 - Add Telnet, serial connections, split terminals, and opt-in encrypted
