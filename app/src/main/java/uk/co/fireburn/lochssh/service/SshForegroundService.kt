@@ -114,10 +114,11 @@ class SshForegroundService : Service() {
         val attempt = ConnectionAttempt(
             sessionId, hostId, UUID.randomUUID().toString(),
             intent?.getStringExtra(EXTRA_REMOTE_COMMAND)?.takeIf { it.length <= 1024 && '\n' !in it && '\r' !in it }
+                ?: registry.find(sessionId)?.remoteCommand
         )
         attempts.put(sessionId, attempt)?.let(::cancelAttempt)
         history.started(attempt.token, hostId)
-        registry.opening(sessionId, hostId, "Host")
+        registry.opening(sessionId, hostId, "Host", attempt.remoteCommand)
         scope.launch { connect(attempt) }
         return Service.START_NOT_STICKY
     }
@@ -175,6 +176,7 @@ class SshForegroundService : Service() {
                     context = this@SshForegroundService,
                     config = config,
                     sharedConnection = shared,
+                    startupCommand = attempt.remoteCommand,
                     onTitle = { title -> scope.launch { onSessionTitle(sessionId, manager, title) } },
                     onForwardError = { message ->
                         scope.launch { onForwardError(sessionId, manager, message) }
@@ -202,7 +204,8 @@ class SshForegroundService : Service() {
             managers[sessionId] = connected.manager
             connectedTokens[sessionId] = attempt.token
             history.connected(attempt.token)
-            val initialCommand = attempt.remoteCommand ?: connected.config.autoCommand.takeIf {
+            val initialCommand = connected.config.autoCommand.takeIf {
+                attempt.remoteCommand == null &&
                 connected.config.remoteSessionMode == RemoteSessionModes.SHELL && it.isNotBlank()
             }
             initialCommand?.let {
@@ -285,14 +288,16 @@ class SshForegroundService : Service() {
     private fun onSessionExit(sessionId: Long, manager: SshConnectionManager, code: Int) {
         if (managers[sessionId] !== manager && attempts[sessionId]?.manager !== manager) return
         Log.i(TAG, "Session $sessionId exited with code $code")
-        endSession(sessionId)
+        endSession(sessionId, if (code == 0) null else "Connection closed (exit code $code)")
     }
 
-    private fun endSession(sessionId: Long) {
+    private fun endSession(sessionId: Long, error: String? = null) {
         attempts.remove(sessionId)?.let(::cancelAttempt)
         managers.remove(sessionId)?.disconnect()
-        connectedTokens.remove(sessionId)?.let { history.finished(it, ConnectionStates.ENDED) }
-        registry.remove(sessionId)
+        connectedTokens.remove(sessionId)?.let {
+            history.finished(it, if (error == null) ConnectionStates.ENDED else ConnectionStates.FAILED)
+        }
+        if (error == null) registry.remove(sessionId) else registry.failed(sessionId, error)
         NotificationManagerCompat.from(this).cancel(sessionNotificationId(sessionId))
         stopIfIdle()
     }

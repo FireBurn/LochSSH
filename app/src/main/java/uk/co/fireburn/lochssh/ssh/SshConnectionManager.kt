@@ -2,7 +2,7 @@ package uk.co.fireburn.lochssh.ssh
 
 import android.content.Context
 import android.util.Log
-import com.jcraft.jsch.ChannelShell
+import com.jcraft.jsch.Channel
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Session
@@ -23,6 +23,7 @@ class SshConnectionManager(
     private val context: Context,
     private val config: SshConnectionConfig,
     private val sharedConnection: SshConnectionManager? = null,
+    private val startupCommand: String? = null,
     private val onTitle: (String) -> Unit = {},
     private val onForwardError: (String) -> Unit = {},
     private val onExit: (code: Int) -> Unit
@@ -42,7 +43,7 @@ class SshConnectionManager(
     private var session: Session? = null
     private val jumps = mutableListOf<Session>()
     @Volatile
-    private var channel: ChannelShell? = null
+    private var channel: Channel? = null
     private var readerThread: Thread? = null
     @Volatile
     private var remoteOut: OutputStream? = null
@@ -156,14 +157,10 @@ class SshConnectionManager(
     }
 
     private fun openShell(s: Session) {
-        val ch = s.openChannel(CHANNEL_SHELL) as ChannelShell
+        val initialSize = windowSize.get()
+        val ch = TerminalChannel.open(s, startupCommand, initialSize.first, initialSize.second, config.agentForwarding)
         channel = ch
         connectingChannels.add(ch)
-        ch.setAgentForwarding(config.agentForwarding)
-        ch.setPty(true)
-        val initialSize = windowSize.get()
-        ch.setPtyType(PTY_TYPE, initialSize.first, initialSize.second, 0, 0)
-        ch.setEnv("TERM", PTY_TYPE)
         // Both streams have to be taken before connect, or jsch wires up its
         // own and the keyboard has nothing to write to.
         val inStream = ch.inputStream
@@ -280,12 +277,12 @@ class SshConnectionManager(
         queueResize(ch)
     }
 
-    private fun queueResize(ch: ChannelShell) {
+    private fun queueResize(ch: Channel) {
         try {
             writer?.execute {
                 try {
                     val size = windowSize.get()
-                    ch.setPtySize(size.first, size.second, 0, 0)
+                    TerminalChannel.resize(ch, size.first, size.second)
                 } catch (e: Exception) {
                     Log.w(TAG, "Window change for ${config.host} failed", e)
                 }

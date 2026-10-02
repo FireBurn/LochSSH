@@ -8,6 +8,20 @@ import org.junit.Test
 
 class SessionRegistryTest {
     @Test
+    fun retryKeepsTheRemoteSessionTarget() {
+        val registry = SessionRegistry()
+        val id = registry.newId()
+        val command = "tmux attach-session -t '\$1'"
+        registry.opening(id, 1, "host", command)
+        registry.failed(id, "Connection lost")
+        assertEquals(command, registry.find(id)?.remoteCommand)
+        registry.opening(id, 1, "host")
+        assertEquals(command, registry.find(id)?.remoteCommand)
+        registry.closeSessions(setOf(id), "Service stopped")
+        assertEquals(command, registry.find(id)?.remoteCommand)
+    }
+
+    @Test
     fun removesOpeningSessionsWhenTheServiceStops() {
         val registry = SessionRegistry()
         registry.opening(1, 10, "First")

@@ -3,13 +3,25 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 1 October checks pass: build, lint, 252 local tests with real SSH/SFTP and
-IPv6 enabled, and 60 Android 13 tests. One Android 14+ test is skipped. This
+The 2 October checks pass: build, lint, 257 local tests with real SSH/SFTP and
+IPv6 enabled, and 61 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
 ## Fix before wider use
 
+- Check bulk remote-session connection and recovery on a device. The remote
+  session chooser now offers Connect all and avoids duplicating open targets.
+  The session drawer offers Reconnect all dropped sessions. Failed connections
+  retain their host and attach command; explicit disconnect removes the entry.
+  A missing terminal record now offers Manage hosts rather than an empty grid.
+  Explicit remote-session commands use an SSH command request with a terminal,
+  not text typed into a login shell which may already have attached tmux.
+  A local SSH test runs a command with a terminal and confirms its input only
+  receives the subsequent user bytes. A registry test checks the attach target
+  survives failed connections, reopening and service failure.
+  Check quark's startup files, reception loss, duplicate taps, multiple hosts,
+  server-key approval, reconnecting screen and tmux, and app process recreation.
 - Retest attaching tmux on the phone. Two captured crashes came from drawing
   text outside the terminal's visible area. Text is now measured before drawing;
   an Android test covers drawing beyond each edge without crashing.

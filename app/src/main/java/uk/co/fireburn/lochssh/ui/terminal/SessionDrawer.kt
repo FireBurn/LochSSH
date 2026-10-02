@@ -27,6 +27,7 @@ fun SessionDrawer(
     currentId: Long,
     onSelect: (Long) -> Unit,
     onHosts: () -> Unit,
+    onReconnectAll: () -> Unit = {},
     content: @Composable (open: () -> Unit) -> Unit
 ) {
     val drawer = rememberDrawerState(DrawerValue.Closed)
@@ -41,6 +42,9 @@ fun SessionDrawer(
                     onHosts()
                 }) { Text("Manage hosts") }
                 HorizontalDivider()
+                if (sessions.any { !it.isConnected && it.error != null && it.hostKeyReview == null }) {
+                    TextButton(onClick = onReconnectAll) { Text("Reconnect all dropped sessions") }
+                }
                 LazyColumn {
                     items(sessions, key = { it.id }) { session ->
                         NavigationDrawerItem(

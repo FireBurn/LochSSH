@@ -19,7 +19,8 @@ class SessionRegistry @Inject constructor() {
         val title: String? = null,
         val remoteOptions: RemoteSessionOptions? = null,
         val forwardWarnings: List<String> = emptyList(),
-        val hostKeyReview: SavedHostKey? = null
+        val hostKeyReview: SavedHostKey? = null,
+        val remoteCommand: String? = null
     ) {
         // What a terminal would put on the tab, falling back to the host.
         val label: String get() = title?.takeIf { it.isNotBlank() } ?: hostName
@@ -48,8 +49,9 @@ class SessionRegistry @Inject constructor() {
 
     fun newId(): Long = nextId.getAndIncrement()
 
-    fun opening(id: Long, hostId: Long, hostName: String) = update(id) {
-        Session(id = id, hostId = hostId, hostName = hostName)
+    fun opening(id: Long, hostId: Long, hostName: String, remoteCommand: String? = null) = update(id) {
+        Session(id = id, hostId = hostId, hostName = hostName,
+            remoteCommand = remoteCommand ?: it?.remoteCommand)
     }
 
     fun connected(id: Long, manager: SshConnectionManager) = update(id) {

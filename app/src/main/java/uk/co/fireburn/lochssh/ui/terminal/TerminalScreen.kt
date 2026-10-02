@@ -273,6 +273,24 @@ fun TerminalScreen(
                             Text("$tool: ${entry.name} ($state)")
                         }
                     }
+                    if (options.sessions.isNotEmpty()) {
+                        TextButton(onClick = {
+                            val hostId = session?.hostId ?: return@TextButton
+                            val commands = options.sessions.map(RemoteSessions::attach).distinct()
+                            viewModel.dismissRemoteSessions()
+                            var firstId: Long? = null
+                            commands.forEach { command ->
+                                val existing = sessions.firstOrNull {
+                                    it.hostId == hostId && it.remoteCommand == command && it.error == null
+                                }
+                                val id = existing?.id ?: viewModel.newSessionId().also {
+                                    SshForegroundService.start(context, hostId, it, command)
+                                }
+                                if (firstId == null) firstId = id
+                            }
+                            firstId?.let(onSwitchSession)
+                        }) { Text("Connect all remote sessions") }
+                    }
                     if (options.tmuxAvailable) {
                         TextButton(onClick = { openRemoteSession(RemoteSessions.create(RemoteSessionModes.TMUX)) }) {
                             Text("New tmux session")
@@ -318,7 +336,11 @@ fun TerminalScreen(
         else if (hadSession) leave()
     }
 
-    SessionDrawer(sessions, sessionId, onSwitchSession, onHosts) { openSessions ->
+    SessionDrawer(sessions, sessionId, onSwitchSession, onHosts, onReconnectAll = {
+        sessions.filter { !it.isConnected && it.error != null && it.hostKeyReview == null }.forEach {
+            SshForegroundService.start(context, it.hostId, it.id, it.remoteCommand)
+        }
+    }) { openSessions ->
         Scaffold(
             // Only the top inset: the content pads itself against whichever of the
             // keyboard or the navigation bar is taller, so the bar sits on the keyboard.
@@ -436,7 +458,7 @@ fun TerminalScreen(
                         .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
                 ) {
                     val error = session?.error
-                    if (error != null && manager == null) {
+                    if (session == null || (error != null && manager == null)) {
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -446,13 +468,17 @@ fun TerminalScreen(
                             verticalArrangement = Arrangement.Center
                         ) {
                             Text(
-                                error,
+                                error ?: "This connection is no longer available.",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.error
                             )
                             TextButton(onClick = {
-                                session?.let { SshForegroundService.start(context, it.hostId, it.id) }
-                            }) { Text("Retry") }
+                                session?.let { SshForegroundService.start(context, it.hostId, it.id, it.remoteCommand) }
+                                    ?: onHosts()
+                            }) { Text(if (session == null) "Manage hosts" else "Reconnect") }
+                            if (session != null) {
+                                TextButton(onClick = onHosts) { Text("Manage hosts") }
+                            }
                         }
                     } else {
                         TerminalView(
