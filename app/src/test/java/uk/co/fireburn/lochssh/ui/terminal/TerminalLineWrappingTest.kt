@@ -39,6 +39,24 @@ class TerminalLineWrappingTest {
     }
 
     @Test
+    fun clippedCharactersDoNotAddTheirMarksToVisibleText() {
+        val buffer = TerminalBuffer(5, 3)
+        buffer.setLineWrapping(false)
+        buffer.feed("12345x\u0301\u0308")
+        assertEquals("12345", buffer.visibleRowText(0, 0, 5, 0))
+        buffer.feed("\re\u0301")
+        assertEquals("e\u0301" + "2345", buffer.visibleRowText(0, 0, 5, 0))
+    }
+
+    @Test
+    fun marksOnTheLastVisibleCharacterAreKept() {
+        val buffer = TerminalBuffer(5, 3)
+        buffer.setLineWrapping(false)
+        buffer.feed("1234e\u0301")
+        assertEquals("1234e\u0301", buffer.visibleRowText(0, 0, 5, 0))
+    }
+
+    @Test
     fun clipsLongProgressLinesUntilCarriageReturn() {
         val buffer = TerminalBuffer(5, 3)
         buffer.setLineWrapping(false)

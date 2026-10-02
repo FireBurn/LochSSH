@@ -18,6 +18,7 @@ class TerminalBuffer(
     private var inverse = false
     private var wraparound = true
     private var lineWrapping = true
+    private var clippedCharacter = false
 
     fun setLineWrapping(enabled: Boolean) {
         synchronized(lock) { lineWrapping = enabled }
@@ -315,6 +316,7 @@ class TerminalBuffer(
 
     private fun controlOrPrint(b: Int) {
         if (b < 0x20 || b == 0x7F) utf8.finish()
+        if (b < 0x20 || b == 0x7F) clippedCharacter = false
         when (b) {
             0x07 -> Unit // bell
             0x08 -> cursorCol = (cursorCol.coerceAtMost(cols - 1) - 1).coerceAtLeast(0)
@@ -330,11 +332,15 @@ class TerminalBuffer(
 
     private fun putCodePoint(code: Int) {
         if (TerminalWidth.columns(code) == 0) {
-            appendMark(code)
+            if (!clippedCharacter) appendMark(code)
             return
         }
+        clippedCharacter = false
         if (cursorCol >= cols) {
-            if (!lineWrapping) return
+            if (!lineWrapping) {
+                clippedCharacter = true
+                return
+            }
             if (wraparound) {
                 cursorCol = 0
                 lineFeed()
@@ -348,7 +354,10 @@ class TerminalBuffer(
             text = "\uFFFD"
         }
         if (cursorCol + width > cols) {
-            if (!wraparound || !lineWrapping) return
+            if (!wraparound || !lineWrapping) {
+                clippedCharacter = true
+                return
+            }
             clearCell(grid[cursorRow], cursorCol)
             cursorCol = 0
             lineFeed()
