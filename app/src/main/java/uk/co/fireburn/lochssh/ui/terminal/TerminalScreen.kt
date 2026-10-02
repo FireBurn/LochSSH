@@ -57,6 +57,7 @@ import kotlinx.coroutines.delay
 import uk.co.fireburn.lochssh.service.SshForegroundService
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import uk.co.fireburn.lochssh.ssh.RemoteSessions
+import uk.co.fireburn.lochssh.ssh.RemoteSessionConnections
 import uk.co.fireburn.lochssh.ui.keyboard.ImeKeyEncoder
 import uk.co.fireburn.lochssh.ui.keyboard.JuiceSshKeyboardBar
 import uk.co.fireburn.lochssh.ui.keyboard.TerminalEditText
@@ -276,19 +277,13 @@ fun TerminalScreen(
                     if (options.sessions.isNotEmpty()) {
                         TextButton(onClick = {
                             val hostId = session?.hostId ?: return@TextButton
-                            val commands = options.sessions.map(RemoteSessions::attach).distinct()
+                            val connections = RemoteSessionConnections.plan(hostId, options.sessions,
+                                sessions, viewModel::newSessionId)
                             viewModel.dismissRemoteSessions()
-                            var firstId: Long? = null
-                            commands.forEach { command ->
-                                val existing = sessions.firstOrNull {
-                                    it.hostId == hostId && it.remoteCommand == command && it.error == null
-                                }
-                                val id = existing?.id ?: viewModel.newSessionId().also {
-                                    SshForegroundService.start(context, hostId, it, command)
-                                }
-                                if (firstId == null) firstId = id
+                            connections.filter { it.connect }.forEach {
+                                SshForegroundService.start(context, hostId, it.id, it.command)
                             }
-                            firstId?.let(onSwitchSession)
+                            connections.firstOrNull()?.id?.let(onSwitchSession)
                         }) { Text("Connect all remote sessions") }
                     }
                     if (options.tmuxAvailable) {
