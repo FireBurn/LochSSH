@@ -474,8 +474,10 @@ checks listed below.
   The port-sequence parser accepts comma-separated ports with optional `:tcp`
   or `:udp`, preserving order and repeated ports. Blank disables it. Three unit
   tests cover mixed protocols, boundaries and invalid input. This does not
-  yet send packets or expose a host setting. Add saved opt-in configuration,
-  timing, cancellation, IPv6 and local TCP/UDP tests before enabling it.
+  yet expose a host setting. The sender supports ordered TCP/UDP steps and
+  a pause between them. Three tests cover local listeners, repeated steps and
+  cancellation during a pause. It is not wired into SSH startup. Add saved
+  opt-in configuration, IPv6 checks and startup cancellation before enabling it.
   Define how jump hosts and shared SSH connections affect knocking; do not
   silently send knocks to an unreachable destination from the phone.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
