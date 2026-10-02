@@ -44,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
 import uk.co.fireburn.lochssh.service.SshForegroundService
+import uk.co.fireburn.lochssh.ui.terminal.ReconnectAllButton
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,6 +97,11 @@ fun HostListScreen(
                 item(key = "sessions") {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Sessions", style = MaterialTheme.typography.titleSmall)
+                        ReconnectAllButton(sessions.any { it.canReconnect }) {
+                            sessions.filter { it.canReconnect }.forEach {
+                                SshForegroundService.start(context, it.hostId, it.id, it.remoteCommand)
+                            }
+                        }
                         sessions.forEach { session ->
                             Card(
                                 onClick = { onResumeSession(session.id) },

@@ -42,9 +42,7 @@ fun SessionDrawer(
                     onHosts()
                 }) { Text("Manage hosts") }
                 HorizontalDivider()
-                if (sessions.any { !it.isConnected && it.error != null && it.hostKeyReview == null }) {
-                    TextButton(onClick = onReconnectAll) { Text("Reconnect all dropped sessions") }
-                }
+                ReconnectAllButton(sessions.any { it.canReconnect }, onReconnectAll)
                 LazyColumn {
                     items(sessions, key = { it.id }) { session ->
                         NavigationDrawerItem(

@@ -8,6 +8,15 @@ import org.junit.Test
 
 class SessionRegistryTest {
     @Test
+    fun reconnectIsOffWhileConnectingOrReviewingAServerKey() {
+        val opening = SessionRegistry.Session(1, 2, "host")
+        assertFalse(opening.canReconnect)
+        val failed = opening.copy(error = "Disconnected")
+        assertTrue(failed.canReconnect)
+        assertFalse(failed.copy(hostKeyReview = SavedHostKey("host", "type", "fingerprint", "key")).canReconnect)
+    }
+
+    @Test
     fun retryKeepsTheRemoteSessionTarget() {
         val registry = SessionRegistry()
         val id = registry.newId()

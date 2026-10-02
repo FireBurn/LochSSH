@@ -26,6 +26,7 @@ class SessionRegistry @Inject constructor() {
         val label: String get() = title?.takeIf { it.isNotBlank() } ?: hostName
 
         val isConnected: Boolean get() = manager?.isConnected == true
+        val canReconnect: Boolean get() = !isConnected && error != null && hostKeyReview == null
 
         val statusText: String get() = when {
             hostKeyReview != null -> "Server key approval needed"

@@ -16,7 +16,9 @@ checks listed below.
   Screen targets despite changes in their attached/detached state. Five unit
   tests cover row reuse, opening connections, targets on another host,
   preserving server-key review and preferring an opening row over a failed one.
-  The session drawer offers Reconnect all dropped sessions. Failed connections
+  The main host list and session drawer offer Reconnect all dropped sessions,
+  sharing the same button and eligibility rule. A unit test checks that opening
+  connections and server-key reviews cannot reconnect. Failed connections
   retain their host and attach command; explicit disconnect removes the entry.
   A missing terminal record now offers Manage hosts rather than an empty grid.
   Explicit remote-session commands use an SSH command request with a terminal,

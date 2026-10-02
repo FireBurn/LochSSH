@@ -332,7 +332,7 @@ fun TerminalScreen(
     }
 
     SessionDrawer(sessions, sessionId, onSwitchSession, onHosts, onReconnectAll = {
-        sessions.filter { !it.isConnected && it.error != null && it.hostKeyReview == null }.forEach {
+        sessions.filter { it.canReconnect }.forEach {
             SshForegroundService.start(context, it.hostId, it.id, it.remoteCommand)
         }
     }) { openSessions ->
