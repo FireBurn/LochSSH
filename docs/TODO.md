@@ -3,13 +3,33 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 2 October checks pass: build, lint, 270 local tests with real SSH/SFTP and
-IPv6 enabled, and 63 Android 13 tests. One Android 14+ test is skipped. This
+The 2 October checks pass: build, lint, 278 local tests with real SSH/SFTP and
+IPv6 enabled, and 68 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
 ## Fix before wider use
 
+- Check held navigation keys, touch scrolling and screen-off recovery on the phone.
+  Arrows and Page Up/Down repeat after a 400 ms hold, then every 80 ms, stopping
+  on release. Remote mouse modes 1000/1002/1003 enable touch wheel events; mode
+  1006 selects the text coordinate format. Without mouse input, dragging still
+  scrolls local history. Check Claude Code, tmux mouse settings, Screen, selection,
+  cancellation and switching sessions while a key is held.
+  Two Android tests cover arrow repetition stopping on release and a short page
+  key tap. Two unit tests check wheel encoding and requested modes/reset.
+  The host editor has Find and connect all remote sessions. Discovery includes
+  tmux's active command and window name. Remote names remain visible after host
+  title updates and reconnecting. Unused shells close only after a replacement
+  connects; shells with sent input stay open. A missing registry entry returns to
+  the host list. The terminal menu opens Background connections settings.
+  Two Android tests check missing connections returning to hosts and dropped
+  connections offering Reconnect and Manage hosts. Four unit tests cover tmux
+  descriptions, connect-all discovery and preserving remote names/replacements.
+  Phone exit history on 2 October showed repeated system kills and no LochSSH
+  battery exemption. Keep-alives already default to 30 seconds. Check recovery
+  after an actual process kill and screen-off behaviour with an approved exemption;
+  an exemption cannot prevent every vendor or Android system limit.
 - Check bulk remote-session connection and recovery on a device. The remote
   session chooser now offers Connect all and avoids duplicating open targets.
   It also reuses dropped rows instead of adding a second row, and recognizes
@@ -483,7 +503,9 @@ checks listed below.
   Android upgrade tests from versions 6–9 preserve hosts and store the new fields.
   Only directly reachable hosts and the first jump host support knocking;
   unreachable destinations in a jump chain are rejected instead of being knocked
-  from the phone. Check the editor, IPv6 on Android, startup cancellation, DNS delays,
+  from the phone. An Android editor test checks saving/reopening settings, rejecting
+  invalid ports without changing stored data, and disabling knocking with an invalid
+  hidden pause. Check editor field interaction, IPv6 on Android, startup cancellation, DNS delays,
   actual knockd rules and reconnecting shared transports on a device.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
   behavior. Implement it as a separate session type.

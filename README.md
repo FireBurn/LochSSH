@@ -59,12 +59,32 @@ battery optimization. Request battery exemption opens an Android prompt; nothing
 is requested automatically. If the prompt is unavailable, the app opens battery
 settings or its Android app settings instead.
 
+The terminal menu also has a Background connections shortcut. SSH keep-alives
+default to 30 seconds; change the interval in the host editor. They cannot prevent
+Android from killing the app. If Android removes the connection, reopen the host
+and find its remote sessions again.
+
 Allowing background access may use more battery. Other system limits, network
 changes and remote timeouts can still close a connection.
 
 ## Remote tmux and screen
 
-In the host editor, choose **Shell**, **Ask**, **Auto tmux**, or **Auto screen**. Shell opens a normal shell and can run a saved command. Ask checks for tmux and Screen on each connection and offers existing sessions or a new one. Auto tmux attaches to or creates a session named `lochssh`; Auto screen resumes a session or creates one. Open **Remote sessions** from the terminal menu to list sessions. Attaching or creating a session sends a command to the current terminal; use it at a shell prompt, not while another program is running.
+In the host editor, choose Shell, Ask, Auto tmux, Auto screen, or Find and connect
+all remote sessions. Shell opens a normal shell and can run a saved command. Ask
+lists existing sessions and offers a new one. Auto tmux attaches to or creates a
+session named `lochssh`; Auto screen resumes a session or creates one. Find and
+connect all opens each discovered remote session in its own terminal, sharing the
+SSH connection. If none are found, keep using the shell.
+
+Open Remote sessions from the terminal menu to list sessions. Attaching or creating
+one opens a separate terminal; it never types the attach command into the current
+program. An unused shell closes after the new connection succeeds. A shell where
+you have sent input stays open. Tmux names include the active program and window;
+these descriptions are read when sessions are discovered.
+
+Hold an arrow or Page Up/Down key to repeat it. Dragging sends wheel events when
+the remote program enables mouse input; otherwise it scrolls terminal history.
+Tmux may require its `mouse` option to be enabled to pass wheel events through.
 
 ## Jump hosts and agent forwarding
 
