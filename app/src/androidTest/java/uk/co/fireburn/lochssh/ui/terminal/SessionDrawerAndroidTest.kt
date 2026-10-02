@@ -32,6 +32,26 @@ class SessionDrawerAndroidTest {
     )
 
     @Test
+    fun reconnectControlCallsBackAndDisappearsWhenNothingIsDropped() {
+        val rows = mutableStateOf(sessions)
+        var retries = 0
+        ui.setContent {
+            MaterialTheme {
+                SessionDrawer(rows.value, 11, {}, {}, onReconnectAll = { retries++ }) { open ->
+                    TextButton(onClick = open) { Text("Switch session") }
+                }
+            }
+        }
+        ui.onNodeWithText("Switch session").performClick()
+        ui.onNodeWithText("Reconnect all dropped sessions").performClick()
+        ui.runOnIdle {
+            assertEquals(1, retries)
+            rows.value = sessions.take(1)
+        }
+        ui.onNodeWithText("Reconnect all dropped sessions").assertDoesNotExist()
+    }
+
+    @Test
     fun showsStatusAndSelectsAnExistingSession() {
         var selected: Long? = null
         ui.setContent {

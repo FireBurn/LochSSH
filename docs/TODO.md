@@ -20,6 +20,8 @@ checks listed below.
   A local SSH test runs a command with a terminal and confirms its input only
   receives the subsequent user bytes. A registry test checks the attach target
   survives failed connections, reopening and service failure.
+  Four Android 13 drawer tests pass, including tapping Reconnect all and hiding
+  its button once no dropped sessions remain.
   Check quark's startup files, reception loss, duplicate taps, multiple hosts,
   server-key approval, reconnecting screen and tmux, and app process recreation.
 - Retest attaching tmux on the phone. Two captured crashes came from drawing
