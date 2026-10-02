@@ -123,17 +123,28 @@ fun TerminalView(
     Canvas(
         modifier = modifier
             .onSizeChanged { canvasSize = it }
-            .pointerInput(metrics.height) {
+            .pointerInput(metrics.width, metrics.height, buffer, manager) {
                 var dragged = 0f
                 detectVerticalDragGestures(
                     onDragEnd = { dragged = 0f },
+                    onDragCancel = { dragged = 0f },
                     onVerticalDrag = { change, amount ->
                         change.consume()
                         dragged += amount
                         val lines = (dragged / metrics.height).toInt()
                         if (lines != 0) {
-                            scrollOffset.intValue = buffer.read {
-                                (scrollOffset.intValue + lines).coerceIn(0, buffer.scrollbackSize)
+                            val wheel = buffer.read {
+                                if (buffer.mouseTracking && scrollOffset.intValue == 0) {
+                                    val point = pointAt(change.position, metrics, buffer)
+                                    TerminalMouse.wheel(lines > 0, point.col, point.row, buffer.mouseSgr)
+                                } else null
+                            }
+                            if (wheel != null) {
+                                repeat(kotlin.math.abs(lines).coerceAtMost(32)) { manager?.write(wheel) }
+                            } else {
+                                scrollOffset.intValue = buffer.read {
+                                    (scrollOffset.intValue + lines).coerceIn(0, buffer.scrollbackSize)
+                                }
                             }
                             dragged -= lines * metrics.height
                         }

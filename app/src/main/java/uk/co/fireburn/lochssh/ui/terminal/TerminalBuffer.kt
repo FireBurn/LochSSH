@@ -39,6 +39,10 @@ class TerminalBuffer(
         private set
     var applicationKeypad = false
         private set
+    var mouseTracking = false
+        private set
+    var mouseSgr = false
+        private set
     var version = 0
         private set
     var totalScrolled = 0L
@@ -298,6 +302,8 @@ class TerminalBuffer(
         originMode = false
         applicationCursor = false
         applicationKeypad = false
+        mouseTracking = false
+        mouseSgr = false
         cursorVisible = true
         scrollTop = 0
         scrollBottom = rows - 1
@@ -530,6 +536,8 @@ class TerminalBuffer(
             when (mode) {
                 1 -> applicationCursor = enable
                 66 -> applicationKeypad = enable
+                1000, 1002, 1003 -> mouseTracking = enable
+                1006 -> mouseSgr = enable
                 6 -> {
                     originMode = enable
                     homeCursor()
