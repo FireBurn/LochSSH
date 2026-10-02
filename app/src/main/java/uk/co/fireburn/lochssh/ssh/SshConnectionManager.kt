@@ -18,6 +18,7 @@ import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicReference
 import kotlin.concurrent.thread
+import kotlinx.coroutines.runBlocking
 
 class SshConnectionManager(
     private val context: Context,
@@ -95,9 +96,16 @@ class SshConnectionManager(
             return
         }
         require(config.jumpHosts.all { it.jumpHosts.isEmpty() }) { "Jump chain must be resolved before connecting" }
+        require(config.jumpHosts.isEmpty() || config.knockSequence.isBlank()) {
+            "Port knocking is only available for directly reachable hosts"
+        }
         var previous: Session? = null
         for (jumpConfig in config.jumpHosts) {
             connectionAttempt.checkCancelled()
+            require(previous == null || jumpConfig.knockSequence.isBlank()) {
+                "Port knocking is only available on the first jump host"
+            }
+            if (previous == null) knock(jumpConfig)
             val jump = createSession(jumpConfig)
             previous?.let { jump.setProxy(JumpHostProxy(it)) }
             jumps += jump
@@ -107,6 +115,7 @@ class SshConnectionManager(
         }
         val s = createSession(config)
         connectionAttempt.checkCancelled()
+        if (previous == null) knock(config)
         previous?.let { s.setProxy(JumpHostProxy(it)) }
         session = s
         s.connect(CONNECT_TIMEOUT_MS)
@@ -118,6 +127,12 @@ class SshConnectionManager(
         transport = SharedSshConnection(s, jumps.toList(), dynamicForwards.toList(), warnings)
 
         openShell(s)
+    }
+
+    private fun knock(target: SshConnectionConfig) {
+        connectionAttempt.checkCancelled()
+        runBlocking { PortKnocking.send(target.host, KnockSequence.parse(target.knockSequence), target.knockPause) }
+        connectionAttempt.checkCancelled()
     }
 
     private fun createSession(config: SshConnectionConfig): Session {

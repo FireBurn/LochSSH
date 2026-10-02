@@ -79,6 +79,8 @@ fun HostEditorScreen(
     var keepAlive by remember(hostId) { mutableStateOf("30") }
     var group by remember(hostId) { mutableStateOf("") }
     var autoCommand by remember(hostId) { mutableStateOf("") }
+    var knockSequence by remember(hostId) { mutableStateOf("") }
+    var knockPause by remember(hostId) { mutableStateOf("200") }
     var remoteSessionMode by remember(hostId) { mutableStateOf(RemoteSessionModes.SHELL) }
     var identityId by remember(hostId) { mutableStateOf<Long?>(null) }
     var identityMenu by remember(hostId) { mutableStateOf(false) }
@@ -101,6 +103,8 @@ fun HostEditorScreen(
             keepAlive = it.keepAliveSeconds.toString()
             group = it.group
             autoCommand = it.autoCommand
+            knockSequence = it.knockSequence
+            knockPause = it.knockPause.toString()
             remoteSessionMode = it.remoteSessionMode
             identityId = it.identityId
             jumpHostId = it.jumpHostId
@@ -111,8 +115,13 @@ fun HostEditorScreen(
     val validPort = port.toIntOrNull() in 1..65535
     val validKeepAlive = KeepAlive.parse(keepAlive) != null
     val validCommand = autoCommand.none { it == '\n' || it == '\r' }
+    val knockError = runCatching {
+        uk.co.fireburn.lochssh.ssh.KnockSequence.parse(knockSequence)
+        require(knockSequence.isBlank() || knockPause.toLongOrNull() in 0L..5000L) { "Pause must be between 0 and 5000 milliseconds" }
+        require(jumpHostId == null || knockSequence.isBlank()) { "Configure knocking on the first jump host instead" }
+    }.exceptionOrNull()?.message
     val canSave = viewModel.loaded && !saving && name.isNotBlank() && host.isNotBlank() &&
-        validPort && validKeepAlive && validCommand
+        validPort && validKeepAlive && validCommand && knockError == null
     val minListenPort = if (draftType == ForwardTypes.REMOTE) 1 else 1024
     val validDraftLocal = draftLocal.toIntOrNull() in minListenPort..65535
     val validDraftRemote = draftType == ForwardTypes.DYNAMIC ||
@@ -138,7 +147,7 @@ fun HostEditorScreen(
                             saveError = null
                             viewModel.save(
                                 name, host, port, keepAlive, group, identityId,
-                                autoCommand, remoteSessionMode, jumpHostId, agentForwarding
+                                autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause
                             ) { error ->
                                 saving = false
                                 if (error == null) onBack() else saveError = error
@@ -219,6 +228,16 @@ fun HostEditorScreen(
                 modifier = Modifier.fillMaxWidth()
             )
             Text("Remote sessions", style = MaterialTheme.typography.titleSmall)
+            OutlinedTextField(value = knockSequence, onValueChange = { knockSequence = it },
+                label = { Text("Port knocking") }, singleLine = true,
+                isError = knockError != null,
+                supportingText = { Text(knockError ?: "Optional: 7000,8000:udp,9000:tcp. Leave blank to disable. Direct connections only.") },
+                modifier = Modifier.fillMaxWidth())
+            if (knockSequence.isNotBlank()) {
+                OutlinedTextField(value = knockPause, onValueChange = { knockPause = it },
+                    label = { Text("Pause between knocks (milliseconds)") }, singleLine = true,
+                    modifier = Modifier.fillMaxWidth())
+            }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
                     RemoteSessionModes.SHELL to "Shell",

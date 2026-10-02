@@ -14,7 +14,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         ConnectionHistoryEntity::class,
         SecretCleanupEntity::class
     ],
-    version = 9
+    version = 10
 )
 abstract class LochSshDatabase : RoomDatabase() {
     abstract fun sshHostDao(): SshHostDao
@@ -27,6 +27,12 @@ abstract class LochSshDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "lochssh.db"
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE ssh_hosts ADD COLUMN knock_sequence TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE ssh_hosts ADD COLUMN knock_pause INTEGER NOT NULL DEFAULT 200")
+            }
+        }
         val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
                 db.execSQL("CREATE TABLE IF NOT EXISTS secret_cleanup (reference TEXT NOT NULL PRIMARY KEY)")

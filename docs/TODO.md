@@ -3,8 +3,8 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 2 October checks pass: build, lint, 257 local tests with real SSH/SFTP and
-IPv6 enabled, and 61 Android 13 tests. One Android 14+ test is skipped. This
+The 2 October checks pass: build, lint, 270 local tests with real SSH/SFTP and
+IPv6 enabled, and 63 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -473,13 +473,17 @@ checks listed below.
 - Add port knocking and a lightweight remote performance view.
   The port-sequence parser accepts comma-separated ports with optional `:tcp`
   or `:udp`, preserving order and repeated ports. Blank disables it. Three unit
-  tests cover mixed protocols, boundaries and invalid input. This does not
-  yet expose a host setting. The sender supports ordered TCP/UDP steps and
+  tests cover mixed protocols, boundaries and invalid input. The host editor
+  now has an optional setting. The sender supports ordered TCP/UDP steps and
   a pause between them. Three tests cover local listeners, repeated steps and
-  cancellation during a pause. It is not wired into SSH startup. Add saved
-  opt-in configuration, IPv6 checks and startup cancellation before enabling it.
-  Define how jump hosts and shared SSH connections affect knocking; do not
-  silently send knocks to an unreachable destination from the phone.
+  cancellation during a pause. New SSH transports send configured knocks before
+  connecting; shared transports do not repeat them. The saved pause accepts
+  0–5000 milliseconds. Database version 10 defaults existing hosts to disabled;
+  Android upgrade tests from versions 6–9 preserve hosts and store the new fields.
+  Only directly reachable hosts and the first jump host support knocking;
+  unreachable destinations in a jump chain are rejected instead of being knocked
+  from the phone. Check the editor, IPv6, startup cancellation, DNS delays,
+  actual knockd rules and reconnecting shared transports on a device.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
   behavior. Implement it as a separate session type.
 - Add Telnet, serial connections, split terminals, and opt-in encrypted

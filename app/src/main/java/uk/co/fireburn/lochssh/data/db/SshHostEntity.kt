@@ -31,5 +31,7 @@ data class SshHostEntity(
     @ColumnInfo(name = "remote_session_mode", defaultValue = "'SHELL'")
     val remoteSessionMode: String = RemoteSessionModes.SHELL,
     @ColumnInfo(name = "jump_host_id", defaultValue = "NULL") val jumpHostId: Long? = null,
-    @ColumnInfo(name = "agent_forwarding", defaultValue = "0") val agentForwarding: Boolean = false
+    @ColumnInfo(name = "agent_forwarding", defaultValue = "0") val agentForwarding: Boolean = false,
+    @ColumnInfo(name = "knock_sequence", defaultValue = "''") val knockSequence: String = "",
+    @ColumnInfo(name = "knock_pause", defaultValue = "200") val knockPause: Long = 200
 )

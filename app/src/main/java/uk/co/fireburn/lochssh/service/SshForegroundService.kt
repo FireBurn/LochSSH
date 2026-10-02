@@ -161,6 +161,8 @@ class SshForegroundService : Service() {
                         autoCommand = host.autoCommand,
                         remoteSessionMode = host.remoteSessionMode,
                         agentForwarding = host.id == hostId && host.agentForwarding,
+                        knockSequence = host.knockSequence,
+                        knockPause = host.knockPause,
                         forwards = if (host.id == hostId) portForwardDao.getByHost(hostId).map {
                             PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
                         } else emptyList()

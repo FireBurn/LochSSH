@@ -25,5 +25,7 @@ data class SshConnectionConfig(
     val initialRows: Int = 24,
     val forwards: List<PortForwardSpec> = emptyList(),
     val jumpHosts: List<SshConnectionConfig> = emptyList(),
-    val agentForwarding: Boolean = false
+    val agentForwarding: Boolean = false,
+    val knockSequence: String = "",
+    val knockPause: Long = 200
 )

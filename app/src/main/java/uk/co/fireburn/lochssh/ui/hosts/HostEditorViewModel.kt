@@ -101,11 +101,13 @@ class HostEditorViewModel @Inject constructor(
         remoteSessionMode: String,
         jumpHostId: Long?,
         agentForwarding: Boolean,
+        knockSequence: String = "",
+        knockPause: String = "200",
         onFinished: (String?) -> Unit
     ) {
         viewModelScope.launch {
             val error = try {
-                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding)
+                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause)
                 null
             } catch (e: CancellationException) {
                 throw e
@@ -126,7 +128,9 @@ class HostEditorViewModel @Inject constructor(
         autoCommand: String,
         remoteSessionMode: String,
         jumpHostId: Long?,
-        agentForwarding: Boolean
+        agentForwarding: Boolean,
+        knockSequence: String,
+        knockPause: String
     ) {
         check(loaded) { loadError ?: "Wait for the host to load" }
         val existing = host
@@ -138,6 +142,10 @@ class HostEditorViewModel @Inject constructor(
             ?: throw IllegalArgumentException("Keep-alive must be between 0 and ${KeepAlive.MAX_SECONDS} seconds")
         require(autoCommand.none { it == '\n' || it == '\r' }) { "Command must be one line" }
         require(remoteSessionMode in RemoteSessionModes.ALL) { "Choose a remote session option" }
+        uk.co.fireburn.lochssh.ssh.KnockSequence.parse(knockSequence)
+        val pause = if (knockSequence.isBlank()) 200L else knockPause.toLongOrNull()
+        require(pause != null && pause in 0..5000) { "Pause must be between 0 and 5000 milliseconds" }
+        require(jumpHostId == null || knockSequence.isBlank()) { "Configure knocking on the first jump host instead" }
         val entity = existing?.copy(
             name = name,
             host = hostName,
@@ -148,7 +156,9 @@ class HostEditorViewModel @Inject constructor(
             autoCommand = autoCommand,
             remoteSessionMode = remoteSessionMode,
             jumpHostId = jumpHostId,
-            agentForwarding = agentForwarding
+            agentForwarding = agentForwarding,
+            knockSequence = knockSequence.trim(),
+            knockPause = pause
         ) ?: SshHostEntity(
             name = name,
             host = hostName,
@@ -159,7 +169,9 @@ class HostEditorViewModel @Inject constructor(
             autoCommand = autoCommand,
             remoteSessionMode = remoteSessionMode,
             jumpHostId = jumpHostId,
-            agentForwarding = agentForwarding
+            agentForwarding = agentForwarding,
+            knockSequence = knockSequence.trim(),
+            knockPause = pause
         )
         database.withTransaction {
             HostIdentity.check(identityId, agentForwarding, identityDao::getById)
