@@ -20,13 +20,15 @@ class SessionRegistry @Inject constructor() {
         val remoteOptions: RemoteSessionOptions? = null,
         val forwardWarnings: List<String> = emptyList(),
         val hostKeyReview: SavedHostKey? = null,
-        val remoteCommand: String? = null
+        val remoteCommand: String? = null,
+        val remoteName: String? = null
     ) {
         // What a terminal would put on the tab, falling back to the host.
-        val label: String get() = title?.takeIf { it.isNotBlank() } ?: hostName
+        val label: String get() = remoteName?.takeIf { it.isNotBlank() }
+            ?: title?.takeIf { it.isNotBlank() } ?: hostName
 
         val isConnected: Boolean get() = manager?.isConnected == true
-        val canReconnect: Boolean get() = !isConnected && error != null && hostKeyReview == null
+        val canReconnect: Boolean get() = !isConnected && (error != null || manager != null) && hostKeyReview == null
 
         val statusText: String get() = when {
             hostKeyReview != null -> "Server key approval needed"
@@ -47,12 +49,19 @@ class SessionRegistry @Inject constructor() {
     private val nextId = AtomicLong(1)
     private val _sessions = MutableStateFlow<List<Session>>(emptyList())
     val sessions: StateFlow<List<Session>> = _sessions
+    private val _replacements = MutableStateFlow<Map<Long, Long>>(emptyMap())
+    val replacements: StateFlow<Map<Long, Long>> = _replacements
+
+    fun replaced(sourceId: Long, targetId: Long) {
+        _replacements.value = (_replacements.value + (sourceId to targetId)).entries.toList().takeLast(100)
+            .associate { it.key to it.value }
+    }
 
     fun newId(): Long = nextId.getAndIncrement()
 
     fun opening(id: Long, hostId: Long, hostName: String, remoteCommand: String? = null) = update(id) {
         Session(id = id, hostId = hostId, hostName = hostName,
-            remoteCommand = remoteCommand ?: it?.remoteCommand)
+            remoteCommand = remoteCommand ?: it?.remoteCommand, remoteName = it?.remoteName)
     }
 
     fun connected(id: Long, manager: SshConnectionManager) = update(id) {
@@ -62,6 +71,8 @@ class SessionRegistry @Inject constructor() {
     fun titled(id: Long, title: String) = update(id) {
         if (it?.title == title) null else it?.copy(title = title)
     }
+
+    fun named(id: Long, name: String) = update(id) { it?.copy(remoteName = name) }
 
     fun failed(id: Long, message: String, review: SavedHostKey? = null) = update(id) {
         it?.copy(manager = null, error = message, hostKeyReview = review)

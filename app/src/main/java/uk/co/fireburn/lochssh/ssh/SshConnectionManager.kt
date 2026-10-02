@@ -37,7 +37,7 @@ class SshConnectionManager(
     private val sessionChannels = SessionChannels()
     private val windowSize = AtomicReference(config.initialCols to config.initialRows)
     val terminal = TerminalSession(config.initialCols, config.initialRows) {
-        write(it.toByteArray(Charsets.US_ASCII))
+        writeBytes(it.toByteArray(Charsets.US_ASCII))
     }
 
     @Volatile
@@ -61,8 +61,13 @@ class SshConnectionManager(
     var startupOptions: RemoteSessionOptions? = null
         private set
 
+    @Volatile private var hasInput = false
+    val isUnusedShell: Boolean get() = startupCommand == null && !hasInput &&
+        config.autoCommand.isBlank() && config.remoteSessionMode !in
+        setOf(RemoteSessionModes.TMUX, RemoteSessionModes.SCREEN)
+
     val isConnected: Boolean
-        get() = session?.isConnected == true
+        get() = running && channel?.isConnected == true && session?.isConnected == true
 
     @Synchronized
     fun connect() {
@@ -221,6 +226,11 @@ class SshConnectionManager(
     }
 
     fun write(bytes: ByteArray) {
+        if (bytes.isNotEmpty()) hasInput = true
+        writeBytes(bytes)
+    }
+
+    private fun writeBytes(bytes: ByteArray) {
         val out = remoteOut ?: return
         val copy = bytes.copyOf()
         try {
@@ -249,7 +259,7 @@ class SshConnectionManager(
         val sessions = buildList {
             if (tmuxAvailable) {
                 addAll(RemoteSessions.parseTmux(
-                    remoteCommand("tmux list-sessions -F '#{session_id}|#{session_name}|#{session_attached}' 2>/dev/null").output
+                    remoteCommand("tmux list-sessions -F '#{session_id}|#{session_name}\t#{pane_current_command}\t#{window_name}|#{session_attached}' 2>/dev/null").output
                 ))
             }
             if (screenAvailable) {

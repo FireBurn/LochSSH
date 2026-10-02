@@ -55,7 +55,9 @@ object RemoteSessions {
         RemoteSessionEntry(
             RemoteSessionModes.TMUX,
             line.substring(0, first),
-            line.substring(first + 1, last).filterNot { it.code < 32 || it.code == 127 },
+            line.substring(first + 1, last).split('\t').map { field ->
+                field.filterNot { it.code < 32 || it.code == 127 }.trim()
+            }.filter { it.isNotBlank() }.distinct().joinToString(" · "),
             attached > 0
         )
     }.toList()

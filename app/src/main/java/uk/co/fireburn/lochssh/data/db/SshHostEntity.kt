@@ -15,7 +15,8 @@ object RemoteSessionModes {
     const val ASK = "ASK"
     const val TMUX = "TMUX"
     const val SCREEN = "SCREEN"
-    val ALL = listOf(SHELL, ASK, TMUX, SCREEN)
+    const val CONNECT_ALL = "CONNECT_ALL"
+    val ALL = listOf(SHELL, ASK, TMUX, SCREEN, CONNECT_ALL)
 }
 
 @Entity(tableName = "ssh_hosts")

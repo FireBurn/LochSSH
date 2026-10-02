@@ -8,6 +8,20 @@ import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 
 class RemoteSessionsTest {
     @Test
+    fun includesCurrentProgramAndWindowInTmuxNames() {
+        val session = RemoteSessions.parseTmux("\$0|work\tclaude\tclaude|1\n").single()
+        assertEquals("work · claude", session.name)
+        assertEquals("tmux attach-session -t '\$0'", RemoteSessions.attach(session))
+    }
+
+    @Test
+    fun connectAllDiscoversWithoutCreatingSessions() {
+        val expected = RemoteSessionOptions(tmuxAvailable = true)
+        assertEquals(expected, RemoteSessions.startupOptions(RemoteSessionModes.CONNECT_ALL,
+            { error("Use full discovery") }, { expected }))
+        assertEquals(null, RemoteSessions.startupCommand(RemoteSessionModes.CONNECT_ALL, expected))
+    }
+    @Test
     fun automaticCommandsRequireTheSelectedToolAndNeverRunForShellOrAsk() {
         val both = RemoteSessionOptions(tmuxAvailable = true, screenAvailable = true)
         assertEquals("tmux new-session -A -s lochssh", RemoteSessions.startupCommand(RemoteSessionModes.TMUX, both))

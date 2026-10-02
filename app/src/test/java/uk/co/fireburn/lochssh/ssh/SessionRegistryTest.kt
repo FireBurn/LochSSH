@@ -8,6 +8,26 @@ import org.junit.Test
 
 class SessionRegistryTest {
     @Test
+    fun remoteNameSurvivesHostTitlesAndReconnects() {
+        val registry = SessionRegistry()
+        registry.opening(1, 2, "Quark", "tmux attach-session -t '\$0'")
+        registry.named(1, "work · claude")
+        registry.titled(1, "Quark")
+        assertEquals("work · claude", registry.find(1)?.label)
+        registry.failed(1, "Connection lost")
+        registry.opening(1, 2, "Quark")
+        assertEquals("work · claude", registry.find(1)?.label)
+    }
+
+    @Test
+    fun replacementSurvivesRemovalOfTheUnusedShell() {
+        val registry = SessionRegistry()
+        registry.opening(1, 2, "Quark")
+        registry.replaced(1, 3)
+        registry.remove(1)
+        assertEquals(3L, registry.replacements.value[1])
+    }
+    @Test
     fun reconnectIsOffWhileConnectingOrReviewingAServerKey() {
         val opening = SessionRegistry.Session(1, 2, "host")
         assertFalse(opening.canReconnect)

@@ -62,6 +62,7 @@ import uk.co.fireburn.lochssh.ui.keyboard.ImeKeyEncoder
 import uk.co.fireburn.lochssh.ui.keyboard.JuiceSshKeyboardBar
 import uk.co.fireburn.lochssh.ui.keyboard.TerminalEditText
 import uk.co.fireburn.lochssh.ui.keyboard.TerminalImeInput
+import uk.co.fireburn.lochssh.ui.settings.BatterySettingsCard
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -81,6 +82,7 @@ fun TerminalScreen(
     val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
     val keyboardLayout by viewModel.keyboardLayout.collectAsStateWithLifecycle()
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
+    val replacements by viewModel.replacements.collectAsStateWithLifecycle()
     val imm = remember {
         context.getSystemService(Context.INPUT_METHOD_SERVICE) as InputMethodManager
     }
@@ -101,6 +103,7 @@ fun TerminalScreen(
     var moreOpen by remember { mutableStateOf(false) }
     var toolbarVisible by remember(sessionId) { mutableStateOf(true) }
     var savedCommandsOpen by remember { mutableStateOf(false) }
+    var batterySettingsOpen by remember { mutableStateOf(false) }
     var pendingLinks by remember(sessionId) { mutableStateOf<List<String>>(emptyList()) }
     var linkError by remember(sessionId) { mutableStateOf<String?>(null) }
     val selectedLinks = remember(selectedText) { TerminalLinks.find(selectedText.orEmpty()) }
@@ -110,9 +113,15 @@ fun TerminalScreen(
         viewModel.saveTranscript(it)
     }
 
-    val session by viewModel.session.collectAsStateWithLifecycle()
+    val session = sessions.firstOrNull { it.id == sessionId }
     val savedCommands by viewModel.savedCommands.collectAsStateWithLifecycle()
     val manager = session?.manager
+    if (batterySettingsOpen) {
+        AlertDialog(onDismissRequest = { batterySettingsOpen = false },
+            title = { Text("Background connections") },
+            text = { BatterySettingsCard() },
+            confirmButton = { TextButton(onClick = { batterySettingsOpen = false }) { Text("Close") } })
+    }
     var savingHostKey by remember { mutableStateOf(false) }
     var hostKeyError by remember { mutableStateOf<String?>(null) }
     val reviewedKey = session?.hostKeyReview
@@ -154,11 +163,11 @@ fun TerminalScreen(
         selectedText = null
     }
 
-    fun openRemoteSession(command: String) {
+    fun openRemoteSession(command: String, label: String? = null) {
         val hostId = session?.hostId ?: return
         val nextId = viewModel.newSessionId()
         viewModel.dismissRemoteSessions()
-        SshForegroundService.start(context, hostId, nextId, command)
+        SshForegroundService.start(context, hostId, nextId, command, sessionId, label)
         onSwitchSession(nextId)
     }
 
@@ -270,7 +279,7 @@ fun TerminalScreen(
                     options.sessions.forEach { entry ->
                         val tool = if (entry.tool == RemoteSessionModes.TMUX) "tmux" else "Screen"
                         val state = if (entry.attached) "attached" else "detached"
-                        TextButton(onClick = { openRemoteSession(RemoteSessions.attach(entry)) }) {
+                        TextButton(onClick = { openRemoteSession(RemoteSessions.attach(entry), entry.name) }) {
                             Text("$tool: ${entry.name} ($state)")
                         }
                     }
@@ -281,9 +290,15 @@ fun TerminalScreen(
                                 sessions, viewModel::newSessionId)
                             viewModel.dismissRemoteSessions()
                             connections.filter { it.connect }.forEach {
-                                SshForegroundService.start(context, hostId, it.id, it.command)
+                                val entry = options.sessions.first { entry -> RemoteSessions.attach(entry) == it.command }
+                                SshForegroundService.start(context, hostId, it.id, it.command, sessionId, entry.name)
                             }
-                            connections.firstOrNull()?.id?.let(onSwitchSession)
+                            connections.firstOrNull()?.id?.let { targetId ->
+                                if (connections.none { it.connect }) {
+                                    SshForegroundService.replaceShell(context, sessionId, targetId)
+                                }
+                                onSwitchSession(targetId)
+                            }
                         }) { Text("Connect all remote sessions") }
                     }
                     if (options.tmuxAvailable) {
@@ -326,9 +341,14 @@ fun TerminalScreen(
             toolbarVisible = false
         }
     }
-    LaunchedEffect(sessionId, session?.id) {
+    LaunchedEffect(sessionId, session?.id, replacements[sessionId]) {
+        replacements[sessionId]?.let { onSwitchSession(it); return@LaunchedEffect }
         if (session != null) hadSession = true
         else if (hadSession) leave()
+        else {
+            delay(1_000)
+            if (viewModel.sessions.value.none { it.id == sessionId }) onHosts()
+        }
     }
 
     SessionDrawer(sessions, sessionId, onSwitchSession, onHosts, onReconnectAll = {
@@ -369,6 +389,10 @@ fun TerminalScreen(
                                 DropdownMenuItem(text = { Text("Switch session") }, onClick = {
                                     moreOpen = false
                                     openSessions()
+                                })
+                                DropdownMenuItem(text = { Text("Background connections") }, onClick = {
+                                    moreOpen = false
+                                    batterySettingsOpen = true
                                 })
                                 DropdownMenuItem(
                                     text = { Text("Remote sessions") },
@@ -453,7 +477,7 @@ fun TerminalScreen(
                         .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
                 ) {
                     val error = session?.error
-                    if (session == null || (error != null && manager == null)) {
+                    if (session == null || error != null || (manager != null && !manager.isConnected)) {
                         Column(
                             modifier = Modifier
                                 .weight(1f)

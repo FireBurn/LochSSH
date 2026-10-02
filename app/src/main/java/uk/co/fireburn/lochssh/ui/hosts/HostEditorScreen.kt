@@ -268,6 +268,9 @@ fun HostEditorScreen(
                     "or creates one.",
                 style = MaterialTheme.typography.bodySmall
             )
+            FilterChip(selected = remoteSessionMode == RemoteSessionModes.CONNECT_ALL,
+                onClick = { remoteSessionMode = RemoteSessionModes.CONNECT_ALL },
+                label = { Text("Find and connect all remote sessions") })
             OutlinedTextField(
                 value = identities.firstOrNull { it.id == identityId }?.name ?: "None",
                 onValueChange = {},

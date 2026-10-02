@@ -54,7 +54,8 @@ import kotlinx.coroutines.sync.withLock
 class SshForegroundService : Service() {
 
     private class ConnectionAttempt(
-        val sessionId: Long, val hostId: Long, val token: String, val remoteCommand: String?
+        val sessionId: Long, val hostId: Long, val token: String, val remoteCommand: String?,
+        val replaceShellId: Long? = null, val label: String? = null
     ) {
         @Volatile
         var cancelled = false
@@ -100,6 +101,13 @@ class SshForegroundService : Service() {
         // connection can take, so the summary goes up before anything else.
         startForegroundSummary()
 
+        if (intent?.action == ACTION_REPLACE_SHELL) {
+            closeUnusedShell(intent.getLongExtra(EXTRA_SESSION_ID, -1L),
+                intent.getLongExtra(EXTRA_REPLACEMENT_ID, -1L))
+            stopIfIdle()
+            return Service.START_NOT_STICKY
+        }
+
         if (intent?.action == ACTION_DISCONNECT) {
             endSession(intent.getLongExtra(EXTRA_SESSION_ID, -1L))
             return Service.START_NOT_STICKY
@@ -114,7 +122,9 @@ class SshForegroundService : Service() {
         val attempt = ConnectionAttempt(
             sessionId, hostId, UUID.randomUUID().toString(),
             intent?.getStringExtra(EXTRA_REMOTE_COMMAND)?.takeIf { it.length <= 1024 && '\n' !in it && '\r' !in it }
-                ?: registry.find(sessionId)?.remoteCommand
+                ?: registry.find(sessionId)?.remoteCommand,
+            intent?.getLongExtra(EXTRA_REPLACE_SHELL, -1L)?.takeIf { it > 0 },
+            intent?.getStringExtra(EXTRA_SESSION_LABEL)?.take(200)
         )
         attempts.put(sessionId, attempt)?.let(::cancelAttempt)
         history.started(attempt.token, hostId)
@@ -203,8 +213,11 @@ class SshForegroundService : Service() {
                 return
             }
             attempts.remove(sessionId, attempt)
-            managers[sessionId] = connected.manager
-            connectedTokens[sessionId] = attempt.token
+            managers.put(sessionId, connected.manager)?.disconnect()
+            attempt.label?.let { registry.named(sessionId, it) }
+            connectedTokens.put(sessionId, attempt.token)?.let {
+                history.finished(it, ConnectionStates.ENDED)
+            }
             history.connected(attempt.token)
             val initialCommand = connected.config.autoCommand.takeIf {
                 attempt.remoteCommand == null &&
@@ -220,6 +233,9 @@ class SshForegroundService : Service() {
                     announceConnected(sessionId, connected.manager, host.name, host.host)
                 }
             } else announceConnected(sessionId, connected.manager, host.name, host.host)
+            attempt.replaceShellId?.let { sourceId ->
+                closeUnusedShell(sourceId, sessionId)
+            }
             updateSummary()
         } catch (e: Exception) {
             attempt.manager?.disconnect()
@@ -256,6 +272,20 @@ class SshForegroundService : Service() {
             RemoteSessionOptions(error = "Could not check remote sessions")
         }
         if (managers[sessionId] !== manager) return
+        if (config.remoteSessionMode == RemoteSessionModes.CONNECT_ALL && options.sessions.isNotEmpty()) {
+            registry.connected(sessionId, manager)
+            val connections = uk.co.fireburn.lochssh.ssh.RemoteSessionConnections.plan(
+                registry.find(sessionId)?.hostId ?: return, options.sessions,
+                registry.sessions.value, registry::newId)
+            connections.filter { it.connect }.forEach { connection ->
+                val entry = options.sessions.first { RemoteSessions.attach(it) == connection.command }
+                start(this, registry.find(sessionId)?.hostId ?: return, connection.id,
+                    connection.command, sessionId, entry.name)
+            }
+            connections.firstOrNull { registry.find(it.id)?.isConnected == true }
+                ?.let { closeUnusedShell(sessionId, it.id) }
+            return
+        }
         if (RemoteSessions.startupCommand(config.remoteSessionMode, options) == null) {
             val missing = when (config.remoteSessionMode) {
                 RemoteSessionModes.TMUX -> "tmux is not installed"
@@ -284,6 +314,15 @@ class SshForegroundService : Service() {
         if (managers[sessionId] !== manager && attempts[sessionId]?.manager !== manager) return
         Log.i(TAG, "Session $sessionId exited with code $code")
         endSession(sessionId, if (code == 0) null else "Connection closed (exit code $code)")
+    }
+
+    private fun closeUnusedShell(sourceId: Long, targetId: Long) {
+        val source = registry.find(sourceId) ?: return
+        val target = registry.find(targetId) ?: return
+        if (sourceId == targetId || source.hostId != target.hostId || !target.isConnected ||
+            source.remoteCommand != null || managers[sourceId]?.isUnusedShell != true) return
+        registry.replaced(sourceId, targetId)
+        endSession(sourceId)
     }
 
     private fun endSession(sessionId: Long, error: String? = null) {
@@ -464,6 +503,10 @@ class SshForegroundService : Service() {
 
         private const val EXTRA_HOST_ID = "host_id"
         private const val EXTRA_REMOTE_COMMAND = "remote_command"
+        private const val EXTRA_REPLACE_SHELL = "replace_shell"
+        private const val EXTRA_SESSION_LABEL = "session_label"
+        private const val EXTRA_REPLACEMENT_ID = "replacement_id"
+        private const val ACTION_REPLACE_SHELL = "uk.co.fireburn.lochssh.REPLACE_SHELL"
         private const val ACTION_DISCONNECT = "uk.co.fireburn.lochssh.DISCONNECT"
         private const val CHANNEL_ID = "ssh_connections"
         private const val GROUP_KEY = "uk.co.fireburn.lochssh.sessions"
@@ -477,11 +520,14 @@ class SshForegroundService : Service() {
         private fun sessionNotificationId(sessionId: Long) =
             SESSION_NOTIFICATION_BASE + sessionId.toInt()
 
-        fun start(context: Context, hostId: Long, sessionId: Long, remoteCommand: String? = null) {
+        fun start(context: Context, hostId: Long, sessionId: Long, remoteCommand: String? = null,
+            replaceShellId: Long? = null, label: String? = null) {
             val intent = Intent(context, SshForegroundService::class.java)
                 .putExtra(EXTRA_HOST_ID, hostId)
                 .putExtra(EXTRA_SESSION_ID, sessionId)
                 .putExtra(EXTRA_REMOTE_COMMAND, remoteCommand)
+                .putExtra(EXTRA_REPLACE_SHELL, replaceShellId ?: -1L)
+                .putExtra(EXTRA_SESSION_LABEL, label)
             context.startForegroundService(intent)
         }
 
@@ -489,6 +535,14 @@ class SshForegroundService : Service() {
             val intent = Intent(context, SshForegroundService::class.java)
                 .setAction(ACTION_DISCONNECT)
                 .putExtra(EXTRA_SESSION_ID, sessionId)
+            context.startService(intent)
+        }
+
+        fun replaceShell(context: Context, sourceId: Long, targetId: Long) {
+            val intent = Intent(context, SshForegroundService::class.java)
+                .setAction(ACTION_REPLACE_SHELL)
+                .putExtra(EXTRA_SESSION_ID, sourceId)
+                .putExtra(EXTRA_REPLACEMENT_ID, targetId)
             context.startService(intent)
         }
     }
