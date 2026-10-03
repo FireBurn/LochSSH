@@ -10,6 +10,22 @@ checks listed below.
 
 ## Fix before wider use
 
+- Check password-assisted key installation on a test server and the phone.
+  Generate key pair now offers Save and install on server. The private key is
+  saved before upload; the one-time password is never written to storage.
+  Installation uses SFTP, keeps existing entries and key restrictions, skips
+  duplicates, refuses symlinks and checks a fresh public-key login. New server
+  keys require fingerprint approval and another password entry. Changed keys
+  are rejected. Cancellation closes the connection. Direct connections with
+  standard ~/.ssh/authorized_keys, password authentication and SFTP are required.
+  Check real password login, existing permissions, failed writes, disabled key
+  authentication and servers using a different authorized-keys path. Choose the
+  saved identity in host settings after installation; jump hosts and port
+  knocking are not supported by the setup dialog.
+  Seven unit tests cover line handling and duplicates. Three local SFTP tests
+  check preserved entries/restrictions, permissions and symlink rejection using
+  isolated files under /tmp, not the account's real authorized_keys. Three
+  Android tests cover success, failure, cancellation and password-byte clearing.
 - Check held navigation keys, touch scrolling and screen-off recovery on the phone.
   Arrows and Page Up/Down repeat after a 400 ms hold, then every 80 ms, stopping
   on release. Remote mouse modes 1000/1002/1003 enable touch wheel events; mode

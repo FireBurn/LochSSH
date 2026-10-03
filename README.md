@@ -20,6 +20,22 @@ Review or remove saved keys under Settings → Saved host keys. Existing saved
 keys are kept. Check [the work list](docs/TODO.md) before relying on the app for
 sensitive connections.
 
+## Create and install a key
+
+Create an identity, enter its name and username, choose PUBLIC_KEY,
+then Generate key pair. Save and install on server saves the private key in the
+phone's encrypted storage before connecting. Enter the server address, SSH port
+and a one-time password. New server keys need fingerprint approval; changed
+server keys are rejected. The password is not saved and must be entered again
+after a failed attempt or server-key review.
+
+The installer adds the public key to `~/.ssh/authorized_keys` over SFTP, keeps
+existing entries and skips duplicates. It sets `.ssh` to 700 and `authorized_keys`
+to 600, then checks a new connection using the key. Choose the saved identity in
+the host settings after success. This flow needs a directly reachable server
+with password authentication and SFTP enabled, using the standard authorized-keys
+path. Jump hosts and port knocking are not part of this setup flow.
+
 ## Homescreen shortcuts
 
 Choose Add to homescreen from a saved host's menu. A supported launcher asks

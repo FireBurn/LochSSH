@@ -56,6 +56,7 @@ fun IdentityEditorScreen(
     var secret by remember(identityId) { mutableStateOf("") }
     var generatedKey by remember(identityId) { mutableStateOf<GeneratedKey?>(null) }
     var showPubKey by remember(identityId) { mutableStateOf(false) }
+    var showKeyInstall by remember(identityId) { mutableStateOf(false) }
     var genError by remember(identityId) { mutableStateOf<String?>(null) }
     var saveError by remember(identityId) { mutableStateOf<String?>(null) }
     var saving by remember(identityId) { mutableStateOf(false) }
@@ -165,17 +166,20 @@ fun IdentityEditorScreen(
                         minLines = 4,
                         modifier = Modifier.fillMaxWidth()
                     )
-                    TextButton(onClick = {
+                }
+                TextButton(onClick = {
                         try {
                             val gen = KeyGenerator.generate()
                             keyMaterial = gen.privateKeyPem
+                            keySource = KeySources.PASTE
+                            keyPath = ""
+                            secret = ""
                             generatedKey = gen
                             showPubKey = true
                         } catch (e: Exception) {
                             genError = e.message ?: "Key generation failed"
                         }
-                    }) { Text("Generate key pair") }
-                }
+                }) { Text("Generate key pair") }
             }
             if (authType != AuthTypes.NONE) {
                 OutlinedTextField(
@@ -208,6 +212,20 @@ fun IdentityEditorScreen(
                     )
                     Spacer(Modifier.height(8.dp))
                     Text(gen.publicKeyOpenSsh, style = MaterialTheme.typography.bodySmall)
+                    TextButton(enabled = !saving && name.isNotBlank() && username.isNotBlank(), onClick = {
+                        saving = true
+                        viewModel.save(name, username, AuthTypes.PUBLIC_KEY, KeySources.PASTE,
+                            "", gen.privateKeyPem, "") { error ->
+                            saving = false
+                            if (error == null) {
+                                showPubKey = false
+                                showKeyInstall = true
+                            } else saveError = error
+                        }
+                    }) { Text("Save and install on server") }
+                    if (name.isBlank() || username.isBlank()) {
+                        Text("Enter an identity name and username first.", style = MaterialTheme.typography.bodySmall)
+                    }
                 }
             },
             confirmButton = {
@@ -219,6 +237,10 @@ fun IdentityEditorScreen(
                 TextButton(onClick = { showPubKey = false }) { Text("Close") }
             }
         )
+    }
+
+    if (showKeyInstall && gen != null) {
+        KeyInstallDialog(gen, username, onClose = { showKeyInstall = false })
     }
 
     val err = genError
