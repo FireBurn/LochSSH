@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 3 October checks pass: build, lint, 320 local tests with real SSH/SFTP and
+The 3 October checks pass: build, lint, 323 local tests with real SSH/SFTP and
 IPv6 enabled, and 83 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
@@ -25,10 +25,12 @@ checks listed below.
   Eleven unit tests cover line handling and duplicates, including quoted options,
   escaped quotes and key text in comments. Parsing follows the
   [OpenSSH authorized_keys format](https://man.openbsd.org/sshd.8#AUTHORIZED_KEYS_FILE_FORMAT),
-  so a mentioned key is not mistaken for an installed entry. Three local SFTP tests
+  so a mentioned key is not mistaken for an installed entry. Six local SFTP tests
   check preserved entries/restrictions, permissions and symlink rejection using
-  isolated files under /tmp, not the account's real authorized_keys. Three
-  Android tests cover success, failure, cancellation and password-byte clearing.
+  isolated files under /tmp, not the account's real authorized_keys. They also
+  reject oversized files, additions over the limit and a directory in
+  place of authorized_keys. Rejected size checks preserve the file's bytes.
+  Three Android tests cover success, failure, cancellation and password-byte clearing.
 - Check held navigation keys, touch scrolling and screen-off recovery on the phone.
   Arrows and Page Up/Down repeat after a 400 ms hold, then every 80 ms, stopping
   on release. Remote mouse modes 1000/1002/1003 enable touch wheel events; mode
