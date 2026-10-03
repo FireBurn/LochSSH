@@ -8,10 +8,21 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.LaunchedEffect
 import kotlinx.coroutines.flow.MutableStateFlow
 import androidx.activity.ComponentActivity
+import androidx.activity.viewModels
 import androidx.activity.compose.setContent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import androidx.navigation.NavHostController
+import javax.inject.Inject
+import uk.co.fireburn.lochssh.data.AppPreferences
+import uk.co.fireburn.lochssh.security.AppLockViewModel
+import uk.co.fireburn.lochssh.security.DeviceUnlock
+import uk.co.fireburn.lochssh.ui.security.AppLockGate
 import androidx.compose.ui.platform.LocalContext
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
@@ -55,6 +66,12 @@ object Routes {
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
+    @Inject lateinit var preferences: AppPreferences
+    private val lockModel: AppLockViewModel by viewModels()
+    private val unlockDevice = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
+        lockModel.lock.result(it.resultCode == RESULT_OK)
+    }
+
     // A session id arrives here when one of the connection notifications is tapped.
     private val resumeSession = MutableStateFlow<Long?>(null)
     private val shortcutHost = MutableStateFlow<Long?>(null)
@@ -64,6 +81,14 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        lockModel.lock.setEnabled(preferences.appLock.value)
+        DeviceUnlock.protect(window, preferences.appLock.value)
+        lifecycleScope.launch {
+            preferences.appLock.collect {
+                DeviceUnlock.protect(window, it)
+                lockModel.lock.setEnabled(it)
+            }
+        }
         if (savedInstanceState == null) readLaunch(intent)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -71,10 +96,31 @@ class MainActivity : ComponentActivity() {
         setContent {
             LochSSHTheme {
                 Surface(color = MaterialTheme.colorScheme.background) {
-                    LochSshNavHost(resumeSession, shortcutHost)
+                    // The lock must update even while the activity is stopped.
+                    val status by lockModel.lock.status.collectAsState()
+                    val navController = rememberNavController()
+                    AppLockGate(status, ::unlock, ::finish) {
+                        LochSshNavHost(resumeSession, shortcutHost, navController)
+                    }
                 }
             }
         }
+    }
+
+    override fun onPause() {
+        if (!isChangingConfigurations) lockModel.lock.background()
+        super.onPause()
+    }
+
+    override fun onStop() {
+        if (!isChangingConfigurations) lockModel.lock.background()
+        super.onStop()
+    }
+
+    private fun unlock() {
+        if (!lockModel.lock.beginUnlock()) return
+        try { unlockDevice.launch(DeviceUnlock.request(this))
+        } catch (e: Exception) { lockModel.lock.failed(e.message ?: "Could not open device unlock") }
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -93,8 +139,8 @@ class MainActivity : ComponentActivity() {
 }
 
 @Composable
-fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>, shortcutHost: MutableStateFlow<Long?>) {
-    val navController = rememberNavController()
+fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>, shortcutHost: MutableStateFlow<Long?>,
+    navController: NavHostController = rememberNavController()) {
     val context = LocalContext.current
     LaunchedEffect(navController) {
         shortcutHost.collect { id ->

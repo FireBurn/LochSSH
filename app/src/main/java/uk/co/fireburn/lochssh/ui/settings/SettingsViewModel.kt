@@ -20,6 +20,7 @@ import uk.co.fireburn.lochssh.ssh.HostKeyTrust
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTheme
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTypeface
 import uk.co.fireburn.lochssh.ui.hosts.HostShortcuts
+import uk.co.fireburn.lochssh.security.DeviceUnlock
 import javax.inject.Inject
 
 @HiltViewModel
@@ -33,6 +34,16 @@ class SettingsViewModel @Inject constructor(
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize
+    val appLock = preferences.appLock
+    fun setAppLock(enabled: Boolean) {
+        viewModelScope.launch {
+            try {
+                require(!enabled || DeviceUnlock.available(context)) { "Set a device screen lock first" }
+                withContext(Dispatchers.IO) { preferences.setAppLock(enabled) }
+            } catch (e: kotlinx.coroutines.CancellationException) { throw e
+            } catch (e: Exception) { _error.value = e.message ?: "Could not save app lock" }
+        }
+    }
     val sessionShortcuts = preferences.sessionShortcuts
     fun setSessionShortcuts(enabled: Boolean) = preferences.setSessionShortcuts(enabled)
     val terminalTypeface = preferences.terminalTypeface

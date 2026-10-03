@@ -47,6 +47,7 @@ fun SettingsScreen(
     var editKeyboard by remember { mutableStateOf(false) }
     val keyboardLayout by viewModel.keyboardLayout.collectAsStateWithLifecycle()
     val fontSize by viewModel.fontSize.collectAsStateWithLifecycle()
+    val appLock by viewModel.appLock.collectAsStateWithLifecycle()
     val sessionShortcuts by viewModel.sessionShortcuts.collectAsStateWithLifecycle()
     val terminalTypeface by viewModel.terminalTypeface.collectAsStateWithLifecycle()
     val wrapLines by viewModel.wrapLines.collectAsStateWithLifecycle()
@@ -139,6 +140,7 @@ fun SettingsScreen(
                 }
             }
             BatterySettingsCard()
+            AppLockCard(appLock, viewModel::setAppLock)
             Card(modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {
@@ -199,7 +201,7 @@ fun SettingsScreen(
     error?.let { message ->
         AlertDialog(
             onDismissRequest = viewModel::clearError,
-            title = { Text("Could not clear data") },
+            title = { Text("Settings error") },
             text = { Text(message) },
             confirmButton = {
                 TextButton(onClick = viewModel::clearError) { Text("OK") }

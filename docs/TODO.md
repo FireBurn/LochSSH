@@ -3,8 +3,8 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 3 October checks pass: build, lint, 312 local tests with real SSH/SFTP and
-IPv6 enabled, and 75 Android 13 tests. One Android 14+ test is skipped. This
+The 3 October checks pass: build, lint, 320 local tests with real SSH/SFTP and
+IPv6 enabled, and 83 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -474,7 +474,22 @@ checks listed below.
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Three parsing tests pass;
   wrapped links and the selection-to-browser interaction still need checks.
-- Add local shell sessions and an app lock.
+- Add local shell sessions and check app lock on supported phones.
+  App lock is optional under Settings and defaults to off. It uses Android's
+  device-unlock prompt, hides the app's screens when its activity pauses and
+  requests screenshot protection while enabled. SSH sessions are not disconnected.
+  Navigation is retained; unsaved form input may reset. New processes start locked.
+  The setting refreshes after returning from Android settings, and failed saves
+  report an error. A device PIN, pattern or password is required before enabling it.
+  Check Android 8/16, notification and shortcut launches while locked, cancelled
+  prompts after rotation, device-credential removal and concurrent UI operations.
+  Clipboard text and connection notifications are not hidden by this screen lock.
+  Eight unit tests cover enabling, cancellation, failed/stale results, background
+  locking and new processes. Eight Android tests cover protected content,
+  retained navigation, screenshot flags, availability refresh and saved settings.
+  Manual Android 13 checks confirm real PIN unlock, cancellation staying locked,
+  returning from Home, a locked cold restart and rotation without another prompt.
+  The emulator's temporary PIN was removed and its app-lock setting disabled.
   Saved-host menus now request a pinned homescreen shortcut. Launching it loads
   the current host and asks before connecting; no credentials go into the
   shortcut. Missing hosts and storage errors do not start a connection.

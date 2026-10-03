@@ -68,6 +68,18 @@ with those variables set. Without them, these tests are skipped.
 
 The app currently includes local JSch and Android-support JARs in `app/libs/` for Android Ed25519 authentication and X25519 key exchange. See [the work list](docs/TODO.md) and [the upstream PR](https://github.com/mwiede/jsch/pull/1160). Do not replace them with the original `com.jcraft:jsch` library.
 
+## App lock
+
+Settings → App lock uses Android's device-unlock prompt. It is off by default
+and needs a device PIN, pattern or password. When enabled, leaving LochSSH locks
+its screens without disconnecting SSH sessions. Unlocking returns to the same
+screen; unsaved form input may reset.
+
+While enabled, LochSSH asks Android to
+[block screenshots and recent-app previews](https://developer.android.com/security/fraud-prevention/activities).
+This protects the app's screens, not copied text, connection notifications or
+already-running SSH sessions. Android's background limits still apply.
+
 ## Screen-off connections
 
 Settings → Screen-off connections shows whether LochSSH is exempt from Android's
