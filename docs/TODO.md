@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 3 October checks pass: build, lint, 308 local tests with real SSH/SFTP and
+The 3 October checks pass: build, lint, 312 local tests with real SSH/SFTP and
 IPv6 enabled, and 75 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
@@ -22,7 +22,10 @@ checks listed below.
   authentication and servers using a different authorized-keys path. Choose the
   saved identity in host settings after installation; jump hosts and port
   knocking are not supported by the setup dialog.
-  Seven unit tests cover line handling and duplicates. Three local SFTP tests
+  Eleven unit tests cover line handling and duplicates, including quoted options,
+  escaped quotes and key text in comments. Parsing follows the
+  [OpenSSH authorized_keys format](https://man.openbsd.org/sshd.8#AUTHORIZED_KEYS_FILE_FORMAT),
+  so a mentioned key is not mistaken for an installed entry. Three local SFTP tests
   check preserved entries/restrictions, permissions and symlink rejection using
   isolated files under /tmp, not the account's real authorized_keys. Three
   Android tests cover success, failure, cancellation and password-byte clearing.
