@@ -3,8 +3,8 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 3 October checks pass: build, lint, 343 local tests with real SSH/SFTP and
-IPv6 enabled, and 90 Android 13 tests. One Android 14+ test is skipped. This
+The 3 October checks pass: build, lint, 350 local tests with real SSH/SFTP and
+IPv6 enabled, and 92 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -526,11 +526,18 @@ checks listed below.
   proxies, rejected passwords and IPv6 HTTP destination formatting.
   Android tests cover upgrades from versions 6–10, save/reload, duplicated proxy
   rows, identity deletion, stale choices, rejected saves, controls and warning
-  confirmation. Live Android connections, cancellation, timeouts, changed proxy
+  confirmation. Live Android connections, changed proxy
   credentials and server-key review through a proxy still need checks.
+  Cancellation now closes the pending proxy socket before asking JSch to
+  disconnect. Two regression tests failed before this fix for silent HTTP and
+  SOCKS5 handshakes, which JSch did not consider connected yet. Seven local
+  failure tests pass for cancellation, read timeouts, closing before connecting,
+  late socket creation and late session registration. Both silent-proxy
+  cancellation checks also pass on Android 13. Android DNS delays, custom socket
+  factories and malformed or slowly trickling proxy replies remain to check.
   All seven new Android checks pass on Android 13: the version-10 upgrade,
   three save/identity tests and three control/warning tests. The full Android
-  run passes 90 tests and skips the Android 14+ service declaration check.
+  run passes 92 tests and skips the Android 14+ service declaration check.
   Three real-server IPv6 tests cover SSH authentication, local forwarding and
   SOCKS5 IPv6 requests. They require an explicit IPv6 address for the same
   server already trusted under the test host name. Trust aliases stay in memory

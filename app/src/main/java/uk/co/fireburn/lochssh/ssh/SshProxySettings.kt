@@ -43,7 +43,7 @@ data class SshProxySettings(
                 username?.let { setUserPasswd(it, password) }
             }
         }
-        return DestinationProxy(proxy, type)
+        return CancellableSshProxy(DestinationProxy(proxy, type))
     }
 
     override fun toString() = "SshProxySettings(type=$type, host=$host, port=$port, authenticated=${username != null})"

@@ -155,7 +155,8 @@ class SshConnectionManager(
         }
 
         val s = jsch.getSession(config.username, config.host, config.port)
-        config.proxy?.let { s.setProxy(it.create()) }
+        val proxy = config.proxy?.create()
+        proxy?.let(s::setProxy)
         s.setServerAliveInterval(KeepAlive.milliseconds(config.keepAliveSeconds))
         s.setServerAliveCountMax(3)
         s.setConfig("StrictHostKeyChecking", "yes")
@@ -175,7 +176,7 @@ class SshConnectionManager(
                 "aes256-ctr,aes192-ctr,aes128-ctr"
         )
         config.password?.let { s.setPassword(it) }
-        connectingSessions.add(s)
+        connectingSessions.add(s, proxy)
         return s
     }
 

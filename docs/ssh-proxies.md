@@ -38,9 +38,17 @@ see [HTTP Basic](https://www.rfc-editor.org/rfc/rfc7617.html#section-4) and
 Only use them over a trusted network or VPN. SSH protects the connection to the
 SSH server after the proxy handshake, not the proxy password exchange.
 
-Check reconnecting after a proxy or its password identity changes. Check
-timeouts and cancellation against an unresponsive proxy, strict server-key
-review through a proxy, IPv6 destinations and live Android connections.
+Cancellation closes the pending proxy socket before disconnecting the SSH
+session. Closing an attempt also prevents later socket or session registration.
+This is needed because JSch ignores disconnect during the proxy handshake.
+Sockets use the connection timeout for TCP setup and handshake reads.
+
+Check reconnecting after a proxy or its password identity changes, strict
+server-key review through a proxy, IPv6 destinations and live Android connections.
+System DNS lookups and custom socket factories can still take time to return;
+cancellation closes their sockets once available rather than opening a late
+connection. Check Android DNS delays and bound malformed or slowly trickling
+proxy responses.
 
 ## Current checks
 
@@ -53,5 +61,10 @@ Seven saved-settings unit tests cover separate credential reads, missing or
 changed identities, failed password reads, disabled fields and route validation.
 Android tests cover upgrades from database versions 6–10, saving and reopening,
 duplicated rows, blocked identity deletion, stale identities, failed validation,
-proxy controls, disabling and warning confirmation. Live Android proxy
-connections and the failure checks above remain unverified.
+proxy controls, disabling and warning confirmation. Seven local failure tests
+cover silent HTTP/SOCKS5 cancellation, read timeouts, closing before connection,
+late socket creation and late session registration. The two cancellation tests
+failed before the socket-close fix. Both cancellation checks also pass on the
+Android 13 emulator using local silent proxy listeners. Live Android SSH
+connections through a proxy
+and the failure checks above remain unverified.
