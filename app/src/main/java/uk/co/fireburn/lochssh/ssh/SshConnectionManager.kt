@@ -88,6 +88,7 @@ class SshConnectionManager(
     private fun acquireTransport(): SharedSshConnection? = transport?.takeIf { it.acquire() }
 
     private fun connectChain() {
+        SshProxyRoute.validate(config)
         AndroidJSch.configure()
         val reused = sharedConnection?.acquireTransport()
         if (reused != null) {
@@ -154,6 +155,7 @@ class SshConnectionManager(
         }
 
         val s = jsch.getSession(config.username, config.host, config.port)
+        config.proxy?.let { s.setProxy(it.create()) }
         s.setServerAliveInterval(KeepAlive.milliseconds(config.keepAliveSeconds))
         s.setServerAliveCountMax(3)
         s.setConfig("StrictHostKeyChecking", "yes")

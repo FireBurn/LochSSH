@@ -27,5 +27,6 @@ data class SshConnectionConfig(
     val jumpHosts: List<SshConnectionConfig> = emptyList(),
     val agentForwarding: Boolean = false,
     val knockSequence: String = "",
-    val knockPause: Long = 200
+    val knockPause: Long = 200,
+    val proxy: SshProxySettings? = null
 )
