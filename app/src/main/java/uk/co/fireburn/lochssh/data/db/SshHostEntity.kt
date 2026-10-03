@@ -34,5 +34,9 @@ data class SshHostEntity(
     @ColumnInfo(name = "jump_host_id", defaultValue = "NULL") val jumpHostId: Long? = null,
     @ColumnInfo(name = "agent_forwarding", defaultValue = "0") val agentForwarding: Boolean = false,
     @ColumnInfo(name = "knock_sequence", defaultValue = "''") val knockSequence: String = "",
-    @ColumnInfo(name = "knock_pause", defaultValue = "200") val knockPause: Long = 200
+    @ColumnInfo(name = "knock_pause", defaultValue = "200") val knockPause: Long = 200,
+    @ColumnInfo(name = "proxy_type", defaultValue = "'NONE'") val proxyType: String = "NONE",
+    @ColumnInfo(name = "proxy_host", defaultValue = "''") val proxyHost: String = "",
+    @ColumnInfo(name = "proxy_port", defaultValue = "1080") val proxyPort: Int = 1080,
+    @ColumnInfo(name = "proxy_identity_id", defaultValue = "NULL") val proxyIdentityId: Long? = null
 )

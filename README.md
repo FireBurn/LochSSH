@@ -43,6 +43,20 @@ before adding the shortcut. Opening it loads the current host and asks before
 connecting; a deleted host shows an error. The shortcut stores only the host ID,
 not credentials. Launcher interaction still needs device checks.
 
+## Connection proxies
+
+In the host editor, choose HTTP CONNECT or SOCKS5 under Connection proxy and
+enter the proxy address and port. Leave Proxy login at None for anonymous
+access, or choose a separate password identity created under Identities. The
+proxy password stays in encrypted storage, not the host row.
+
+Proxy password exchanges are not encrypted. Only use a trusted network or VPN;
+SSH does not protect the proxy handshake. Saving an authenticated proxy requires
+confirmation. For jump hosts, configure the proxy on the first jump host.
+Port knocking cannot run through a proxy. Choose None to clear proxy settings.
+See [proxy checks and limits](docs/ssh-proxies.md); live Android connections still
+need testing.
+
 ## Build
 
 Use JDK 25 and an Android SDK with API 35 installed:

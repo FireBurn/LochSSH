@@ -18,6 +18,8 @@ import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 import uk.co.fireburn.lochssh.data.db.PortForwardEntity
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
+import uk.co.fireburn.lochssh.data.db.AuthTypes
+import uk.co.fireburn.lochssh.data.db.IdentityEntity
 
 class HostEditorSaveAndroidTest {
     private val instrumentation = InstrumentationRegistry.getInstrumentation()
@@ -63,6 +65,69 @@ class HostEditorSaveAndroidTest {
             }
         }
         return editor
+    }
+
+    @Test
+    fun savesReloadsDuplicatesAndDisablesAProxy() = runBlocking {
+        val identity = database.identityDao().insert(IdentityEntity(name = "Proxy", username = "proxy-user",
+            authType = AuthTypes.PASSWORD, secretRef = "test-reference"))
+        val id = database.sshHostDao().insert(SshHostEntity(name = "Test", host = "test.invalid"))
+        val editor = openEditor(id, "proxy")
+        assertNull(saveProxy(editor, HostProxyFields("HTTP", "proxy.invalid", "8080", identity)))
+        val reopened = openEditor(id, "proxy-reopened")
+        instrumentation.runOnMainSync {
+            assertEquals(HostProxyFields("HTTP", "proxy.invalid", "8080", identity),
+                HostProxyFields.from(requireNotNull(reopened.host)))
+        }
+        val original = requireNotNull(database.sshHostDao().getById(id))
+        val duplicateId = database.sshHostDao().insert(original.copy(id = 0, name = "Copy"))
+        assertEquals(HostProxyFields.from(original), HostProxyFields.from(requireNotNull(database.sshHostDao().getById(duplicateId))))
+        assertEquals(2, database.identityDao().countUsages(identity))
+        assertEquals(0, database.identityDao().deleteIfUnused(identity))
+        assertNull(saveProxy(reopened, HostProxyFields(host = "bad address", port = "bad", identityId = identity)))
+        val cleared = requireNotNull(database.sshHostDao().getById(id))
+        assertEquals("NONE", cleared.proxyType)
+        assertEquals("", cleared.proxyHost)
+        assertNull(cleared.proxyIdentityId)
+        database.sshHostDao().delete(requireNotNull(database.sshHostDao().getById(duplicateId)))
+        assertEquals(1, database.identityDao().deleteIfUnused(identity))
+    }
+
+    @Test
+    fun rejectsProxyIdentitiesRemovedOrChangedAfterLoading() = runBlocking {
+        val identities = database.identityDao()
+        val identity = identities.insert(IdentityEntity(name = "Proxy", username = "user",
+            authType = AuthTypes.PASSWORD, secretRef = "test-reference"))
+        val id = database.sshHostDao().insert(SshHostEntity(name = "Test", host = "test.invalid"))
+        val editor = openEditor(id, "missing-proxy")
+        val fields = HostProxyFields("SOCKS5", "proxy.invalid", "1080", identity)
+        identities.update(requireNotNull(identities.getById(identity)).copy(authType = AuthTypes.PUBLIC_KEY))
+        assertEquals("Choose a password identity for the proxy", saveProxy(editor, fields))
+        assertEquals("NONE", database.sshHostDao().getById(id)?.proxyType)
+        assertEquals(1, identities.deleteIfUnused(identity))
+        assertEquals("The proxy identity no longer exists", saveProxy(editor, fields))
+        assertEquals("NONE", database.sshHostDao().getById(id)?.proxyType)
+    }
+
+    @Test
+    fun rejectsProxiesBehindJumpsAndInvalidFieldsWithoutChangingRows() = runBlocking {
+        val jump = database.sshHostDao().insert(SshHostEntity(name = "Jump", host = "jump.invalid"))
+        val id = database.sshHostDao().insert(SshHostEntity(name = "Test", host = "test.invalid", jumpHostId = jump))
+        val editor = openEditor(id, "jump-proxy")
+        assertEquals("Set the proxy on the first jump host, not on a host reached through SSH",
+            saveProxy(editor, HostProxyFields("HTTP", "proxy.invalid", "8080"), jump))
+        assertEquals("Proxy port must be from 1 to 65535", saveProxy(editor, HostProxyFields("SOCKS5", "proxy.invalid", "65536")))
+        assertEquals(jump, database.sshHostDao().getById(id)?.jumpHostId)
+        assertEquals("NONE", database.sshHostDao().getById(id)?.proxyType)
+    }
+
+    private suspend fun saveProxy(editor: HostEditorViewModel, proxy: HostProxyFields, jump: Long? = null): String? {
+        val finished = CompletableDeferred<String?>()
+        instrumentation.runOnMainSync {
+            editor.save("Test", "test.invalid", "22", "30", "", null, "", RemoteSessionModes.SHELL,
+                jump, false, proxy = proxy) { finished.complete(it) }
+        }
+        return withTimeout(5000) { finished.await() }
     }
 
     private suspend fun saveKnocking(editor: HostEditorViewModel, sequence: String, pause: String): String? {

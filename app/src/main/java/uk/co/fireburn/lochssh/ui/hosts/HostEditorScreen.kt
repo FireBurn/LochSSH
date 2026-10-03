@@ -41,6 +41,8 @@ import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import uk.co.fireburn.lochssh.data.db.PortForwardEntity
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import uk.co.fireburn.lochssh.ssh.KeepAlive
+import uk.co.fireburn.lochssh.ssh.SavedSshProxy
+import uk.co.fireburn.lochssh.data.db.SshHostEntity
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -86,6 +88,8 @@ fun HostEditorScreen(
     var identityMenu by remember(hostId) { mutableStateOf(false) }
     var saveError by remember(hostId) { mutableStateOf<String?>(null) }
     var saving by remember(hostId) { mutableStateOf(false) }
+    var proxy by remember(hostId) { mutableStateOf(HostProxyFields()) }
+    var confirmProxy by remember(hostId) { mutableStateOf(false) }
 
     var adding by remember(hostId) { mutableStateOf(false) }
     var draftType by remember(hostId) { mutableStateOf(ForwardTypes.LOCAL) }
@@ -109,6 +113,7 @@ fun HostEditorScreen(
             identityId = it.identityId
             jumpHostId = it.jumpHostId
             agentForwarding = it.agentForwarding
+            proxy = HostProxyFields.from(it)
         }
     }
 
@@ -120,14 +125,37 @@ fun HostEditorScreen(
         require(knockSequence.isBlank() || knockPause.toLongOrNull() in 0L..5000L) { "Pause must be between 0 and 5000 milliseconds" }
         require(jumpHostId == null || knockSequence.isBlank()) { "Configure knocking on the first jump host instead" }
     }.exceptionOrNull()?.message
+    val proxyError = runCatching {
+        val candidate = proxy.applyTo(SshHostEntity(name = name, host = host,
+            jumpHostId = jumpHostId, knockSequence = knockSequence))
+        require(jumpHostId == null || candidate.proxyType == SavedSshProxy.NONE) {
+            "Set the proxy on the first jump host, not on a host reached through SSH"
+        }
+        SavedSshProxy.checkRoute(listOf(candidate))
+    }.exceptionOrNull()?.message
     val canSave = viewModel.loaded && !saving && name.isNotBlank() && host.isNotBlank() &&
-        validPort && validKeepAlive && validCommand && knockError == null
+        validPort && validKeepAlive && validCommand && knockError == null && proxyError == null
     val minListenPort = if (draftType == ForwardTypes.REMOTE) 1 else 1024
     val validDraftLocal = draftLocal.toIntOrNull() in minListenPort..65535
     val validDraftRemote = draftType == ForwardTypes.DYNAMIC ||
         draftRemote.toIntOrNull() in 1..65535
     val validDraftHost = draftType != ForwardTypes.LOCAL || draftRemoteHost.isNotBlank()
     val canAddTunnel = viewModel.loaded && validDraftLocal && validDraftRemote && validDraftHost
+
+    fun save() {
+        if (!canSave) return
+        saving = true
+        saveError = null
+        viewModel.save(name, host, port, keepAlive, group, identityId, autoCommand, remoteSessionMode,
+            jumpHostId, agentForwarding, knockSequence, knockPause, proxy) { error ->
+            saving = false
+            if (error == null) onBack() else saveError = error
+        }
+    }
+
+    if (confirmProxy) {
+        ProxyLoginWarning(onConfirm = { confirmProxy = false; save() }, onDismiss = { confirmProxy = false })
+    }
 
     Scaffold(
         topBar = {
@@ -142,16 +170,8 @@ fun HostEditorScreen(
                     TextButton(
                         enabled = canSave,
                         onClick = {
-                            if (saving) return@TextButton
-                            saving = true
-                            saveError = null
-                            viewModel.save(
-                                name, host, port, keepAlive, group, identityId,
-                                autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause
-                            ) { error ->
-                                saving = false
-                                if (error == null) onBack() else saveError = error
-                            }
+                            if (proxy.identityId != null && proxy.type != SavedSshProxy.NONE)
+                                confirmProxy = true else save()
                         }
                     ) { Text("Save") }
                 }
@@ -320,6 +340,7 @@ fun HostEditorScreen(
                 androidx.compose.material3.Switch(checked = agentForwarding,
                     onCheckedChange = { if (it) confirmAgent = true else agentForwarding = false })
             }
+            HostProxySettings(proxy, identities, { proxy = it }, proxyError)
             Text("Tunnels", style = MaterialTheme.typography.titleSmall)
             forwards.forEachIndexed { index, f ->
                 Row(

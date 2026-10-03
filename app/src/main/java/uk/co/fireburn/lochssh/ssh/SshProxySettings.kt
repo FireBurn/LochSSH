@@ -23,6 +23,9 @@ data class SshProxySettings(
         }
         if (type == SshProxyType.HTTP) {
             require(username?.contains(':') != true) { "HTTP proxy usernames cannot contain a colon" }
+            require(listOfNotNull(username, password).none { value -> value.any { it.code < 32 || it.code == 127 } }) {
+                "HTTP proxy credentials cannot contain control characters"
+            }
         } else {
             require(username == null || username.toByteArray(Charsets.UTF_8).size <= 255) { "Proxy username is too long" }
             require(password == null || password.toByteArray(Charsets.UTF_8).size <= 255) { "Proxy password is too long" }

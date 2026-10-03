@@ -30,6 +30,7 @@ import uk.co.fireburn.lochssh.data.db.SshHostEntity
 import uk.co.fireburn.lochssh.ssh.JumpHostChain
 import uk.co.fireburn.lochssh.ssh.HostKeyReviewRequired
 import uk.co.fireburn.lochssh.ssh.SavedHostKey
+import uk.co.fireburn.lochssh.ssh.SavedSshProxy
 import uk.co.fireburn.lochssh.ssh.PortForwardSpec
 import uk.co.fireburn.lochssh.ssh.RemoteSessionOptions
 import uk.co.fireburn.lochssh.ssh.RemoteSessions
@@ -153,6 +154,7 @@ class SshForegroundService : Service() {
             // Key loading and the SSH handshake block, so keep them off the main thread.
             val connected = withContext(Dispatchers.IO) {
                 val jumpHosts = JumpHostChain.resolve(host, hostDao::getById)
+                SavedSshProxy.checkRoute(jumpHosts + host)
                 suspend fun configFor(host: SshHostEntity): SshConnectionConfig {
                     val identity = host.identityId?.let { identityDao.getById(it) }
                     val secret = identity?.secretRef?.let { secrets.getSecret(it) }
@@ -173,6 +175,7 @@ class SshForegroundService : Service() {
                         agentForwarding = host.id == hostId && host.agentForwarding,
                         knockSequence = host.knockSequence,
                         knockPause = host.knockPause,
+                        proxy = SavedSshProxy.resolve(host, identityDao::getById, secrets::getSecret),
                         forwards = if (host.id == hostId) portForwardDao.getByHost(hostId).map {
                             PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
                         } else emptyList()

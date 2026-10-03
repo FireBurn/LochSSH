@@ -24,6 +24,7 @@ import uk.co.fireburn.lochssh.data.db.SshHostEntity
 import javax.inject.Inject
 import uk.co.fireburn.lochssh.ssh.KeepAlive
 import uk.co.fireburn.lochssh.ssh.JumpHostChain
+import uk.co.fireburn.lochssh.ssh.SavedSshProxy
 
 @HiltViewModel
 class HostEditorViewModel @Inject constructor(
@@ -103,11 +104,12 @@ class HostEditorViewModel @Inject constructor(
         agentForwarding: Boolean,
         knockSequence: String = "",
         knockPause: String = "200",
+        proxy: HostProxyFields = HostProxyFields(),
         onFinished: (String?) -> Unit
     ) {
         viewModelScope.launch {
             val error = try {
-                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause)
+                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause, proxy)
                 null
             } catch (e: CancellationException) {
                 throw e
@@ -130,7 +132,8 @@ class HostEditorViewModel @Inject constructor(
         jumpHostId: Long?,
         agentForwarding: Boolean,
         knockSequence: String,
-        knockPause: String
+        knockPause: String,
+        proxy: HostProxyFields
     ) {
         check(loaded) { loadError ?: "Wait for the host to load" }
         val existing = host
@@ -146,7 +149,7 @@ class HostEditorViewModel @Inject constructor(
         val pause = if (knockSequence.isBlank()) 200L else knockPause.toLongOrNull()
         require(pause != null && pause in 0..5000) { "Pause must be between 0 and 5000 milliseconds" }
         require(jumpHostId == null || knockSequence.isBlank()) { "Configure knocking on the first jump host instead" }
-        val entity = existing?.copy(
+        val details = existing?.copy(
             name = name,
             host = hostName,
             port = validPort,
@@ -173,9 +176,12 @@ class HostEditorViewModel @Inject constructor(
             knockSequence = knockSequence.trim(),
             knockPause = pause
         )
+        val entity = proxy.applyTo(details)
         database.withTransaction {
             HostIdentity.check(identityId, agentForwarding, identityDao::getById)
-            JumpHostChain.resolve(entity, hostDao::getById)
+            SavedSshProxy.checkIdentity(entity, identityDao::getById)
+            val chain = JumpHostChain.resolve(entity, hostDao::getById)
+            SavedSshProxy.checkRoute(chain + entity)
             val hostId = if (existing != null) {
                 check(hostDao.update(entity) == 1) { "This host no longer exists" }
                 existing.id

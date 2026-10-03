@@ -13,6 +13,8 @@ import uk.co.fireburn.lochssh.data.db.LochSshDatabase
 
 class JumpHostMigrationAndroidTest {
     @Test
+    fun migratesVersionTenWithProxiesDisabled() = migrate(10)
+    @Test
     fun migratesVersionNineWithKnockingDisabled() = migrate(9)
     @Test
     fun migratesExistingHostsAndStoresJumpChoice() = migrate(6)
@@ -44,17 +46,27 @@ class JumpHostMigrationAndroidTest {
                 }
                 if (startVersion >= 8) old.execSQL("ALTER TABLE ssh_hosts ADD COLUMN agent_forwarding INTEGER NOT NULL DEFAULT 0")
                 if (startVersion >= 9) old.execSQL("CREATE TABLE secret_cleanup (reference TEXT NOT NULL PRIMARY KEY)")
+                if (startVersion >= 10) {
+                    old.execSQL("ALTER TABLE ssh_hosts ADD COLUMN knock_sequence TEXT NOT NULL DEFAULT ''")
+                    old.execSQL("ALTER TABLE ssh_hosts ADD COLUMN knock_pause INTEGER NOT NULL DEFAULT 200")
+                    old.execSQL("UPDATE ssh_hosts SET knock_sequence = '7000', knock_pause = 100 WHERE id = 1")
+                }
                 old.version = startVersion
             }
             val migrated = Room.databaseBuilder(context, LochSshDatabase::class.java, name)
                 .addMigrations(LochSshDatabase.MIGRATION_6_7, LochSshDatabase.MIGRATION_7_8,
-                    LochSshDatabase.MIGRATION_8_9, LochSshDatabase.MIGRATION_9_10).build()
+                    LochSshDatabase.MIGRATION_8_9, LochSshDatabase.MIGRATION_9_10,
+                    LochSshDatabase.MIGRATION_10_11).build()
             database = migrated
             val host = requireNotNull(migrated.sshHostDao().getById(1))
             if (startVersion == 6) assertNull(host.jumpHostId) else assertEquals(2L, host.jumpHostId)
             assertFalse(host.agentForwarding)
-            assertEquals("", host.knockSequence)
-            assertEquals(200L, host.knockPause)
+            assertEquals(if (startVersion == 10) "7000" else "", host.knockSequence)
+            assertEquals(if (startVersion == 10) 100L else 200L, host.knockPause)
+            assertEquals("NONE", host.proxyType)
+            assertEquals("", host.proxyHost)
+            assertEquals(1080, host.proxyPort)
+            assertNull(host.proxyIdentityId)
             assertTrue(migrated.secretCleanupDao().pending().isEmpty())
             assertEquals("pwd", host.autoCommand)
             assertEquals(2222, host.port)

@@ -3,8 +3,8 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 3 October checks pass: build, lint, 336 local tests with real SSH/SFTP and
-IPv6 enabled, and 83 Android 13 tests. One Android 14+ test is skipped. This
+The 3 October checks pass: build, lint, 343 local tests with real SSH/SFTP and
+IPv6 enabled, and 90 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -511,16 +511,26 @@ checks listed below.
   updates report an error and do not request pinning. Build and lint pass;
   disabled-ID recovery, renamed labels and launcher rate limits still need
   runtime checks. No device was available for these checks.
-- Add proxy settings and check IPv6 connections on Android.
-  The [proxy plan](ssh-proxies.md) covers HTTP CONNECT, SOCKS5, saved password
-  identities and first-jump routing. The connection transport supports both
-  proxy types with optional separate credentials. Seven unit tests check
-  validation, credential limits, hidden credentials and route restrictions.
+- Check saved proxies and IPv6 connections on Android.
+  The [proxy notes](ssh-proxies.md) cover HTTP CONNECT, SOCKS5, separate password
+  identities and first-jump routing. The host editor now saves proxy settings;
+  database version 11 defaults existing hosts to None. Disabling clears saved
+  fields. Optional proxy passwords use a separate identity in encrypted storage.
+  Proxy references block identity deletion; saves check the current identity
+  inside their database transaction. Missing credentials stop connections rather
+  than falling back to anonymous or direct access. Authenticated saves require a
+  warning confirmation because proxy password exchanges are not encrypted.
+  Fourteen unit tests check validation, credential limits, hidden credentials,
+  separate secret reads, stale identities, failed reads, disabling and routing.
   Six local tests cover real SSH through anonymous and authenticated HTTP/SOCKS5
   proxies, rejected passwords and IPv6 HTTP destination formatting.
-  The host editor, database migration and identity-use checks remain unfinished;
-  there is no proxy choice in the app yet. Android connections, cancellation,
-  timeouts and server-key review through a proxy also need checks.
+  Android tests cover upgrades from versions 6–10, save/reload, duplicated proxy
+  rows, identity deletion, stale choices, rejected saves, controls and warning
+  confirmation. Live Android connections, cancellation, timeouts, changed proxy
+  credentials and server-key review through a proxy still need checks.
+  All seven new Android checks pass on Android 13: the version-10 upgrade,
+  three save/identity tests and three control/warning tests. The full Android
+  run passes 90 tests and skips the Android 14+ service declaration check.
   Three real-server IPv6 tests cover SSH authentication, local forwarding and
   SOCKS5 IPv6 requests. They require an explicit IPv6 address for the same
   server already trusted under the test host name. Trust aliases stay in memory

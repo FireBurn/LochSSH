@@ -44,6 +44,7 @@ class SshProxySettingsTest {
         assertThrows(IllegalArgumentException::class.java) { proxy().copy(username = "user").validate() }
         assertThrows(IllegalArgumentException::class.java) { proxy().copy(password = "password").validate() }
         assertThrows(IllegalArgumentException::class.java) { proxy().copy(username = "user:name", password = "password").validate() }
+        assertThrows(IllegalArgumentException::class.java) { proxy().copy(username = "user", password = "password\n").validate() }
         proxy(SshProxyType.SOCKS5).copy(username = "é".repeat(127), password = "password").validate()
         assertThrows(IllegalArgumentException::class.java) {
             proxy(SshProxyType.SOCKS5).copy(username = "é".repeat(128), password = "password").validate()
