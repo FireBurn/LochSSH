@@ -44,6 +44,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -104,6 +105,7 @@ fun TerminalScreen(
     var toolbarVisible by remember(sessionId) { mutableStateOf(true) }
     var savedCommandsOpen by remember { mutableStateOf(false) }
     var batterySettingsOpen by remember { mutableStateOf(false) }
+    var performanceOpen by remember(sessionId) { mutableStateOf(false) }
     var pendingLinks by remember(sessionId) { mutableStateOf<List<String>>(emptyList()) }
     var linkError by remember(sessionId) { mutableStateOf<String?>(null) }
     val selectedLinks = remember(selectedText) { TerminalLinks.find(selectedText.orEmpty()) }
@@ -116,6 +118,11 @@ fun TerminalScreen(
     val session = sessions.firstOrNull { it.id == sessionId }
     val savedCommands by viewModel.savedCommands.collectAsStateWithLifecycle()
     val manager = session?.manager
+    if (performanceOpen && manager != null) {
+        key(manager) {
+            PerformanceDialog(session.hostName, manager::readPerformance) { performanceOpen = false }
+        }
+    }
     if (batterySettingsOpen) {
         AlertDialog(onDismissRequest = { batterySettingsOpen = false },
             title = { Text("Background connections") },
@@ -394,6 +401,9 @@ fun TerminalScreen(
                                     moreOpen = false
                                     batterySettingsOpen = true
                                 })
+                                DropdownMenuItem(text = { Text("Performance") },
+                                    enabled = session?.isConnected == true,
+                                    onClick = { moreOpen = false; performanceOpen = true })
                                 DropdownMenuItem(
                                     text = { Text("Remote sessions") },
                                     enabled = manager != null,

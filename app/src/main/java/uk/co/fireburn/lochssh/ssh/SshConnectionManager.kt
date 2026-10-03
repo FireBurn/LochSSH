@@ -270,7 +270,13 @@ class SshConnectionManager(
     fun remoteSessionAvailable(tool: String): Boolean =
         remoteCommand(RemoteSessions.availabilityCommand(tool)).exitCode == 0
 
-    private fun remoteCommand(command: String): RemoteCommandResult {
+    fun readPerformance(): PerformanceSnapshot {
+        val result = remoteCommand(PerformanceCommand.command, PerformanceParser.MAX_OUTPUT)
+        if (result.exitCode != 0) throw IOException("Linux performance readings are not available on this server")
+        return PerformanceParser.parse(result.output)
+    }
+
+    private fun remoteCommand(command: String, maxBytes: Int = 16_384): RemoteCommandResult {
         val active = session ?: throw IOException("SSH session closed")
         val exec = active.openChannel("exec") as ChannelExec
         val output = ByteArrayOutputStream()
@@ -285,8 +291,8 @@ class SshConnectionManager(
                 if (session !== active) throw IOException("Terminal closed")
                 val available = input.available()
                 if (available > 0) {
-                    val remaining = 16_384 - output.size()
-                    if (remaining <= 0) throw IOException("Remote session list is too long")
+                    val remaining = maxBytes - output.size()
+                    if (remaining <= 0) throw IOException("Server response is too long")
                     val count = input.read(buffer, 0, minOf(available, remaining, buffer.size))
                     if (count > 0) output.write(buffer, 0, count)
                 } else if (exec.isClosed) {
@@ -295,7 +301,7 @@ class SshConnectionManager(
                     Thread.sleep(20)
                 }
             }
-            throw IOException("Remote session check timed out")
+            throw IOException("Server command timed out")
         } finally {
             sessionChannels.remove(exec)
             exec.disconnect()

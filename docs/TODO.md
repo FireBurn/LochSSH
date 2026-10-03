@@ -3,8 +3,8 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 2 October checks pass: build, lint, 283 local tests with real SSH/SFTP and
-IPv6 enabled, and 68 Android 13 tests. One Android 14+ test is skipped. This
+The 3 October checks pass: build, lint, 308 local tests with real SSH/SFTP and
+IPv6 enabled, and 75 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -509,7 +509,18 @@ checks listed below.
   keyboard's encoder. Hardware F1–F12, Insert, Shift+Tab and modified navigation
   keys are encoded too; three Android tests pass on the phone. Check physical
   keyboard input and application shortcuts in a live terminal.
-- Add port knocking and a lightweight remote performance view.
+- Check port knocking and the remote performance view on the phone.
+  The terminal menu now shows Linux CPU use and its recent history, load,
+  memory, root-disk usage, per-interface network rates and available temperatures.
+  Readings use fixed read-only commands over SSH; no server software is installed.
+  Polling runs two seconds after each completed request while the view is open
+  and resumed. Errors stop polling until Retry. Requests have a three-second
+  read deadline and a 64 KiB output limit. Missing fields show Unavailable.
+  Fifteen unit tests cover parsing, rates, invalid counters and live Linux/SSH
+  readings. Four Android tests cover the displayed values, history, retry,
+  pausing in the background and interrupting a read when the view closes.
+  Check other Linux systems, missing /proc files, uncommon login shells,
+  slow links, different temperature sensors and interrupted SSH channels.
   The port-sequence parser accepts comma-separated ports with optional `:tcp`
   or `:udp`, preserving order and repeated ports. Blank disables it. Three unit
   tests cover mixed protocols, boundaries and invalid input. The host editor

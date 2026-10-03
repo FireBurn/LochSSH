@@ -103,6 +103,16 @@ Hold an arrow or Page Up/Down key to repeat it. Dragging sends wheel events when
 the remote program enables mouse input; otherwise it scrolls terminal history.
 Tmux may require its `mouse` option to be enabled to pass wheel events through.
 
+## Server performance
+
+Open Performance from a connected terminal's menu for Linux CPU use, load,
+memory, root-disk usage, network rates and available temperature sensors. CPU
+and network rates need two readings; CPU history keeps the last 30 values.
+Readings run every two seconds after the previous request finishes, only while
+the view is open and the app is visible. Missing sensors show Unavailable.
+The view uses read-only SSH commands and does not install software on the server.
+Failed requests stop polling until Retry or reopening the view.
+
 ## Jump hosts and agent forwarding
 
 Choose a saved **Jump host** in the host editor to connect through it. Each hop
