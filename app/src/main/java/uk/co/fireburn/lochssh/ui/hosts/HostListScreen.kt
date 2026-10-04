@@ -11,7 +11,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Settings
@@ -109,34 +108,10 @@ fun HostListScreen(
                                 SshForegroundService.start(context, it.hostId, it.id, it.remoteCommand)
                             }
                         }
-                        sessions.forEach { session ->
-                            Card(
-                                onClick = { onResumeSession(session.id) },
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier.padding(12.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Column(modifier = Modifier.weight(1f)) {
-                                        Text(session.label)
-                                        Text(
-                                            session.statusText,
-                                            style = MaterialTheme.typography.bodySmall
-                                        )
-                                    }
-                                    Text(session.actionLabel, style = MaterialTheme.typography.labelLarge)
-                                    if (session.manager == null) {
-                                        val context = LocalContext.current
-                                        IconButton(onClick = { SshForegroundService.disconnect(context, session.id) }) {
-                                            Icon(Icons.Filled.Close, contentDescription =
-                                                if (session.error == null) "Cancel connection" else "Dismiss")
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
+                }
+                items(HostSessionGroups.create(hosts, sessions), key = { "session-host-${it.hostId}" }) { group ->
+                    HostSessionGroupView(group, onResumeSession) { SshForegroundService.disconnect(context, it) }
                 }
             }
             item(key = "host-actions") {

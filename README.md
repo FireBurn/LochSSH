@@ -111,6 +111,9 @@ changes and remote timeouts can still close a connection.
 
 ## Remote tmux and screen
 
+The main screen groups sessions by saved host, with its name and address above
+the remote-session rows. Different hosts stay separate even if their names match.
+
 From a host's Actions menu, choose Find and connect all remote sessions. The
 button above the host rows finds and connects remote sessions on all saved hosts.
 These actions do not change saved startup settings. Dropped remote-session rows
