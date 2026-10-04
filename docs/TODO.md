@@ -511,7 +511,15 @@ checks listed below.
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Three parsing tests pass;
   wrapped links and the selection-to-browser interaction still need checks.
-- Add local shell sessions and check app lock on supported phones.
+- Add local shell sessions. There is no local-shell implementation in the app.
+  A local terminal needs a real terminal connection for interactive programs,
+  resize handling, input, output and exit status, not a process with plain pipes.
+  Keep it separate from SSH host settings, server keys and network reconnects.
+  Show it as Local in session lists and keep app-lock protection. Check shell
+  startup, interactive editors, resizing, backgrounding, cancellation and
+  process exit. Choose a supported Android terminal library that works with
+  the Kotlin-only application before adding this session type.
+- Check app lock on supported phones.
   App lock is optional under Settings and defaults to off. It uses Android's
   device-unlock prompt, hides the app's screens when its activity pauses and
   requests screenshot protection while enabled. SSH sessions are not disconnected.
