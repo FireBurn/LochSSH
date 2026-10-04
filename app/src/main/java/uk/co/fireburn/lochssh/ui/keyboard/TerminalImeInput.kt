@@ -40,7 +40,7 @@ class TerminalEditText(context: Context) : EditText(context) {
     override fun onCreateInputConnection(outAttrs: EditorInfo): InputConnection {
         return object : BaseInputConnection(this, false) {
             override fun commitText(text: CharSequence?, newCursorPosition: Int): Boolean {
-                onText?.invoke(text.toString())
+                if (!text.isNullOrEmpty()) onText?.invoke(text.toString())
                 return true
             }
 
@@ -52,6 +52,9 @@ class TerminalEditText(context: Context) : EditText(context) {
                 if (beforeLength > 0) onDelete?.invoke(beforeLength)
                 return true
             }
+
+            override fun deleteSurroundingTextInCodePoints(beforeLength: Int, afterLength: Int): Boolean =
+                deleteSurroundingText(beforeLength, afterLength)
         }
     }
 }

@@ -4,7 +4,7 @@ This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
 The latest checks pass: build, lint, 370 local tests with real SSH/SFTP and
-IPv6 enabled, and 102 Android 13 tests. One Android 14+ test is skipped. This
+IPv6 enabled, and 105 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -13,11 +13,15 @@ checks listed below.
 - Test the actual Android keyboard input connection, not only key-event encoding.
   Claude's project conversation explicitly requested soft-keyboard Backspace
   and latched Ctrl/Alt followed by a typed character, while keeping DEL as
-  forward delete. Existing encoder tests do not exercise commitText or
-  deleteSurroundingText. Check null and empty commits, repeated deletion,
-  supplementary characters and modifier clearing through the input connection.
-  commitText currently converts a null value to the literal text "null";
-  reject that input rather than sending it to the remote shell.
+  forward delete. Null and empty commits are now ignored, and both deletion
+  methods forward Backspace requests. Three Android tests cover those paths,
+  supplementary text and callbacks replaced after opening the input connection.
+  Before the fix, the regressions reproduced literal "null" text and missing
+  code-point Backspace requests. Check keyboard-specific behaviour, latched
+  modifiers, repeated deletion, forward-delete requests and modifier clearing
+  through the input connection. The hidden field does not retain remote text;
+  deletion requests currently forward their count rather than translating
+  UTF-16 lengths using the remote cursor's surrounding text.
 - Check password-assisted key installation on a test server and the phone.
   Generate key pair now offers Save and install on server. The private key is
   saved before upload; the one-time password is never written to storage.
@@ -610,7 +614,7 @@ checks listed below.
   factories and malformed or slowly trickling proxy replies remain to check.
   All seven new Android checks pass on Android 13: the version-10 upgrade,
   three save/identity tests and three control/warning tests. The full Android
-  run passes 102 tests and skips the Android 14+ service declaration check.
+  run passes 105 tests and skips the Android 14+ service declaration check.
   Three real-server IPv6 tests cover SSH authentication, local forwarding and
   SOCKS5 IPv6 requests. They require an explicit IPv6 address for the same
   server already trusted under the test host name. Trust aliases stay in memory
