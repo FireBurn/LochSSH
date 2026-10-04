@@ -10,6 +10,14 @@ checks listed below.
 
 ## Fix before wider use
 
+- Test the actual Android keyboard input connection, not only key-event encoding.
+  Claude's project conversation explicitly requested soft-keyboard Backspace
+  and latched Ctrl/Alt followed by a typed character, while keeping DEL as
+  forward delete. Existing encoder tests do not exercise commitText or
+  deleteSurroundingText. Check null and empty commits, repeated deletion,
+  supplementary characters and modifier clearing through the input connection.
+  commitText currently converts a null value to the literal text "null";
+  reject that input rather than sending it to the remote shell.
 - Check password-assisted key installation on a test server and the phone.
   Generate key pair now offers Save and install on server. The private key is
   saved before upload; the one-time password is never written to storage.
