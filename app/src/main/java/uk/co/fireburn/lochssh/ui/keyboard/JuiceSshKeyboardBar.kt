@@ -35,7 +35,8 @@ fun JuiceSshKeyboardBar(
     onFontSizeChange: (Int) -> Unit,
     layout: KeyboardLayout = KeyboardLayout.DEFAULT,
     applicationCursor: () -> Boolean = { false },
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    inputTarget: Any? = null
 ) {
     fun emit(button: KeyboardButton, clearModifiers: Boolean = true) {
         when (button.action) {
@@ -77,7 +78,7 @@ fun JuiceSshKeyboardBar(
                         val repeats = button.action in setOf(KeyboardAction.UP, KeyboardAction.DOWN,
                             KeyboardAction.LEFT, KeyboardAction.RIGHT, KeyboardAction.PAGE_UP,
                             KeyboardAction.PAGE_DOWN)
-                        Key(button.label, Modifier.weight(1f), active, repeats, modifiers::clear) {
+                        Key(button.label, Modifier.weight(1f), active, repeats, modifiers::clear, inputTarget) {
                             emit(button, clearModifiers = !repeats)
                         }
                     }
@@ -94,9 +95,10 @@ private fun Key(
     active: Boolean = false,
     repeats: Boolean = false,
     onRelease: () -> Unit = {},
+    inputTarget: Any? = null,
     onClick: () -> Unit
 ) {
-    val keyModifier = modifier.height(40.dp).repeatingKey(repeats, onRelease, onClick)
+    val keyModifier = modifier.height(40.dp).repeatingKey(repeats, onRelease, onClick, inputTarget)
     val colour = if (active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant
     val contentColour = if (active) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
     if (repeats) {

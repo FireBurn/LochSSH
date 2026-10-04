@@ -573,6 +573,7 @@ fun TerminalScreen(
                         onReady = { imeEditText = it }
                     )
                     JuiceSshKeyboardBar(
+                        inputTarget = sessionId to manager,
                         layout = keyboardLayout,
                         applicationCursor = ::usesApplicationCursor,
                         modifiers = modifiers,

@@ -2,6 +2,7 @@ package uk.co.fireburn.lochssh.ui.keyboard
 
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.mutableStateOf
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.LifecycleRegistry
@@ -18,6 +19,36 @@ import uk.co.fireburn.lochssh.ui.terminal.TerminalModifiers
 
 class RepeatingKeyAndroidTest {
     @get:Rule val ui = createComposeRule()
+
+    @Test
+    fun switchingConnectionsStopsAHeldKey() {
+        val target = mutableStateOf(0)
+        val sent = intArrayOf(0, 0)
+        val modifiers = TerminalModifiers()
+        ui.setContent {
+            val current = target.value
+            MaterialTheme {
+                JuiceSshKeyboardBar(modifiers, { sent[current]++ }, {}, {}, inputTarget = current)
+            }
+        }
+        ui.mainClock.autoAdvance = false
+        ui.onNodeWithText("▲").performTouchInput { down(center) }
+        ui.mainClock.advanceTimeBy(700)
+        ui.runOnIdle {
+            assertTrue(sent[0] >= 4)
+            target.value = 1
+        }
+        ui.mainClock.advanceTimeBy(32)
+        val previous = sent[0]
+        ui.mainClock.advanceTimeBy(600)
+        ui.runOnIdle {
+            assertEquals(previous, sent[0])
+            assertEquals(0, sent[1])
+        }
+        ui.onNodeWithText("▲").performTouchInput { up() }
+        ui.onNodeWithText("PGDN").performTouchInput { click() }
+        ui.runOnIdle { assertEquals(1, sent[1]) }
+    }
 
     @Test
     fun pausingStopsAHeldKeyAndResumingDoesNotRestartIt() {

@@ -18,7 +18,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
 @Composable
-internal fun Modifier.repeatingKey(enabled: Boolean, onRelease: () -> Unit, onClick: () -> Unit): Modifier {
+internal fun Modifier.repeatingKey(enabled: Boolean, onRelease: () -> Unit, onClick: () -> Unit,
+    inputTarget: Any? = null): Modifier {
     val action = rememberUpdatedState(onClick)
     val released = rememberUpdatedState(onRelease)
     if (!enabled) return this
@@ -31,7 +32,7 @@ internal fun Modifier.repeatingKey(enabled: Boolean, onRelease: () -> Unit, onCl
             if (resumed) { action.value(); released.value() }
             resumed
         }
-    }.pointerInput(resumed) {
+    }.pointerInput(resumed, inputTarget) {
         if (!resumed) return@pointerInput
         detectTapGestures(onPress = {
             coroutineScope {
