@@ -78,7 +78,8 @@ fun JuiceSshKeyboardBar(
                         val repeats = button.action in setOf(KeyboardAction.UP, KeyboardAction.DOWN,
                             KeyboardAction.LEFT, KeyboardAction.RIGHT, KeyboardAction.PAGE_UP,
                             KeyboardAction.PAGE_DOWN)
-                        Key(button.label, Modifier.weight(1f), active, repeats, modifiers::clear, inputTarget) {
+                        Key(button.label, Modifier.weight(1f), active, repeats, modifiers::clear,
+                            inputTarget to button.action) {
                             emit(button, clearModifiers = !repeats)
                         }
                     }

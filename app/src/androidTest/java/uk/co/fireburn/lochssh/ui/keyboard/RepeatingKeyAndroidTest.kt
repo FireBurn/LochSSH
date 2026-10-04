@@ -15,10 +15,64 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
+import uk.co.fireburn.lochssh.data.KeyboardAction
+import uk.co.fireburn.lochssh.data.KeyboardButton
+import uk.co.fireburn.lochssh.data.KeyboardLayout
 import uk.co.fireburn.lochssh.ui.terminal.TerminalModifiers
 
 class RepeatingKeyAndroidTest {
     @get:Rule val ui = createComposeRule()
+
+    @Test
+    fun changingTheHeldButtonStopsItsRepeats() {
+        val action = mutableStateOf(KeyboardAction.UP)
+        val sent = mutableListOf<String>()
+        val modifiers = TerminalModifiers()
+        ui.setContent {
+            MaterialTheme {
+                JuiceSshKeyboardBar(modifiers, { sent.add(it.toString(Charsets.UTF_8)) }, {}, {},
+                    layout = KeyboardLayout(listOf(listOf(KeyboardButton(action.value)))))
+            }
+        }
+        ui.mainClock.autoAdvance = false
+        ui.onNodeWithText("▲").performTouchInput { down(center) }
+        ui.mainClock.advanceTimeBy(700)
+        ui.runOnIdle {
+            assertTrue(sent.size >= 4)
+            action.value = KeyboardAction.DOWN
+        }
+        ui.mainClock.advanceTimeBy(32)
+        val stopped = sent.size
+        ui.mainClock.advanceTimeBy(600)
+        ui.runOnIdle {
+            assertEquals(stopped, sent.size)
+            assertTrue(sent.all { it == "\u001B[A" })
+        }
+        ui.onNodeWithText("▼").performTouchInput { up() }
+        ui.onNodeWithText("▼").performTouchInput { click() }
+        ui.runOnIdle { assertEquals("\u001B[B", sent.last()) }
+    }
+
+    @Test
+    fun cancellingAHoldStopsRepeatsAndClearsModifiers() {
+        var sent = 0
+        val modifiers = TerminalModifiers()
+        ui.setContent {
+            MaterialTheme { JuiceSshKeyboardBar(modifiers, { sent++ }, {}, {}) }
+        }
+        ui.runOnIdle { modifiers.ctrl = true }
+        ui.mainClock.autoAdvance = false
+        ui.onNodeWithText("▲").performTouchInput { down(center) }
+        ui.mainClock.advanceTimeBy(700)
+        ui.onNodeWithText("▲").performTouchInput { cancel() }
+        ui.runOnIdle {
+            assertTrue(sent >= 4)
+            assertEquals(false, modifiers.ctrl)
+        }
+        val stopped = sent
+        ui.mainClock.advanceTimeBy(600)
+        ui.runOnIdle { assertEquals(stopped, sent) }
+    }
 
     @Test
     fun switchingConnectionsStopsAHeldKey() {
