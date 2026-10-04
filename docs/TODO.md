@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint, 362 local tests with real SSH/SFTP and
+The latest checks pass: build, lint, 365 local tests with real SSH/SFTP and
 IPv6 enabled, and 100 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
@@ -44,7 +44,12 @@ checks listed below.
   for the replacement. Two more Android tests cover changing Up to Down during
   a hold and cancelling a touch, including stopping repeats and clearing Ctrl.
   Remote mouse modes 1000/1002/1003 enable touch wheel events; mode
-  1006 selects the text coordinate format. Without mouse input, dragging still
+  1006 selects the text coordinate format and 1005 selects UTF-8 coordinates.
+  Switching encodings clears the previous one; disabling an inactive encoding
+  leaves the current one intact. Three unit tests cover extended coordinates,
+  limits, switching and reset. Encoding follows the
+  [xterm mouse specification](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking).
+  Without mouse input, dragging still
   scrolls local history. Check Claude Code, tmux mouse settings, Screen, selection,
   cancellation and switching sessions while a key is held.
   Two Android tests cover arrow repetition stopping on release and a short page

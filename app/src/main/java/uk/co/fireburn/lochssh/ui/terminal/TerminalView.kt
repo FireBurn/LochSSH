@@ -136,7 +136,8 @@ fun TerminalView(
                             val wheel = buffer.read {
                                 if (buffer.mouseTracking && scrollOffset.intValue == 0) {
                                     val point = pointAt(change.position, metrics, buffer)
-                                    TerminalMouse.wheel(lines > 0, point.col, point.row, buffer.mouseSgr)
+                                    TerminalMouse.wheel(lines > 0, point.col, point.row,
+                                        buffer.mouseSgr, buffer.mouseUtf8)
                                 } else null
                             }
                             if (wheel != null) {
