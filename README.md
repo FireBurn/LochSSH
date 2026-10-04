@@ -139,6 +139,8 @@ Hold an arrow or Page Up/Down key to repeat it. Dragging sends wheel events when
 the remote program enables mouse input; otherwise it scrolls terminal history.
 Tmux may require its `mouse` option to be enabled to pass wheel events through.
 Wheel reports follow the legacy, UTF-8 or SGR encoding requested by the remote program.
+Programs that request alternate-screen scrolling receive Up/Down keys when mouse
+reporting is off. Scrolling local history does not send keys to the remote program.
 
 ## Server performance
 

@@ -134,11 +134,9 @@ fun TerminalView(
                         val lines = (dragged / metrics.height).toInt()
                         if (lines != 0) {
                             val wheel = buffer.read {
-                                if (buffer.mouseTracking && scrollOffset.intValue == 0) {
-                                    val point = pointAt(change.position, metrics, buffer)
-                                    TerminalMouse.wheel(lines > 0, point.col, point.row,
-                                        buffer.mouseSgr, buffer.mouseUtf8)
-                                } else null
+                                val point = pointAt(change.position, metrics, buffer)
+                                TerminalScroll.remoteInput(buffer, lines > 0, point.col, point.row,
+                                    scrollOffset.intValue)
                             }
                             if (wheel != null) {
                                 repeat(kotlin.math.abs(lines).coerceAtMost(32)) { manager?.write(wheel) }

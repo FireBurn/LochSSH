@@ -45,6 +45,8 @@ class TerminalBuffer(
         private set
     var mouseUtf8 = false
         private set
+    var alternateScroll = false
+        private set
     var version = 0
         private set
     var totalScrolled = 0L
@@ -310,6 +312,7 @@ class TerminalBuffer(
         mouseTracking = false
         mouseSgr = false
         mouseUtf8 = false
+        alternateScroll = false
         cursorVisible = true
         scrollTop = 0
         scrollBottom = rows - 1
@@ -543,6 +546,7 @@ class TerminalBuffer(
                 1 -> applicationCursor = enable
                 66 -> applicationKeypad = enable
                 1000, 1002, 1003 -> mouseTracking = enable
+                1007 -> alternateScroll = enable
                 1005 -> {
                     mouseUtf8 = enable
                     if (enable) mouseSgr = false

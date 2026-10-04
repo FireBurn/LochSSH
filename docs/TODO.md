@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint, 367 local tests with real SSH/SFTP and
+The latest checks pass: build, lint, 370 local tests with real SSH/SFTP and
 IPv6 enabled, and 100 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
@@ -49,6 +49,11 @@ checks listed below.
   leaves the current one intact. Three unit tests cover extended coordinates,
   limits, switching and reset. Encoding follows the
   [xterm mouse specification](https://invisible-island.net/xterm/ctlseqs/ctlseqs.html#h2-Mouse-Tracking).
+  Remote mode 1007 enables arrow-key scrolling on the alternate screen when
+  mouse reporting is off. Mouse reports take priority, application-cursor mode
+  selects the arrow encoding, and scrolling retained history sends no input.
+  Three unit tests cover enable/disable, screen changes, reset and priority.
+  Check the touch gesture with real pagers and editors on the phone.
   Without mouse input, dragging still
   scrolls local history. Check Claude Code, tmux mouse settings, Screen, selection,
   cancellation and switching sessions while a key is held.
