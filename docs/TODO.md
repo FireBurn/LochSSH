@@ -524,6 +524,12 @@ checks listed below.
   startup, interactive editors, resizing, backgrounding, cancellation and
   process exit. Choose a supported Android terminal library that works with
   the Kotlin-only application before adding this session type.
+  ConnectBot's [local transport](https://github.com/connectbot/connectbot/blob/main/app/src/main/java/org/connectbot/transport/Local.kt)
+  calls its [native process helper](https://github.com/connectbot/connectbot/blob/main/app/src/main/java/com/google/ase/Exec.java)
+  for shell creation, terminal resizing and exit watching. Its
+  [CMake build](https://github.com/connectbot/connectbot/blob/main/app/CMakeLists.txt)
+  compiles that helper inside the app; it is not a drop-in Kotlin dependency.
+  Adopting this route needs approval for native source under the Kotlin-only rule.
 - Check app lock on supported phones.
   App lock is optional under Settings and defaults to off. It uses Android's
   device-unlock prompt, hides the app's screens when its activity pauses and
