@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -50,10 +51,12 @@ fun TerminalView(
     clearSelectionKey: Int = 0,
     onScrollOffsetChanged: (Int) -> Unit = {},
     onSelectionChanged: (String?) -> Unit = {},
-    onBuffer: (TerminalBuffer) -> Unit = {}
+    onBuffer: (TerminalBuffer) -> Unit = {},
+    onRemoteScroll: (ByteArray) -> Unit = { manager?.write(it) }
 ) {
     val terminal = remember(manager) { manager?.terminal ?: TerminalSession(MIN_COLS, MIN_ROWS) }
     val buffer = terminal.buffer
+    val sendScroll by rememberUpdatedState(onRemoteScroll)
     val frame = remember(buffer) { mutableIntStateOf(0) }
     val scrollOffset = remember(buffer) { mutableIntStateOf(0) }
     var selection by remember(buffer) { mutableStateOf<Selection?>(null) }
@@ -139,7 +142,7 @@ fun TerminalView(
                                     scrollOffset.intValue)
                             }
                             if (wheel != null) {
-                                repeat(kotlin.math.abs(lines).coerceAtMost(32)) { manager?.write(wheel) }
+                                repeat(kotlin.math.abs(lines).coerceAtMost(32)) { sendScroll(wheel) }
                             } else {
                                 scrollOffset.intValue = buffer.read {
                                     (scrollOffset.intValue + lines).coerceIn(0, buffer.scrollbackSize)

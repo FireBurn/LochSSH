@@ -4,7 +4,7 @@ This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
 The latest checks pass: build, lint, 370 local tests with real SSH/SFTP and
-IPv6 enabled, and 100 Android 13 tests. One Android 14+ test is skipped. This
+IPv6 enabled, and 102 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -53,6 +53,8 @@ checks listed below.
   mouse reporting is off. Mouse reports take priority, application-cursor mode
   selects the arrow encoding, and scrolling retained history sends no input.
   Three unit tests cover enable/disable, screen changes, reset and priority.
+  Two Android gesture tests pass for arrow reports, disabling alternate scroll,
+  mouse priority and ordinary history scrolling without remote input.
   Check the touch gesture with real pagers and editors on the phone.
   Without mouse input, dragging still
   scrolls local history. Check Claude Code, tmux mouse settings, Screen, selection,
@@ -600,7 +602,7 @@ checks listed below.
   factories and malformed or slowly trickling proxy replies remain to check.
   All seven new Android checks pass on Android 13: the version-10 upgrade,
   three save/identity tests and three control/warning tests. The full Android
-  run passes 100 tests and skips the Android 14+ service declaration check.
+  run passes 102 tests and skips the Android 14+ service declaration check.
   Three real-server IPv6 tests cover SSH authentication, local forwarding and
   SOCKS5 IPv6 requests. They require an explicit IPv6 address for the same
   server already trusted under the test host name. Trust aliases stay in memory
