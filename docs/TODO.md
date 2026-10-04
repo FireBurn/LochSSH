@@ -351,7 +351,12 @@ checks listed below.
   Resizing now moves the remembered base cell with its row on both screens;
   two regression tests cover accents arriving after a height change.
   Check accent shaping, selection and right-edge output on a device. Variation-selector widths,
-  spacing marks and joined emoji still need implementation. Check editor and tmux output against a desktop
+  spacing marks and joined emoji still need implementation. Spacing marks
+  currently occupy separate cells; a width regression covers Devanagari,
+  Bengali and a two-column Vietnamese reading mark. Shaping and selection
+  must respect Unicode boundary properties separately from column widths;
+  changing all spacing marks to zero width is not sufficient.
+  Check editor and tmux output against a desktop
   terminal, including screen changes and resizing.
 - Resolve Android Ed25519 without relying on local JSch JARs. PR
   [mwiede/jsch#1160](https://github.com/mwiede/jsch/pull/1160) now adds a separate

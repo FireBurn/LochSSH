@@ -20,5 +20,16 @@ it is ignored when it cannot fit. A one-column grid uses a replacement character
 Joined emoji sequences, spacing marks and variation-selector width changes still
 need work. Check glyph placement and font fallback on a device.
 
+Spacing marks currently occupy their own grid cells. Devanagari U+093E and
+U+093F and Bengali U+09BE use one column; U+16FF0 uses two. A regression test
+keeps those widths separate from the zero-width mark table. This does not
+verify shaping across cells.
+
+Character boundaries and column widths need separate handling. Unicode 17's
+[text segmentation rules](https://www.unicode.org/reports/tr29/tr29-47.html#Grapheme_Cluster_Boundary_Rules)
+keep SpacingMark characters with the preceding character, but that property
+is not identical to the general Spacing Mark category. Shaping and selection
+must use the boundary properties without assuming every mark has zero width.
+
 The data is covered by [Unicode License V3](../licenses/Unicode.txt). The same
 notice is included in the app's assets.

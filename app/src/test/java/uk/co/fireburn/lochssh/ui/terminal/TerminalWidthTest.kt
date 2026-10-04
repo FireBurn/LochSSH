@@ -5,6 +5,14 @@ import org.junit.Test
 
 class TerminalWidthTest {
     @Test
+    fun spacingMarksRetainTheirColumnWidths() {
+        assertEquals(1, TerminalWidth.columns(0x093E))
+        assertEquals(1, TerminalWidth.columns(0x093F))
+        assertEquals(1, TerminalWidth.columns(0x09BE))
+        assertEquals(2, TerminalWidth.columns(0x16FF0))
+    }
+
+    @Test
     fun matchesTheUnicode17SourceRangesForEveryCodePoint() {
         val expected = ByteArray(0x110000) { 1 }
         val input = requireNotNull(javaClass.classLoader?.getResourceAsStream("unicode17-terminal-widths.txt"))
