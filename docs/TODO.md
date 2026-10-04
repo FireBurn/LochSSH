@@ -320,7 +320,9 @@ checks listed below.
   enlarged after a 48-pixel desktop render. The adaptive mask and splash have
   not been checked on a phone. The Android 13 emulator's circular launcher
   mask is checked: the amber creature and green prompt remain legible and the
-  head is not clipped. Other masks, themed icons and the splash remain unchecked.
+  head is not clipped. A cold-start screenshot on the Android 13 emulator also
+  shows the splash creature and prompt intact and legible during the launch
+  transition. Other masks, themed icons and the phone splash remain unchecked.
 - Complete terminal character and mode support: spacing marks
   and joined emoji sequences.
   Hardware keypad keys now follow the remote application's keypad mode. Num Lock
