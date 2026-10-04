@@ -3,6 +3,10 @@ package uk.co.fireburn.lochssh.ui.keyboard
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.currentStateAsState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.semantics.onClick
@@ -18,10 +22,17 @@ internal fun Modifier.repeatingKey(enabled: Boolean, onRelease: () -> Unit, onCl
     val action = rememberUpdatedState(onClick)
     val released = rememberUpdatedState(onRelease)
     if (!enabled) return this
+    val lifecycle = LocalLifecycleOwner.current.lifecycle
+    val state by lifecycle.currentStateAsState()
+    val resumed = state.isAtLeast(Lifecycle.State.RESUMED)
     return semantics {
         role = Role.Button
-        onClick { action.value(); released.value(); true }
-    }.pointerInput(Unit) {
+        onClick {
+            if (resumed) { action.value(); released.value() }
+            resumed
+        }
+    }.pointerInput(resumed) {
+        if (!resumed) return@pointerInput
         detectTapGestures(onPress = {
             coroutineScope {
                 action.value()

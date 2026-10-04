@@ -3,8 +3,8 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint, 361 local tests with real SSH/SFTP and
-IPv6 enabled, and 96 Android 13 tests. One Android 14+ test is skipped. This
+The latest checks pass: build, lint, 362 local tests with real SSH/SFTP and
+IPv6 enabled, and 97 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -33,7 +33,10 @@ checks listed below.
   Three Android tests cover success, failure, cancellation and password-byte clearing.
 - Check held navigation keys, touch scrolling and screen-off recovery on the phone.
   Arrows and Page Up/Down repeat after a 400 ms hold, then every 80 ms, stopping
-  on release. Remote mouse modes 1000/1002/1003 enable touch wheel events; mode
+  on release. Held keys also stop when the activity pauses and do not restart
+  on resume without another press. An Android regression reproduces background
+  repeats before the fix and checks pause, resume and a fresh press afterward.
+  Remote mouse modes 1000/1002/1003 enable touch wheel events; mode
   1006 selects the text coordinate format. Without mouse input, dragging still
   scrolls local history. Check Claude Code, tmux mouse settings, Screen, selection,
   cancellation and switching sessions while a key is held.
@@ -562,7 +565,7 @@ checks listed below.
   factories and malformed or slowly trickling proxy replies remain to check.
   All seven new Android checks pass on Android 13: the version-10 upgrade,
   three save/identity tests and three control/warning tests. The full Android
-  run passes 96 tests and skips the Android 14+ service declaration check.
+  run passes 97 tests and skips the Android 14+ service declaration check.
   Three real-server IPv6 tests cover SSH authentication, local forwarding and
   SOCKS5 IPv6 requests. They require an explicit IPv6 address for the same
   server already trusted under the test host name. Trust aliases stay in memory
