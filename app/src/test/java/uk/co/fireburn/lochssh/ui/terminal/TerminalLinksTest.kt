@@ -5,6 +5,20 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TerminalLinksTest {
+    @Test(timeout = 2_000)
+    fun longRunsOfClosingBracketsDoNotRepeatedlyScanTheWholeLink() {
+        for (close in listOf(')', ']', '}')) {
+            assertEquals(listOf("https://example.com/path"),
+                TerminalLinks.find("https://example.com/path" + close.toString().repeat(100_000)))
+        }
+    }
+
+    @Test
+    fun keepsBalancedBracketsWhenRemovingManyClosingOnes() {
+        assertEquals(listOf("https://example.com/a_(b(c))"),
+            TerminalLinks.find("https://example.com/a_(b(c)))))"))
+    }
+
     @Test
     fun findsUniqueWebLinksInSelectedOutput() {
         assertEquals(listOf("https://example.com/a?q=1", "http://localhost:8080/"),

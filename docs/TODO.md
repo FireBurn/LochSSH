@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint, 365 local tests with real SSH/SFTP and
+The latest checks pass: build, lint, 367 local tests with real SSH/SFTP and
 IPv6 enabled, and 100 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
@@ -514,7 +514,11 @@ checks listed below.
   including output discarded from scrollback, still needs implementation.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
-  schemes, and reports browser launch failures. Three parsing tests pass;
+  schemes, and reports browser launch failures. Closing-bracket trimming now
+  counts each bracket type once rather than rescanning and copying the URL
+  after every removed character. Two regressions cover 100,000 trailing
+  brackets of each type and preserving nested balanced paths.
+  Five parsing tests pass;
   wrapped links and the selection-to-browser interaction still need checks.
 - Add local shell sessions. There is no local-shell implementation in the app.
   A local terminal needs a real terminal connection for interactive programs,
