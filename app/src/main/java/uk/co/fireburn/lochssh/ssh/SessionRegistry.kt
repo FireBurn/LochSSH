@@ -21,7 +21,8 @@ class SessionRegistry @Inject constructor() {
         val forwardWarnings: List<String> = emptyList(),
         val hostKeyReview: SavedHostKey? = null,
         val remoteCommand: String? = null,
-        val remoteName: String? = null
+        val remoteName: String? = null,
+        val findRemoteSessions: Boolean = false
     ) {
         // What a terminal would put on the tab, falling back to the host.
         val label: String get() = remoteName?.takeIf { it.isNotBlank() }
@@ -33,6 +34,7 @@ class SessionRegistry @Inject constructor() {
         val statusText: String get() = when {
             hostKeyReview != null -> "Server key approval needed"
             error != null -> error
+            findRemoteSessions && manager == null -> "Finding remote sessions"
             manager == null -> "Connecting"
             !isConnected -> "Disconnected"
             forwardWarnings.isNotEmpty() -> "Port forwarding issue"
@@ -59,9 +61,11 @@ class SessionRegistry @Inject constructor() {
 
     fun newId(): Long = nextId.getAndIncrement()
 
-    fun opening(id: Long, hostId: Long, hostName: String, remoteCommand: String? = null) = update(id) {
+    fun opening(id: Long, hostId: Long, hostName: String, remoteCommand: String? = null,
+        findRemoteSessions: Boolean? = null) = update(id) {
         Session(id = id, hostId = hostId, hostName = hostName,
-            remoteCommand = remoteCommand ?: it?.remoteCommand, remoteName = it?.remoteName)
+            remoteCommand = remoteCommand ?: it?.remoteCommand, remoteName = it?.remoteName,
+            findRemoteSessions = findRemoteSessions ?: it?.findRemoteSessions ?: false)
     }
 
     fun connected(id: Long, manager: SshConnectionManager) = update(id) {

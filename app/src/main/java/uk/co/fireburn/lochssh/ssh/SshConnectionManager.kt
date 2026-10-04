@@ -83,7 +83,7 @@ class SshConnectionManager(
     }
 
     fun canShare(other: SshConnectionConfig): Boolean =
-        config == other && transport?.isConnected == true
+        config.sameTransport(other) && transport?.isConnected == true
 
     private fun acquireTransport(): SharedSshConnection? = transport?.takeIf { it.acquire() }
 

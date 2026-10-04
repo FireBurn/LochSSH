@@ -3,8 +3,8 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The 3 October checks pass: build, lint, 350 local tests with real SSH/SFTP and
-IPv6 enabled, and 92 Android 13 tests. One Android 14+ test is skipped. This
+The latest checks pass: build, lint, 358 local tests with real SSH/SFTP and
+IPv6 enabled, and 94 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -54,8 +54,21 @@ checks listed below.
   battery exemption. Keep-alives already default to 30 seconds. Check recovery
   after an actual process kill and screen-off behaviour with an approved exemption;
   an exemption cannot prevent every vendor or Android system limit.
-- Check bulk remote-session connection and recovery on a device. The remote
-  session chooser now offers Connect all and avoids duplicating open targets.
+- Check bulk remote-session connection and recovery on a device. The host list
+  now has Find and connect all remote sessions in each host's menu,
+  plus Find and connect remote sessions on all hosts above the host rows.
+  These are one-time actions; saved startup settings remain unchanged.
+  Failed discovery rows are reused, repeated taps while discovering do not start
+  another connection, and server-key reviews remain for approval. Retries keep
+  the discovery choice. Discovery and attach channels can share the same SSH
+  transport despite different startup choices, keeping port forwards shared.
+  Six unit tests cover discovery planning, retries and reviews; two cover
+  sharing settings while retaining credential, proxy and forwarding differences.
+  Two Android tests pass for the host-menu action and the global button, including
+  disabling it when no hosts are saved. Check discovery on quark, multiple
+  hosts, reception loss and live shared tunnels on the phone. Installation of
+  this host-list update is pending: wireless debugging disconnected before upload.
+  The remote session chooser offers Connect all and avoids duplicating open targets.
   It also reuses dropped rows instead of adding a second row, and recognizes
   Screen targets despite changes in their attached/detached state. Five unit
   tests cover row reuse, opening connections, targets on another host,
@@ -537,7 +550,7 @@ checks listed below.
   factories and malformed or slowly trickling proxy replies remain to check.
   All seven new Android checks pass on Android 13: the version-10 upgrade,
   three save/identity tests and three control/warning tests. The full Android
-  run passes 92 tests and skips the Android 14+ service declaration check.
+  run passes 94 tests and skips the Android 14+ service declaration check.
   Three real-server IPv6 tests cover SSH authentication, local forwarding and
   SOCKS5 IPv6 requests. They require an explicit IPv6 address for the same
   server already trusted under the test host name. Trust aliases stay in memory

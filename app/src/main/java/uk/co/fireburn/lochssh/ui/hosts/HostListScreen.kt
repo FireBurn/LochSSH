@@ -68,6 +68,13 @@ fun HostListScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
+    fun findRemoteSessions(host: SshHostEntity) {
+        val id = HostRemoteSessions.sessionId(host.id, viewModel.sessions.value, viewModel::newSessionId) ?: return
+        viewModel.markFinding(id, host)
+        try { SshForegroundService.start(context, host.id, id, findRemoteSessions = true) }
+        catch (e: Exception) { viewModel.findFailed(id, e.message ?: "Could not find remote sessions") }
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -129,8 +136,13 @@ fun HostListScreen(
                                 }
                             }
                         }
-                        Text("Hosts", style = MaterialTheme.typography.titleSmall)
                     }
+                }
+            }
+            item(key = "host-actions") {
+                Column {
+                    Text("Hosts", style = MaterialTheme.typography.titleSmall)
+                    HostRemoteSessionsButton(hosts.isNotEmpty()) { hosts.forEach(::findRemoteSessions) }
                 }
             }
             items(hosts, key = { it.id }) { host ->
@@ -140,7 +152,8 @@ fun HostListScreen(
                     onEdit = { onEdit(host.id) },
                     onDuplicate = { viewModel.duplicateHost(host.id) },
                     onDelete = { pendingDelete = host },
-                    onShortcut = { scope.launch { shortcutError = HostShortcuts.pin(context, host) } }
+                    onShortcut = { scope.launch { shortcutError = HostShortcuts.pin(context, host) } },
+                    onFindRemoteSessions = { findRemoteSessions(host) }
                 )
             }
         }
@@ -180,13 +193,21 @@ fun HostListScreen(
 }
 
 @Composable
-private fun HostRow(
+internal fun HostRemoteSessionsButton(enabled: Boolean, onFind: () -> Unit) {
+    TextButton(enabled = enabled, onClick = onFind) {
+        Text("Find and connect remote sessions on all hosts")
+    }
+}
+
+@Composable
+internal fun HostRow(
     host: SshHostEntity,
     onClick: () -> Unit,
     onEdit: () -> Unit,
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
-    onShortcut: () -> Unit
+    onShortcut: () -> Unit,
+    onFindRemoteSessions: () -> Unit
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
@@ -212,6 +233,8 @@ private fun HostRow(
                     Icon(Icons.Filled.MoreVert, contentDescription = "Actions")
                 }
                 DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+                    DropdownMenuItem(text = { Text("Find and connect all remote sessions") },
+                        onClick = { menuOpen = false; onFindRemoteSessions() })
                     DropdownMenuItem(text = { Text("Edit") }, onClick = { menuOpen = false; onEdit() })
                     DropdownMenuItem(text = { Text("Duplicate") }, onClick = { menuOpen = false; onDuplicate() })
                     DropdownMenuItem(text = { Text("Add to homescreen") }, onClick = { menuOpen = false; onShortcut() })

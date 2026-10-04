@@ -39,6 +39,10 @@ class HostsViewModel @Inject constructor(
     }
 
     fun newSessionId(): Long = registry.newId()
+    fun markFinding(id: Long, host: SshHostEntity) {
+        registry.opening(id, host.id, host.name, findRemoteSessions = true)
+    }
+    fun findFailed(id: Long, message: String) { registry.failed(id, message) }
     suspend fun hostById(id: Long): SshHostEntity? = hostDao.getById(id)
 
     fun duplicateHost(id: Long) {

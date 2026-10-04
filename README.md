@@ -111,6 +111,13 @@ changes and remote timeouts can still close a connection.
 
 ## Remote tmux and screen
 
+From a host's Actions menu, choose Find and connect all remote sessions. The
+button above the host rows finds and connects remote sessions on all saved hosts.
+These actions do not change saved startup settings. Dropped remote-session rows
+are reused, and already-open targets are not opened again. Pending discovery and
+server-key reviews are kept. Reconnect all dropped sessions restores known
+connections without searching the servers again.
+
 In the host editor, choose Shell, Ask, Auto tmux, Auto screen, or Find and connect
 all remote sessions. Shell opens a normal shell and can run a saved command. Ask
 lists existing sessions and offers a new one. Auto tmux attaches to or creates a

@@ -56,7 +56,7 @@ class SshForegroundService : Service() {
 
     private class ConnectionAttempt(
         val sessionId: Long, val hostId: Long, val token: String, val remoteCommand: String?,
-        val replaceShellId: Long? = null, val label: String? = null
+        val replaceShellId: Long? = null, val label: String? = null, val findRemoteSessions: Boolean = false
     ) {
         @Volatile
         var cancelled = false
@@ -125,11 +125,12 @@ class SshForegroundService : Service() {
             intent?.getStringExtra(EXTRA_REMOTE_COMMAND)?.takeIf { it.length <= 1024 && '\n' !in it && '\r' !in it }
                 ?: registry.find(sessionId)?.remoteCommand,
             intent?.getLongExtra(EXTRA_REPLACE_SHELL, -1L)?.takeIf { it > 0 },
-            intent?.getStringExtra(EXTRA_SESSION_LABEL)?.take(200)
+            intent?.getStringExtra(EXTRA_SESSION_LABEL)?.take(200),
+            intent?.getBooleanExtra(EXTRA_FIND_REMOTE_SESSIONS, false) == true || registry.find(sessionId)?.findRemoteSessions == true
         )
         attempts.put(sessionId, attempt)?.let(::cancelAttempt)
         history.started(attempt.token, hostId)
-        registry.opening(sessionId, hostId, "Host", attempt.remoteCommand)
+        registry.opening(sessionId, hostId, "Host", attempt.remoteCommand, attempt.findRemoteSessions)
         scope.launch { connect(attempt) }
         return Service.START_NOT_STICKY
     }
@@ -170,8 +171,9 @@ class SshForegroundService : Service() {
                         keyMaterial = keyMaterial,
                         keyPassphrase = if (identity?.authType == AuthTypes.PUBLIC_KEY) secret else null,
                         keepAliveSeconds = host.keepAliveSeconds,
-                        autoCommand = host.autoCommand,
-                        remoteSessionMode = host.remoteSessionMode,
+                        autoCommand = if (attempt.findRemoteSessions && host.id == hostId) "" else host.autoCommand,
+                        remoteSessionMode = if (attempt.findRemoteSessions && host.id == hostId)
+                            RemoteSessionModes.CONNECT_ALL else host.remoteSessionMode,
                         agentForwarding = host.id == hostId && host.agentForwarding,
                         knockSequence = host.knockSequence,
                         knockPause = host.knockPause,
@@ -508,6 +510,7 @@ class SshForegroundService : Service() {
         private const val EXTRA_REMOTE_COMMAND = "remote_command"
         private const val EXTRA_REPLACE_SHELL = "replace_shell"
         private const val EXTRA_SESSION_LABEL = "session_label"
+        private const val EXTRA_FIND_REMOTE_SESSIONS = "find_remote_sessions"
         private const val EXTRA_REPLACEMENT_ID = "replacement_id"
         private const val ACTION_REPLACE_SHELL = "uk.co.fireburn.lochssh.REPLACE_SHELL"
         private const val ACTION_DISCONNECT = "uk.co.fireburn.lochssh.DISCONNECT"
@@ -524,13 +527,14 @@ class SshForegroundService : Service() {
             SESSION_NOTIFICATION_BASE + sessionId.toInt()
 
         fun start(context: Context, hostId: Long, sessionId: Long, remoteCommand: String? = null,
-            replaceShellId: Long? = null, label: String? = null) {
+            replaceShellId: Long? = null, label: String? = null, findRemoteSessions: Boolean = false) {
             val intent = Intent(context, SshForegroundService::class.java)
                 .putExtra(EXTRA_HOST_ID, hostId)
                 .putExtra(EXTRA_SESSION_ID, sessionId)
                 .putExtra(EXTRA_REMOTE_COMMAND, remoteCommand)
                 .putExtra(EXTRA_REPLACE_SHELL, replaceShellId ?: -1L)
                 .putExtra(EXTRA_SESSION_LABEL, label)
+                .putExtra(EXTRA_FIND_REMOTE_SESSIONS, findRemoteSessions)
             context.startForegroundService(intent)
         }
 
