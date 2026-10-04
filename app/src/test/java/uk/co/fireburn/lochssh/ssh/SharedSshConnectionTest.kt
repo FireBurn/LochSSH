@@ -48,6 +48,12 @@ class SharedSshConnectionTest {
 
                     assertFalse(session.isConnected)
                     assertFalse(connection.acquire())
+                    // JSch's reader can start cleanup before release calls disconnect.
+                    val cleanupDeadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(3)
+                    while (session.portForwardingL.isNotEmpty() && System.nanoTime() < cleanupDeadline) {
+                        Thread.sleep(10)
+                    }
+                    assertTrue(session.portForwardingL.isEmpty())
                     assertThrows(IOException::class.java) {
                         localProbe.connect(InetSocketAddress("127.0.0.1", localPort), 3_000)
                     }
