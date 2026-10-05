@@ -12,6 +12,29 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class RecordingCaptureTest {
+    @Test fun closedConnectionRejectsLateRecordingStarts() {
+        val capture = RecordingCapture()
+        capture.close()
+        val writer = RecordingWriter(ByteArrayOutputStream())
+        try {
+            assertThrows(IllegalStateException::class.java) { capture.start(writer) }
+        } finally { writer.stop() }
+        assertTrue(writer.awaitClosed(3_000))
+    }
+
+    @Test fun closingConnectionStopsItsAcceptedRecording() {
+        val capture = RecordingCapture()
+        val output = ByteArrayOutputStream()
+        val writer = RecordingWriter(output)
+        capture.start(writer)
+        capture.append(byteArrayOf(1), 1)
+        capture.close()
+        capture.close()
+        capture.append(byteArrayOf(2), 1)
+        assertTrue(writer.awaitClosed(3_000))
+        assertArrayEquals(byteArrayOf(1), output.toByteArray())
+    }
+
     @Test fun capturesOnlyOutputAfterExplicitStartAndBeforeStop() {
         val capture = RecordingCapture()
         capture.append(byteArrayOf(0), 1)

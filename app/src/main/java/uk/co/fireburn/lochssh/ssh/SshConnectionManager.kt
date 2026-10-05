@@ -210,7 +210,7 @@ class SshConnectionManager(
                     terminal.feed(buffer, count)
                 },
                 onStopped = { failure ->
-                    recording.stop()
+                    recording.close()
                     if (running) {
                         failure?.let { Log.w(TAG, "Read from ${config.host} failed", it) }
                         running = false
@@ -342,7 +342,7 @@ class SshConnectionManager(
     @Synchronized
     fun disconnect() {
         running = false
-        recording.stop()
+        recording.close()
         warningSubscription?.close()
         warningSubscription = null
         val ch = channel
