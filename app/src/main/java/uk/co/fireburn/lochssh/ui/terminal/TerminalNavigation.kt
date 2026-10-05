@@ -9,3 +9,11 @@ fun NavHostController.switchTerminal(sessionId: Long) {
         launchSingleTop = true
     }
 }
+
+fun NavHostController.openSessionNotification(sessionId: Long) {
+    if (sessionId > 0) switchTerminal(sessionId)
+    else navigate(Routes.HOSTS) {
+        popUpTo(Routes.HOSTS) { inclusive = true }
+        launchSingleTop = true
+    }
+}

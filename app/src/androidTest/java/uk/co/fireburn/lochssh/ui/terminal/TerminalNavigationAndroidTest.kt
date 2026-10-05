@@ -17,6 +17,19 @@ import org.junit.Test
 import uk.co.fireburn.lochssh.Routes
 
 class TerminalNavigationAndroidTest {
+    @Test fun summaryNotificationOpensSessionListFromTerminal() = withController { nav ->
+        nav.navigate(Routes.terminal(11))
+        nav.openSessionNotification(0)
+        assertEquals(Routes.HOSTS, nav.currentBackStackEntry?.destination?.route)
+        assertEquals(null, nav.previousBackStackEntry)
+    }
+
+    @Test fun connectionNotificationOpensItsTerminal() = withController { nav ->
+        nav.navigate(Routes.terminal(11))
+        nav.openSessionNotification(12)
+        assertEquals(12L, nav.currentBackStackEntry?.arguments?.getLong("sessionId"))
+        assertEquals(Routes.HOSTS, nav.previousBackStackEntry?.destination?.route)
+    }
     @Test
     fun clearsOlderTerminalPagesBeforeSwitching() = withController { nav ->
         nav.navigate(Routes.terminal(11))

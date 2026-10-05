@@ -43,6 +43,7 @@ import uk.co.fireburn.lochssh.ui.settings.HostKeysScreen
 import uk.co.fireburn.lochssh.ui.sftp.SftpScreen
 import uk.co.fireburn.lochssh.ui.terminal.TerminalScreen
 import uk.co.fireburn.lochssh.ui.terminal.switchTerminal
+import uk.co.fireburn.lochssh.ui.terminal.openSessionNotification
 import uk.co.fireburn.lochssh.ui.theme.LochSSHTheme
 
 object Routes {
@@ -135,7 +136,7 @@ class MainActivity : ComponentActivity() {
     }
 
     private fun sessionOf(intent: Intent?): Long? =
-        intent?.getLongExtra(SshForegroundService.EXTRA_SESSION_ID, -1L)?.takeIf { it > 0 }
+        intent?.getLongExtra(SshForegroundService.EXTRA_SESSION_ID, -1L)?.takeIf { it >= 0 }
 }
 
 @Composable
@@ -157,7 +158,7 @@ fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>, shortcutHost: Mutable
     LaunchedEffect(navController) {
         resumeSession.collect { id ->
             if (id != null) {
-                navController.switchTerminal(id)
+                navController.openSessionNotification(id)
                 resumeSession.value = null
             }
         }

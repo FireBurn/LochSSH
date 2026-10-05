@@ -3,10 +3,28 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and 399 local tests with real SSH/SFTP and
-IPv6 enabled, and 117 Android 13 tests. One Android 14+ test is skipped. This
+The latest checks pass: build, lint and 403 local tests with real SSH/SFTP and
+IPv6 enabled, and 121 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
+
+## Notifications
+
+Notification fixes now give the summary a tap action that opens the host/session
+list. Connection titles include host, remote-session name, live terminal title and
+a connection number so otherwise identical connections can be told apart.
+Attached tmux names refresh every fifteen seconds, once per host. Discovery uses
+pane PIDs and a bounded process listing to follow foreground descendants through
+sudo/su and their extra terminals. Only command names are read, not arguments.
+If ps is unsupported or processes are hidden, the original tmux name remains.
+Screen and plain-shell tasks still rely on the terminal title. Check real
+notification taps, sudo/su builds and server process restrictions on the phone.
+
+The process fields come from the [ps manual](https://man7.org/linux/man-pages/man1/ps.1.html)
+and pane IDs from the [tmux manual](https://man.openbsd.org/tmux).
+Four local tests cover nested foreground tasks, hidden/missing descendants,
+tmux labels and notification titles. Two Android tests cover summary and
+connection notification navigation; actual notification taps still need checking.
 
 ## Conversation sources
 
@@ -615,8 +633,11 @@ are outside this audit.
   recording, closing and file errors for the selected connection. Reconnecting
   does not restart recording. Two Android tests cover closing/error status and
   removing the indicator when another connection is selected without stopping
-  the original writer. The recordings list and export UI remain, as do
-  live SSH capture and consent checks. Recording is off until explicitly started.
+  the original writer. The recordings list now shows host/time/size/completion,
+  exports raw output through the document picker and confirms deletion. Two Android
+  tests cover list/export selection and cancelled/confirmed deletion. Active files
+  remain protected. Live SSH capture, consent, document-provider failures and picker
+  cancellation still need checks. Recording is off until explicitly started.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Trailing punctuation and mixed

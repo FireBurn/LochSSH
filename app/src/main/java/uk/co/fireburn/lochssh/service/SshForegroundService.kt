@@ -47,6 +47,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -95,6 +96,12 @@ class SshForegroundService : Service() {
         history.start()
         createNotificationChannel()
         acquireWakeLock()
+        scope.launch {
+            while (true) {
+                delay(15_000)
+                refreshRemoteNames()
+            }
+        }
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
@@ -260,7 +267,7 @@ class SshForegroundService : Service() {
     private fun announceConnected(sessionId: Long, manager: SshConnectionManager, name: String, host: String) {
         if (managers[sessionId] !== manager) return
         registry.connected(sessionId, manager)
-        showSessionNotification(sessionId, name, "Connected to $host")
+        showSessionNotification(sessionId, registry.find(sessionId)?.notificationTitle ?: name, "Connected to $host")
         updateSummary()
     }
 
@@ -311,7 +318,30 @@ class SshForegroundService : Service() {
         registry.titled(sessionId, title)
         val session = registry.find(sessionId) ?: return
         if (managers[sessionId] === manager) {
-            showSessionNotification(sessionId, session.label, "Connected to ${session.hostName}")
+            showSessionNotification(sessionId, session.notificationTitle, "Connected to ${session.hostName}")
+        }
+    }
+
+    private suspend fun refreshRemoteNames() {
+        val targets = registry.sessions.value.filter {
+            it.isConnected && it.remoteCommand?.startsWith("tmux attach-session -t ") == true
+        }.groupBy { it.hostId }
+        targets.values.forEach { sessions ->
+            val manager = sessions.first().manager ?: return@forEach
+            val options = withContext(Dispatchers.IO) {
+                try { manager.discoverRemoteSessions() } catch (_: Exception) { null }
+            } ?: return@forEach
+            sessions.forEach sessionLoop@ { session ->
+                if (registry.find(session.id)?.manager !== session.manager) return@sessionLoop
+                val entry = options.sessions.firstOrNull { RemoteSessions.attach(it) == session.remoteCommand }
+                    ?: return@sessionLoop
+                if (entry.name != session.remoteName) {
+                    registry.named(session.id, entry.name)
+                    registry.find(session.id)?.let {
+                        showSessionNotification(it.id, it.notificationTitle, "Connected to ${it.hostName}")
+                    }
+                }
+            }
         }
     }
 
@@ -438,6 +468,7 @@ class SshForegroundService : Service() {
             .setOngoing(true)
             .setGroup(GROUP_KEY)
             .setGroupSummary(true)
+            .setContentIntent(resumeIntent(0))
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .build()
     }
