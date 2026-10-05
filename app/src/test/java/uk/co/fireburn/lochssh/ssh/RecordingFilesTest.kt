@@ -15,6 +15,38 @@ import org.junit.rules.TemporaryFolder
 class RecordingFilesTest {
     @get:Rule val folder = TemporaryFolder()
 
+    @Test fun unavailableOrActiveRecordingDoesNotOpenDestination() {
+        val files = RecordingFiles(folder.newFolder())
+        var opened = false
+        val open = { opened = true; ByteArrayOutputStream() }
+        assertThrows(java.io.IOException::class.java) {
+            files.export(RecordingFiles.Entry("00000000-0000-0000-0000-000000000001", 0, false), open)
+        }
+        val (_, writer) = files.create()
+        try {
+            assertThrows(IllegalStateException::class.java) { files.export(files.list().single(), open) }
+            assertFalse(opened)
+        } finally { writer.stop(); assertTrue(writer.awaitClosed(3_000)) }
+    }
+
+    @Test fun ownedExportClosesDestinationAndPreservesOriginal() {
+        val files = RecordingFiles(folder.newFolder())
+        val (id, writer) = files.create()
+        writer.append(byteArrayOf(1, 2, 3), 3)
+        writer.stop()
+        assertTrue(writer.awaitClosed(3_000))
+        files.finish(id)
+        var closed = false
+        val output = object : ByteArrayOutputStream() {
+            override fun close() { closed = true; super.close() }
+        }
+        val entry = files.list().single()
+        files.export(entry) { output }
+        assertTrue(closed)
+        assertArrayEquals(byteArrayOf(1, 2, 3), output.toByteArray())
+        assertEquals(entry, files.list().single())
+    }
+
     @Test fun failedExportLeavesOriginalBytesAndDetailsUnchanged() {
         val directory = folder.newFolder()
         val files = RecordingFiles(directory)

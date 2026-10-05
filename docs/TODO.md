@@ -3,8 +3,8 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and 409 local tests with real SSH/SFTP and
-IPv6 enabled, and 121 Android 13 tests. One Android 14+ test is skipped. This
+The latest checks pass: build, lint and 411 local tests with real SSH/SFTP and
+IPv6 enabled, and 123 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -647,6 +647,11 @@ are outside this audit.
   cancellation still need checks. Recording is off until explicitly started.
   A failed-output-stream test confirms export preserves original bytes and host/time
   details. Export errors no longer claim the original exists after concurrent deletion.
+  Export validates and opens the source before opening the destination, keeping
+  deletion blocked through the copy. Two file-store tests cover unopened destinations
+  for missing/active files and closing the output stream while preserving the source.
+  Android file-URI checks cover raw bytes and a missing source leaving an existing
+  destination untouched; external document-provider checks remain.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Trailing punctuation and mixed

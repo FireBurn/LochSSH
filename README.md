@@ -142,6 +142,14 @@ Wheel reports follow the legacy, UTF-8 or SGR encoding requested by the remote p
 Programs that request alternate-screen scrolling receive Up/Down keys when mouse
 reporting is off. Scrolling local history does not send keys to the remote program.
 
+## Session recordings
+
+Use Start recording in the terminal menu to save incoming raw output in private
+app storage. Output may contain secrets. Stop recording, or disconnect, to close
+the file; reconnecting does not restart it. Open Recordings to export or delete
+closed files. Exports include terminal escape sequences, not just plain text.
+Save terminal text is separate: it saves only the retained screen and scrollback.
+
 ## Server performance
 
 Open Performance from a connected terminal's menu for Linux CPU use, load,

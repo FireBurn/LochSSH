@@ -4,14 +4,16 @@ Start and Stop recording are now in the terminal menu. Starting requires consent
 the terminal shows recording, closing and write/finalization errors. The recordings
 list shows host, start time, size and completion state, with document-picker export
 and confirmed deletion. Active or closing recordings cannot be exported or deleted.
-Live document-provider checks remain. The bounded writer, file store, host/time metadata
-and per-connection capture hook have eighteen passing unit tests. Five more tests
-cover coordination between capture and file finalization. The SSH reader
+Live document-provider checks remain. Tests cover the bounded writer, file store,
+host/time metadata, per-connection capture and file finalization. The SSH reader
 calls the hook before parsing output and stops it on reader completion or
 disconnect, rejecting later starts. Controls use the selected connection's capture,
 not a host-wide flag, and reconnecting does not start another recording.
 An Android singleton owns the coordinator and private no-backup directory, with
-three passing storage tests. Clear all data stops writers and removes closed
+five passing storage tests, including raw-byte file-URI export and unavailable
+sources leaving existing destinations untouched. Export opens the source before
+the destination and blocks deletion through the copy. External document-provider
+failures and picker cancellation remain unchecked. Clear all data stops writers and removes closed
 files and orphan host/time details before clearing other saved data, blocking
 starts until cleanup finishes. Cleanup refuses linked details and leaves unrelated
 files untouched.

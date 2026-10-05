@@ -63,10 +63,18 @@ internal class RecordingFiles(private val directory: File,
     }
 
     @Synchronized fun export(entry: Entry, output: OutputStream) {
+        openSource(entry).use { it.copyTo(output) }
+    }
+
+    @Synchronized fun export(entry: Entry, openOutput: () -> OutputStream) {
+        openSource(entry).use { input -> openOutput().use { input.copyTo(it) } }
+    }
+
+    private fun openSource(entry: Entry): java.io.InputStream {
         requireClosed(entry.id)
         val source = file(entry.id, entry.complete)
         checkRegularFile(source)
-        source.inputStream().use { it.copyTo(output) }
+        return source.inputStream()
     }
 
     @Synchronized fun delete(entry: Entry) {

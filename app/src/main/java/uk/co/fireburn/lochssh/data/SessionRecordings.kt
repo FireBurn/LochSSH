@@ -40,8 +40,9 @@ class SessionRecordings @Inject constructor(@ApplicationContext private val cont
     }
 
     internal suspend fun export(entry: RecordingFiles.Entry, destination: Uri) = withContext(Dispatchers.IO) {
-        val output = context.contentResolver.openOutputStream(destination, "wt")
-            ?: throw IOException("Could not open recording export")
-        output.use { files.export(entry, it) }
+        files.export(entry) {
+            context.contentResolver.openOutputStream(destination, "wt")
+                ?: throw IOException("Could not open recording export")
+        }
     }
 }

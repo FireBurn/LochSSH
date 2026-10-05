@@ -1,6 +1,7 @@
 package uk.co.fireburn.lochssh.data
 
 import android.content.ContextWrapper
+import android.net.Uri
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
 import java.util.UUID
@@ -22,6 +23,29 @@ class SessionRecordingsAndroidTest {
     }
 
     @After fun cleanup() { directory.deleteRecursively() }
+
+    @Test fun deletedRecordingDoesNotTruncateExportDestination(): Unit = runBlocking {
+        assertTrue(directory.mkdirs())
+        val destination = File(directory, "export.terminal").apply { writeText("Keep this file") }
+        val entry = uk.co.fireburn.lochssh.ssh.RecordingFiles.Entry(UUID.randomUUID().toString(), 0, true)
+        val failure = runCatching { SessionRecordings(context).export(entry, Uri.fromFile(destination)) }.exceptionOrNull()
+        assertTrue(failure is java.io.IOException)
+        assertEquals("Keep this file", destination.readText())
+    }
+
+    @Test fun exportsRawBytesWithoutDeletingPrivateOriginal(): Unit = runBlocking {
+        val recordings = File(directory, "terminal-recordings")
+        assertTrue(recordings.mkdirs())
+        val id = UUID.randomUUID().toString()
+        val source = File(recordings, "$id.terminal")
+        val bytes = byteArrayOf(27, 91, 50, 74, -16, -97, -104, -128)
+        source.writeBytes(bytes)
+        val storage = SessionRecordings(context)
+        val destination = File(directory, "export.terminal")
+        storage.export(storage.list().single(), Uri.fromFile(destination))
+        org.junit.Assert.assertArrayEquals(bytes, destination.readBytes())
+        org.junit.Assert.assertArrayEquals(bytes, source.readBytes())
+    }
 
     @Test fun listingDoesNotCreateRecordingFiles() = runBlocking {
         assertTrue(SessionRecordings(context).list().isEmpty())
