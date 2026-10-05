@@ -15,6 +15,27 @@ import org.junit.rules.TemporaryFolder
 class RecordingFilesTest {
     @get:Rule val folder = TemporaryFolder()
 
+    @Test fun failedExportLeavesOriginalBytesAndDetailsUnchanged() {
+        val directory = folder.newFolder()
+        val files = RecordingFiles(directory)
+        val (id, writer) = files.create("Quark", 1234)
+        val bytes = byteArrayOf(1, 2, 3)
+        writer.append(bytes, bytes.size)
+        writer.stop()
+        assertTrue(writer.awaitClosed(3_000))
+        files.finish(id)
+        val entry = files.list().single()
+        val failedOutput = object : java.io.OutputStream() {
+            override fun write(value: Int) { throw java.io.IOException("Unavailable destination") }
+        }
+        assertThrows(java.io.IOException::class.java) { files.export(entry, failedOutput) }
+        assertEquals(entry, files.list().single())
+        val output = ByteArrayOutputStream()
+        files.export(entry, output)
+        assertArrayEquals(bytes, output.toByteArray())
+        assertEquals(RecordingMetadata("Quark", 1234), RecordingMetadata.read(File(directory, "$id.details")))
+    }
+
     @Test fun failedCreationDoesNotDeleteExistingDetails() {
         val directory = folder.newFolder()
         val id = "00000000-0000-0000-0000-000000000001"

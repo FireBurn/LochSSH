@@ -61,7 +61,7 @@ class TerminalViewModel @Inject constructor(
         viewModelScope.launch {
             try { recordings.export(entry, uri) }
             catch (cancelled: CancellationException) { throw cancelled }
-            catch (_: Exception) { recordingExportError.value = "Could not export recording. The original is still saved." }
+            catch (_: Exception) { recordingExportError.value = "Could not export recording. Check that it is still available and try another file." }
         }
     }
 
