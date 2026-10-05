@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and 389 local tests with real SSH/SFTP and
+The latest checks pass: build, lint and 394 local tests with real SSH/SFTP and
 IPv6 enabled. The previous Android run passed 112 Android 13 tests with one
 Android 14+ test skipped. This
 does not replace the live-session, launcher, concurrency and process-death
@@ -594,8 +594,13 @@ are outside this audit.
   Closing a connection permanently closes its capture hook, so a delayed start
   cannot attach a writer after disconnect. Two more capture tests cover rejecting
   late starts and draining accepted output on repeated close.
-  The private app-directory choice, storage coordination, consent, controls and
-  document-picker export remain. No user session is recorded.
+  A coordinator now waits for writer closure before finishing files. It rejects
+  duplicate starts, removes files from rejected starts, and reports finalization
+  errors separately. Five coordinator tests cover close-driven finalization,
+  rejected-start cleanup, duplicate starts, cancelled owners and old Stop actions
+  not stopping a newer recording. Its app-lifetime owner and private directory
+  are not wired yet. Consent, controls, Clear all data and document-picker export
+  remain. No user session is recorded.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Trailing punctuation and mixed

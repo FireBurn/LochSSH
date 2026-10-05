@@ -77,6 +77,7 @@ internal class RecordingFiles(private val directory: File,
         if (Files.exists(details.toPath(), NOFOLLOW_LINKS)) checkRegularFile(details)
         check(source.delete()) { "Could not delete recording" }
         if (details.exists()) check(details.delete()) { "Could not delete recording details" }
+        active.remove(entry.id)
     }
 
     private fun requireClosed(id: String) {

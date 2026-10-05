@@ -1,10 +1,11 @@
 # Session recording
 
 Not available in the app yet. The bounded writer, file store, host/time metadata
-and per-connection capture hook have eighteen passing unit tests. The SSH reader
+and per-connection capture hook have eighteen passing unit tests. Five more tests
+cover coordination between capture and file finalization. The SSH reader
 calls the hook before parsing output and stops it on reader completion or
 disconnect, rejecting later starts, but nothing starts recording from the UI. Private-directory selection,
-file finalization, consent and controls remain. Save terminal text
+the coordinator's app-lifetime owner, consent and controls remain. Save terminal text
 exports the retained screen and scrollback; it does not preserve output discarded
 from the buffer.
 
