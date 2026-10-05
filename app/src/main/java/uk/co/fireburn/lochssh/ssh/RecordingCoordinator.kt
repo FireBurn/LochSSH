@@ -69,7 +69,7 @@ internal class RecordingCoordinator(private val files: RecordingFiles, private v
             withTimeout(5_000) {
                 recordings.forEach { it.completion.first { result -> result != null } }
             }
-            files.list().forEach { files.delete(it) }
+            files.clear()
             afterFiles()
         } finally { synchronized(this) { clearing = false } }
     }

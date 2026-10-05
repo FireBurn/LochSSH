@@ -84,6 +84,19 @@ internal class RecordingFiles(private val directory: File,
         check(active[id]?.state?.value?.closed != false) { "Stop recording first" }
     }
 
+    @Synchronized fun clear() {
+        check(active.values.none { !it.state.value.closed }) { "Stop recording first" }
+        list().forEach { delete(it) }
+        if (!directory.exists()) return
+        val remaining = directory.listFiles() ?: throw IOException("Could not list recording details")
+        remaining.filter { it.name.endsWith(".details") && validId(it.name.removeSuffix(".details")) }
+            .forEach { details ->
+                checkRegularFile(details)
+                check(details.delete()) { "Could not delete recording details" }
+            }
+        active.clear()
+    }
+
     private fun prepareDirectory() {
         if (!directory.exists() && !directory.mkdirs()) throw IOException("Could not create recording folder")
         if (!Files.isDirectory(directory.toPath(), NOFOLLOW_LINKS)) throw IOException("Invalid recording folder")

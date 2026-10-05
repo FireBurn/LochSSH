@@ -7,7 +7,9 @@ calls the hook before parsing output and stops it on reader completion or
 disconnect, rejecting later starts, but nothing starts recording from the UI.
 An Android singleton owns the coordinator and private no-backup directory, with
 three passing storage tests. Clear all data stops writers and removes closed
-files before clearing other saved data, blocking starts until cleanup finishes.
+files and orphan host/time details before clearing other saved data, blocking
+starts until cleanup finishes. Cleanup refuses linked details and leaves unrelated
+files untouched.
 Two more coordinator tests cover that path. Consent, controls, live cleanup and
 document-picker checks remain. Save terminal text
 exports the retained screen and scrollback; it does not preserve output discarded

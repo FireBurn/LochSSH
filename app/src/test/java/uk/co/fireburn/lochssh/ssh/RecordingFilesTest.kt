@@ -26,6 +26,40 @@ class RecordingFilesTest {
         assertFalse(File(directory, "$id.partial").exists())
     }
 
+    @Test fun clearRemovesOrphanDetailsButKeepsUnrelatedFiles() {
+        val directory = folder.newFolder()
+        val id = "00000000-0000-0000-0000-000000000001"
+        val details = File(directory, "$id.details")
+        RecordingMetadata("Private host", 1234).write(details)
+        val unrelated = File(directory, "other.details").apply { createNewFile() }
+        RecordingFiles(directory).clear()
+        assertFalse(details.exists())
+        assertTrue(unrelated.exists())
+    }
+
+    @Test fun clearRejectsLinkedDetailsWithoutDeletingTheirTarget() {
+        val directory = folder.newFolder()
+        val outside = folder.newFile()
+        val details = File(directory, "00000000-0000-0000-0000-000000000001.details")
+        Files.createSymbolicLink(details.toPath(), outside.toPath())
+        assertThrows(java.io.IOException::class.java) { RecordingFiles(directory).clear() }
+        assertTrue(outside.exists())
+        assertTrue(Files.isSymbolicLink(details.toPath()))
+    }
+
+    @Test fun clearRefusesActiveWritersBeforeRemovingDetails() {
+        val directory = folder.newFolder()
+        val files = RecordingFiles(directory)
+        val (id, writer) = files.create()
+        try {
+            assertThrows(IllegalStateException::class.java) { files.clear() }
+            assertTrue(File(directory, "$id.details").exists())
+            assertTrue(File(directory, "$id.partial").exists())
+        } finally { writer.stop(); assertTrue(writer.awaitClosed(3_000)) }
+        files.clear()
+        assertEquals(0, directory.listFiles()!!.size)
+    }
+
     @Test fun finishedRecordingCanBeReopenedExportedAndDeleted() {
         val directory = folder.newFolder()
         val files = RecordingFiles(directory)

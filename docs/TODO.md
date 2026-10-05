@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and 396 local tests with real SSH/SFTP and
+The latest checks pass: build, lint and 399 local tests with real SSH/SFTP and
 IPv6 enabled, and 115 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
@@ -139,7 +139,7 @@ are outside this audit.
   Two Android tests pass for the host-menu action and the global button, including
   disabling it when no hosts are saved. Check discovery on quark, multiple
   hosts, reception loss and live shared tunnels on the phone. The phone has the
-  tested APK from commit 41a9faa, including these host-list updates and keyboard
+  tested APK from commit eb8b043, including these host-list updates and keyboard
   fixes. Its installed checksum matches that build; live checks remain.
   The remote session chooser offers Connect all and avoids duplicating open targets.
   It also reuses dropped rows instead of adding a second row, and recognizes
@@ -607,7 +607,10 @@ are outside this audit.
   finalization and deletes closed recording files before clearing saved app data.
   New starts remain blocked through the rest of that cleanup. Two coordinator
   tests cover file removal, later starts and starts attempted during cleanup.
-  Live settings interaction, stuck writes, orphan metadata and interrupted
+  Cleanup also removes orphan host/time details with valid recording IDs, rejects
+  linked files and leaves unrelated files untouched. Three file-store tests cover
+  orphan cleanup, linked details and refusing cleanup while a writer is active.
+  Live settings interaction, stuck writes and interrupted
   cleanup still need checks. Consent and controls remain. No user session is recorded.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
