@@ -3,6 +3,12 @@ package uk.co.fireburn.lochssh.ui.terminal
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+
+@Composable
+internal fun rememberTerminalModifiers(inputTarget: Any?): TerminalModifiers =
+    remember(inputTarget) { TerminalModifiers() }
 
 // Shared by the accessory bar and the soft keyboard, so latching CTRL on the bar
 // applies to the next character typed on either.

@@ -90,7 +90,6 @@ fun TerminalScreen(
     val clipboard = remember {
         context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
     }
-    val modifiers = remember { TerminalModifiers() }
     var imeVisible by remember { mutableStateOf(false) }
     var imeEditText by remember { mutableStateOf<TerminalEditText?>(null) }
     var hadSession by remember(sessionId) { mutableStateOf(false) }
@@ -118,6 +117,7 @@ fun TerminalScreen(
     val session = sessions.firstOrNull { it.id == sessionId }
     val savedCommands by viewModel.savedCommands.collectAsStateWithLifecycle()
     val manager = session?.manager
+    val modifiers = rememberTerminalModifiers(sessionId to manager)
     if (performanceOpen && manager != null) {
         key(manager) {
             PerformanceDialog(session.hostName, manager::readPerformance) { performanceOpen = false }

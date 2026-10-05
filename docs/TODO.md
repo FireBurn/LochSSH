@@ -4,7 +4,7 @@ This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
 The latest checks pass: build, lint and 371 local tests with real SSH/SFTP and
-IPv6 enabled, and 110 Android 13 tests. One Android 14+ test is skipped. This
+IPv6 enabled, and 112 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -51,6 +51,10 @@ are outside this audit.
   cover forward deletes, rejecting invalid ranges without partial deletion,
   and rejecting excessive counts without sending input. Before the fix, the
   first two tests reproduced the missing deletes and invalid-range handling.
+  Latched Ctrl/Alt/Fn state is now scoped to the session and connection manager.
+  Two Android tests reproduced modifiers carrying across session switches and
+  reconnects, then pass with fresh state for each input target. Ordinary redraws
+  preserve the latch. Live keyboard checks above remain.
 - Check password-assisted key installation on a test server and the phone.
   Generate key pair now offers Save and install on server. The private key is
   saved before upload; the one-time password is never written to storage.
