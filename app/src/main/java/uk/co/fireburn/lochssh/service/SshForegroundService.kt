@@ -120,6 +120,11 @@ class SshForegroundService : Service() {
             stopIfIdle()
             return Service.START_NOT_STICKY
         }
+        if (attempts.containsKey(sessionId) || managers[sessionId]?.isConnected == true) {
+            intent?.getLongExtra(EXTRA_REPLACE_SHELL, -1L)?.takeIf { it > 0 }
+                ?.let { closeUnusedShell(it, sessionId) }
+            return Service.START_NOT_STICKY
+        }
         val attempt = ConnectionAttempt(
             sessionId, hostId, UUID.randomUUID().toString(),
             intent?.getStringExtra(EXTRA_REMOTE_COMMAND)?.takeIf { it.length <= 1024 && '\n' !in it && '\r' !in it }
