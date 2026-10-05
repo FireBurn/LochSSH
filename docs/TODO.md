@@ -111,8 +111,9 @@ checks listed below.
   sharing settings while retaining credential, proxy and forwarding differences.
   Two Android tests pass for the host-menu action and the global button, including
   disabling it when no hosts are saved. Check discovery on quark, multiple
-  hosts, reception loss and live shared tunnels on the phone. Installation of
-  these host-list updates is pending: wireless debugging disconnected before upload.
+  hosts, reception loss and live shared tunnels on the phone. The latest tested
+  APK is installed on the phone, including these host-list updates and keyboard
+  fixes. Its installed checksum matches the local build; live checks remain.
   The remote session chooser offers Connect all and avoids duplicating open targets.
   It also reuses dropped rows instead of adding a second row, and recognizes
   Screen targets despite changes in their attached/detached state. Five unit
