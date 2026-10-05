@@ -24,9 +24,13 @@ class SessionRegistry @Inject constructor() {
         val remoteName: String? = null,
         val findRemoteSessions: Boolean = false
     ) {
-        // What a terminal would put on the tab, falling back to the host.
-        val label: String get() = remoteName?.takeIf { it.isNotBlank() }
-            ?: title?.takeIf { it.isNotBlank() } ?: hostName
+        val label: String get() {
+            val remote = remoteName?.takeIf { it.isNotBlank() }
+            val live = title?.takeIf {
+                it.isNotBlank() && (remote == null || (it != hostName && it != remote && !remote.endsWith(" · $it")))
+            }
+            return listOfNotNull(remote, live).distinct().joinToString(" · ").ifBlank { hostName }
+        }
 
         val isConnected: Boolean get() = manager?.isConnected == true
         val notificationTitle: String get() = listOf(hostName, remoteName, title)

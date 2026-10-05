@@ -7,6 +7,35 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class SessionRegistryTest {
+    @Test fun remoteSessionLabelIncludesChangingLiveTaskTitles() {
+        val registry = SessionRegistry()
+        registry.opening(1, 2, "Quark")
+        registry.named(1, "tmux0 · codex")
+        registry.titled(1, "LochSSH fixes · working")
+        assertEquals("tmux0 · codex · LochSSH fixes · working", registry.find(1)?.label)
+        registry.titled(1, "LochSSH fixes · waiting")
+        assertEquals("tmux0 · codex · LochSSH fixes · waiting", registry.find(1)?.label)
+    }
+
+    @Test fun matchingOrEmptyTitlesDoNotDuplicateSessionNames() {
+        val session = SessionRegistry.Session(1, 2, "Quark", remoteName = "work", title = "work")
+        assertEquals("work", session.label)
+        assertEquals("work", session.copy(title = " ").label)
+        assertEquals("work · Claude · fixing tests", session.copy(
+            remoteName = "work · Claude · fixing tests", title = "Claude · fixing tests").label)
+        assertEquals("Quark", session.copy(remoteName = null, title = null).label)
+    }
+
+    @Test fun reconnectKeepsRemoteNameButDropsOldTaskTitle() {
+        val registry = SessionRegistry()
+        registry.opening(1, 2, "Quark")
+        registry.named(1, "work")
+        registry.titled(1, "Claude · fixing tests")
+        registry.failed(1, "Disconnected")
+        registry.opening(1, 2, "Quark")
+        assertEquals("work", registry.find(1)?.label)
+        assertNull(registry.find(1)?.title)
+    }
     @Test
     fun remoteNameSurvivesHostTitlesAndReconnects() {
         val registry = SessionRegistry()

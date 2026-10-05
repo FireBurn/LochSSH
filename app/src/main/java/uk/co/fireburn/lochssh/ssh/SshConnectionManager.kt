@@ -262,7 +262,7 @@ class SshConnectionManager(
         val screenAvailable = remoteSessionAvailable(RemoteSessionModes.SCREEN)
         val sessions = buildList {
             if (tmuxAvailable) {
-                val panes = remoteCommand("tmux list-sessions -F '#{session_id}|#{session_name}\t#{pane_current_command}\t#{window_name}\t#{pane_pid}|#{session_attached}' 2>/dev/null").output
+                val panes = remoteCommand("tmux list-sessions -F '#{session_id}|#{session_name}\t#{pane_current_command}\t#{window_name}\t#{pane_pid}\t#{pane_title}|#{session_attached}' 2>/dev/null").output
                 val processes = try { remoteCommand(RemoteTasks.command, 262_144).output }
                     catch (_: Exception) { "" }
                 addAll(RemoteSessions.parseTmux(

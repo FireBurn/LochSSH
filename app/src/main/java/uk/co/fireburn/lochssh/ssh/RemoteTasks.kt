@@ -39,10 +39,11 @@ internal object RemoteTasks {
         val end = line.lastIndexOf('|')
         val start = line.indexOf('|')
         if (start < 0 || end <= start) return@joinToString line
-        val fields = line.substring(start + 1, end).split('\t')
-        if (fields.size != 4) return@joinToString line
-        val task = fields.last().toLongOrNull()?.takeIf { it > 0 }?.let { names(processes, it) }.orEmpty()
+        val fields = line.substring(start + 1, end).split('\t', limit = 5)
+        if (fields.size < 4) return@joinToString line
+        val task = fields[3].toLongOrNull()?.takeIf { it > 0 }?.let { names(processes, it) }.orEmpty()
         val labels = if (task.isBlank()) fields.take(3) else listOf(fields[0], task, fields[2])
-        line.substring(0, start + 1) + labels.joinToString("\t") + line.substring(end)
+        val title = fields.getOrNull(4)?.replace('\t', ' ').orEmpty()
+        line.substring(0, start + 1) + (labels + title).joinToString("\t") + line.substring(end)
     }
 }

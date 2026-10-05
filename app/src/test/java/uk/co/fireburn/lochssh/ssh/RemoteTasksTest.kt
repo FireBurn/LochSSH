@@ -5,6 +5,12 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class RemoteTasksTest {
+    @Test fun includesAgentPaneTitleWithoutRequiringTitlePassthrough() {
+        val entry = RemoteSessions.parseTmux(RemoteTasks.enrich(
+            "\$0|work\tcodex\tcodex\t100\tLochSSH fixes · waiting|1", "")).single()
+        assertEquals("work · codex · LochSSH fixes · waiting", entry.name)
+        assertEquals("tmux attach-session -t '\$0'", RemoteSessions.attach(entry))
+    }
     private val processes = """
         100 1 100 110 bash
         110 100 110 110 sudo

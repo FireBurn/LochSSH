@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and 404 local tests with real SSH/SFTP and
+The latest checks pass: build, lint and 408 local tests with real SSH/SFTP and
 IPv6 enabled, and 121 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
@@ -14,6 +14,12 @@ Notification fixes now give the summary a tap action that opens the host/session
 list. Connection titles include host, remote-session name, live terminal title and
 a connection number so otherwise identical connections can be told apart.
 Attached tmux names refresh every fifteen seconds, once per host. Discovery uses
+the pane title too, so titles captured by tmux do not require title passthrough.
+Session rows combine remote-session names with live terminal titles, suppressing
+duplicate titles and host-only updates. Reconnecting drops the old task title.
+Three registry tests and one pane-title test cover those labels. Check real
+Claude, Codex and Antigravity titles on the phone with title updates enabled.
+Discovery uses
 pane PIDs and a bounded process listing to follow foreground descendants through
 sudo/su and their extra terminals. Only command names are read, not arguments.
 If ps is unsupported or processes are hidden, the original tmux name remains.
