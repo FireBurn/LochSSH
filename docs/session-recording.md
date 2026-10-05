@@ -1,7 +1,9 @@
 # Session recording
 
-Not implemented. Save terminal text exports the retained screen and scrollback;
-it does not preserve output discarded from the buffer.
+Not available in the app yet. The bounded writer exists and has five passing
+unit tests, but is not connected to SSH or file storage. Save terminal text
+exports the retained screen and scrollback; it does not preserve output discarded
+from the buffer.
 
 ## Controls
 

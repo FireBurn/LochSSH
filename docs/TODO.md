@@ -3,8 +3,9 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and 371 local tests with real SSH/SFTP and
-IPv6 enabled, and 112 Android 13 tests. One Android 14+ test is skipped. This
+The latest checks pass: build, lint and 376 local tests with real SSH/SFTP and
+IPv6 enabled. The previous Android run passed 112 Android 13 tests with one
+Android 14+ test skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -572,6 +573,13 @@ are outside this audit.
   The [recording plan](session-recording.md) defines per-connection consent, raw
   output capture, private files, bounded writes, export and interrupted files.
   Implement its writer, SSH lifecycle and UI phases; the plan is not recording support.
+  The unwired writer copies incoming buffers, keeps accepted chunks ordered,
+  limits chunks to 64 KiB, its queue to 16 chunks and each file to 64 MiB.
+  Queue overflow and size limits stop acceptance while draining accepted chunks.
+  Stop closes the stream after draining; write and close failures are reported.
+  Five unit tests cover buffer reuse, split bytes, draining, limits, a blocked
+  writer with a full queue and write/close failures. Private-file storage, SSH
+  capture, consent, controls and export are still missing. No session is recorded.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Trailing punctuation and mixed
