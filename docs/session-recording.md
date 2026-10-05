@@ -2,7 +2,9 @@
 
 Start and Stop recording are now in the terminal menu. Starting requires consent;
 the terminal shows recording, closing and write/finalization errors. The recordings
-list and document-picker export are not available yet. The bounded writer, file store, host/time metadata
+list shows host, start time, size and completion state, with document-picker export
+and confirmed deletion. Active or closing recordings cannot be exported or deleted.
+Live document-provider checks remain. The bounded writer, file store, host/time metadata
 and per-connection capture hook have eighteen passing unit tests. Five more tests
 cover coordination between capture and file finalization. The SSH reader
 calls the hook before parsing output and stops it on reader completion or

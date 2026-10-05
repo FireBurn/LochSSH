@@ -121,6 +121,22 @@ fun TerminalScreen(
     val session = sessions.firstOrNull { it.id == sessionId }
     val savedCommands by viewModel.savedCommands.collectAsStateWithLifecycle()
     val manager = session?.manager
+    var recordingsOpen by remember { mutableStateOf(false) }
+    val recordingExportError by viewModel.recordingExportError.collectAsStateWithLifecycle()
+    val recordingPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) {
+        viewModel.saveRecording(it)
+    }
+    if (recordingsOpen) {
+        RecordingsDialog(viewModel.recordings, onExport = {
+            viewModel.prepareRecording(it)
+            recordingPicker.launch("lochssh-${it.id}.terminal")
+        }, onDismiss = { recordingsOpen = false })
+    }
+    recordingExportError?.let { message ->
+        AlertDialog(onDismissRequest = viewModel::clearRecordingExportError,
+            title = { Text("Could not export recording") }, text = { Text(message) },
+            confirmButton = { TextButton(onClick = viewModel::clearRecordingExportError) { Text("OK") } })
+    }
     val activeRecordings by viewModel.recordings.recordings.collectAsStateWithLifecycle()
     var lastRecording by remember(manager) { mutableStateOf<RecordingCoordinator.Recording?>(null) }
     val recording = activeRecordings[manager?.recording] ?: lastRecording
@@ -462,6 +478,8 @@ fun TerminalScreen(
                                 DropdownMenuItem(text = { Text("Save terminal text") },
                                     enabled = terminalBuffer != null,
                                     onClick = { moreOpen = false; confirmExport = true })
+                                DropdownMenuItem(text = { Text("Recordings") },
+                                    onClick = { moreOpen = false; recordingsOpen = true })
                                 DropdownMenuItem(text = { Text(if (activeRecordings.containsKey(manager?.recording)) "Stop recording" else "Start recording") },
                                     enabled = !startingRecording && (activeRecordings.containsKey(manager?.recording) || session?.isConnected == true),
                                     onClick = {

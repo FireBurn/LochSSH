@@ -43,6 +43,29 @@ class TerminalViewModel @Inject constructor(
     val replacements = registry.replacements
     private var pendingTranscript: String? = null
     val exportError = MutableStateFlow<String?>(null)
+    private var pendingRecording: uk.co.fireburn.lochssh.ssh.RecordingFiles.Entry? = null
+    val recordingExportError = MutableStateFlow<String?>(null)
+
+    internal fun prepareRecording(entry: uk.co.fireburn.lochssh.ssh.RecordingFiles.Entry) {
+        pendingRecording = entry
+    }
+
+    fun saveRecording(uri: Uri?) {
+        val entry = pendingRecording
+        pendingRecording = null
+        if (uri == null) return
+        if (entry == null) {
+            recordingExportError.value = "Recording is no longer selected. Try exporting again."
+            return
+        }
+        viewModelScope.launch {
+            try { recordings.export(entry, uri) }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (_: Exception) { recordingExportError.value = "Could not export recording. The original is still saved." }
+        }
+    }
+
+    fun clearRecordingExportError() { recordingExportError.value = null }
 
     fun prepareTranscript(buffer: TerminalBuffer) {
         pendingTranscript = buffer.transcript()
