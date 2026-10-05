@@ -3,6 +3,10 @@ package uk.co.fireburn.lochssh.ssh
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.TimeoutException
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -14,6 +18,50 @@ import org.junit.rules.TemporaryFolder
 
 class RecordingFilesTest {
     @get:Rule val folder = TemporaryFolder()
+
+    @Test fun clearWaitsWhileExportOpensDestination() = checkClearWaitsForExport(true)
+
+    @Test fun clearWaitsWhileExportCopiesBytes() = checkClearWaitsForExport(false)
+
+    private fun checkClearWaitsForExport(blockOpening: Boolean) {
+        val files = RecordingFiles(folder.newFolder())
+        val (id, writer) = files.create()
+        val bytes = byteArrayOf(1, 2, 3)
+        writer.append(bytes, bytes.size)
+        writer.stop()
+        assertTrue(writer.awaitClosed(3_000))
+        files.finish(id)
+        val entry = files.list().single()
+        val entered = CountDownLatch(1)
+        val release = CountDownLatch(1)
+        val clearing = CountDownLatch(1)
+        fun pauseExport() {
+            entered.countDown()
+            check(release.await(3, TimeUnit.SECONDS))
+        }
+        val output = object : ByteArrayOutputStream() {
+            override fun write(bytes: ByteArray, offset: Int, length: Int) {
+                if (!blockOpening) pauseExport()
+                super.write(bytes, offset, length)
+            }
+        }
+        val workers = Executors.newFixedThreadPool(2)
+        try {
+            val export = workers.submit { files.export(entry) {
+                if (blockOpening) pauseExport()
+                output
+            } }
+            assertTrue(entered.await(3, TimeUnit.SECONDS))
+            val clear = workers.submit { clearing.countDown(); files.clear() }
+            assertTrue(clearing.await(3, TimeUnit.SECONDS))
+            assertThrows(TimeoutException::class.java) { clear.get(100, TimeUnit.MILLISECONDS) }
+            release.countDown()
+            export.get(3, TimeUnit.SECONDS)
+            clear.get(3, TimeUnit.SECONDS)
+            assertArrayEquals(bytes, output.toByteArray())
+            assertTrue(files.list().isEmpty())
+        } finally { release.countDown(); workers.shutdownNow() }
+    }
 
     @Test fun unavailableOrActiveRecordingDoesNotOpenDestination() {
         val files = RecordingFiles(folder.newFolder())

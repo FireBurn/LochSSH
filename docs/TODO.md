@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and 411 local tests with real SSH/SFTP and
+The latest checks pass: build, lint and 413 local tests with real SSH/SFTP and
 IPv6 enabled, and 126 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
@@ -652,6 +652,9 @@ are outside this audit.
   for missing/active files and closing the output stream while preserving the source.
   Android file-URI checks cover raw bytes and a missing source leaving an existing
   destination untouched; external document-provider checks remain.
+  Two concurrent file-store tests pause destination opening or byte copying and
+  check that cleanup waits, export keeps every byte, and cleanup then removes
+  the recording. Stuck providers and process death still need checks.
   The main screen has a Recordings action so saved files can be reached without
   an open connection. Its separate screen keeps file-picker selection across
   rotation through a ViewModel; process death requires selecting the file again.
