@@ -157,7 +157,7 @@ are outside this audit.
   Two Android tests pass for the host-menu action and the global button, including
   disabling it when no hosts are saved. Check discovery on quark, multiple
   hosts, reception loss and live shared tunnels on the phone. The phone has the
-  tested APK from commit eb8b043, including these host-list updates and keyboard
+  tested APK from commit 20d4a9b, including these host-list updates and keyboard
   fixes. Its installed checksum matches that build; live checks remain.
   The remote session chooser offers Connect all and avoids duplicating open targets.
   It also reuses dropped rows instead of adding a second row, and recognizes
