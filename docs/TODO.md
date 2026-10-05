@@ -569,6 +569,9 @@ are outside this audit.
   scrollback and the screen after a warning about secrets. Two unit tests cover
   scrollback and alternate-screen exports. Full opt-in session recording,
   including output discarded from scrollback, still needs implementation.
+  The [recording plan](session-recording.md) defines per-connection consent, raw
+  output capture, private files, bounded writes, export and interrupted files.
+  Implement its writer, SSH lifecycle and UI phases; the plan is not recording support.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Trailing punctuation and mixed
