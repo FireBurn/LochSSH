@@ -10,6 +10,15 @@ checks listed below.
 
 ## Fix before wider use
 
+- Prevent duplicate service start requests from restarting the same session.
+  Reconnect buttons filter opening and connected rows, but service intents can
+  arrive before the UI reflects that change. `onStartCommand` currently replaces
+  an attempt for the same ID and cancels the previous attempt; a later successful
+  connection replaces and disconnects the existing manager. Make repeated starts
+  for an opening or connected session harmless. Preserve explicit disconnect,
+  retry after failure, remote attach targets and unused-shell replacement.
+  Test two queued starts for one ID, independent IDs on the same host, and retry
+  after a cancelled or failed attempt. UI eligibility tests alone do not cover this.
 - Test the actual Android keyboard input connection, not only key-event encoding.
   Claude's project conversation explicitly requested soft-keyboard Backspace
   and latched Ctrl/Alt followed by a typed character, while keeping DEL as
