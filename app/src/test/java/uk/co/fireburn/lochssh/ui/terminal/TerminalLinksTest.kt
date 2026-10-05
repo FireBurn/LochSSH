@@ -5,6 +5,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class TerminalLinksTest {
+    @Test
+    fun removesMixedClosingBracketsAndPunctuation() {
+        assertEquals(listOf("https://example.com/path"),
+            TerminalLinks.find("[{(https://example.com/path.)}]"))
+        assertEquals(listOf("https://example.com/a_(b)"),
+            TerminalLinks.find("[{https://example.com/a_(b)}]"))
+    }
+
     @Test(timeout = 2_000)
     fun longRunsOfClosingBracketsDoNotRepeatedlyScanTheWholeLink() {
         for (close in listOf(')', ']', '}')) {
