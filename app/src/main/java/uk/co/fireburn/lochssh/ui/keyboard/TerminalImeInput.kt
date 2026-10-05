@@ -13,6 +13,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import uk.co.fireburn.lochssh.ui.terminal.TerminalKey
 import uk.co.fireburn.lochssh.ui.terminal.TerminalKeyEncoder
 
+private const val MAX_DELETION = 4096
+
 // Invisible text input that captures system keyboard input. The InputConnection
 // forwards everything to the terminal instead of editing the (always empty) field.
 class TerminalEditText(context: Context) : EditText(context) {
@@ -49,7 +51,11 @@ class TerminalEditText(context: Context) : EditText(context) {
             }
 
             override fun deleteSurroundingText(beforeLength: Int, afterLength: Int): Boolean {
+                if (beforeLength !in 0..MAX_DELETION || afterLength !in 0..MAX_DELETION) return false
                 if (beforeLength > 0) onDelete?.invoke(beforeLength)
+                repeat(afterLength) {
+                    onKey?.invoke(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_FORWARD_DEL))
+                }
                 return true
             }
 

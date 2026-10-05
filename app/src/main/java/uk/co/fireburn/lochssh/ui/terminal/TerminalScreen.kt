@@ -565,6 +565,7 @@ fun TerminalScreen(
                             liveRequest++
                             selectionClearKey++
                             manager?.write(ByteArray(n) { 0x7F })
+                            modifiers.clear()
                         },
                         modifier = Modifier
                             .fillMaxWidth()

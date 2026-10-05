@@ -1,10 +1,12 @@
 package uk.co.fireburn.lochssh.ui.keyboard
 
 import android.view.inputmethod.EditorInfo
+import android.view.KeyEvent
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createComposeRule
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertFalse
 import org.junit.Rule
 import org.junit.Test
 
@@ -13,6 +15,43 @@ class TerminalInputConnectionAndroidTest {
     private lateinit var view: TerminalEditText
     private val text = mutableListOf<String>()
     private val deleted = mutableListOf<Int>()
+
+    @Test fun deletionAfterTheCursorSendsForwardDelete() {
+        showInput()
+        ui.runOnIdle {
+            val keys = mutableListOf<Int>()
+            view.onKey = { keys.add(it.keyCode); true }
+            val input = view.onCreateInputConnection(EditorInfo())
+            assertTrue(input.deleteSurroundingText(1, 2))
+            assertTrue(input.deleteSurroundingTextInCodePoints(0, 1))
+            assertEquals(listOf(1), deleted)
+            assertEquals(List(3) { KeyEvent.KEYCODE_FORWARD_DEL }, keys)
+        }
+    }
+
+    @Test fun negativeDeletionLengthsDoNotPartlyDeleteText() {
+        showInput()
+        ui.runOnIdle {
+            val input = view.onCreateInputConnection(EditorInfo())
+            assertFalse(input.deleteSurroundingText(1, -1))
+            assertFalse(input.deleteSurroundingTextInCodePoints(-1, 1))
+            assertTrue(deleted.isEmpty())
+        }
+    }
+
+    @Test fun excessiveDeletionLengthsAreRejectedWithoutSendingInput() {
+        showInput()
+        ui.runOnIdle {
+            val keys = mutableListOf<Int>()
+            view.onKey = { keys.add(it.keyCode); true }
+            val input = view.onCreateInputConnection(EditorInfo())
+            assertFalse(input.deleteSurroundingText(Int.MAX_VALUE, 0))
+            assertFalse(input.deleteSurroundingText(1, Int.MAX_VALUE))
+            assertFalse(input.deleteSurroundingTextInCodePoints(4097, 1))
+            assertTrue(deleted.isEmpty())
+            assertTrue(keys.isEmpty())
+        }
+    }
 
     @Test fun nullAndEmptyCommitsDoNotSendText() {
         showInput()
