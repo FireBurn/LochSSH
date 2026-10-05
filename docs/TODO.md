@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and 408 local tests with real SSH/SFTP and
+The latest checks pass: build, lint and 409 local tests with real SSH/SFTP and
 IPv6 enabled, and 121 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
@@ -28,8 +28,9 @@ notification taps, sudo/su builds and server process restrictions on the phone.
 
 The process fields come from the [ps manual](https://man7.org/linux/man-pages/man1/ps.1.html)
 and pane IDs from the [tmux manual](https://man.openbsd.org/tmux).
-Four local tests cover nested foreground tasks, hidden/missing descendants,
-tmux labels and notification titles. Two Android tests cover summary and
+Five local tests cover nested foreground tasks, hidden/missing descendants,
+tmux labels, notification titles and duplicate title suppression. Notifications
+use the same combined label as session rows. Two Android tests cover summary and
 connection notification navigation; actual notification taps still need checking.
 
 ## Conversation sources

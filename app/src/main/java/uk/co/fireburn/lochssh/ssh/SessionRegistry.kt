@@ -33,8 +33,8 @@ class SessionRegistry @Inject constructor() {
         }
 
         val isConnected: Boolean get() = manager?.isConnected == true
-        val notificationTitle: String get() = listOf(hostName, remoteName, title)
-            .filterNotNull().map { it.filterNot { char -> char.code < 32 || char.code == 127 }.trim().take(160) }
+        val notificationTitle: String get() = listOf(hostName, label)
+            .map { it.filterNot { char -> char.code < 32 || char.code == 127 }.trim().take(160) }
             .filter { it.isNotBlank() }.distinct().joinToString(" · ") + " · #$id"
         val canReconnect: Boolean get() = !isConnected && (error != null || manager != null) && hostKeyReview == null
 

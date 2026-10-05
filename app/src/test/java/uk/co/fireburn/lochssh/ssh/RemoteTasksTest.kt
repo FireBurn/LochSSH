@@ -5,6 +5,11 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class RemoteTasksTest {
+    @Test fun notificationDoesNotRepeatTitleAlreadyCapturedByTmux() {
+        val session = SessionRegistry.Session(42, 1, "Quark",
+            remoteName = "work · Codex · LochSSH fixes · waiting", title = "LochSSH fixes · waiting")
+        assertEquals("Quark · work · Codex · LochSSH fixes · waiting · #42", session.notificationTitle)
+    }
     @Test fun includesAgentPaneTitleWithoutRequiringTitlePassthrough() {
         val entry = RemoteSessions.parseTmux(RemoteTasks.enrich(
             "\$0|work\tcodex\tcodex\t100\tLochSSH fixes · waiting|1", "")).single()
