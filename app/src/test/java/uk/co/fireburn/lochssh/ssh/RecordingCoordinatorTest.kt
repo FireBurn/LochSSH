@@ -23,6 +23,34 @@ class RecordingCoordinatorTest {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @After fun close() { scope.cancel() }
 
+    @Test fun clearStopsActiveRecordingsAndRemovesTheirFiles(): Unit = runBlocking {
+        val directory = folder.newFolder()
+        val files = RecordingFiles(directory)
+        val capture = RecordingCapture()
+        val coordinator = RecordingCoordinator(files, scope)
+        val recording = coordinator.start(capture, "Quark")
+        capture.append(byteArrayOf(1, 2, 3), 3)
+        coordinator.clear()
+        assertTrue(recording.writer.state.value.closed)
+        assertEquals(0, directory.listFiles()!!.size)
+        val next = coordinator.start(capture, "Quark")
+        next.stop()
+        withTimeout(3_000) { next.completion.first { it != null } }
+    }
+
+    @Test fun startsStayBlockedUntilRemainingDataIsCleared(): Unit = runBlocking {
+        val files = RecordingFiles(folder.newFolder())
+        val coordinator = RecordingCoordinator(files, scope)
+        val capture = RecordingCapture()
+        coordinator.clear {
+            assertThrows(IllegalStateException::class.java) { coordinator.start(capture, "Quark") }
+            assertTrue(files.list().isEmpty())
+        }
+        val next = coordinator.start(capture, "Quark")
+        next.stop()
+        withTimeout(3_000) { next.completion.first { it != null } }
+    }
+
     @Test fun cancelledOwnerDoesNotCreateFiles() {
         val directory = folder.newFolder()
         scope.cancel()

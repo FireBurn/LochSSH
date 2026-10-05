@@ -6,8 +6,10 @@ cover coordination between capture and file finalization. The SSH reader
 calls the hook before parsing output and stops it on reader completion or
 disconnect, rejecting later starts, but nothing starts recording from the UI.
 An Android singleton owns the coordinator and private no-backup directory, with
-three passing storage tests. Consent, controls, Clear all data and document-picker
-checks remain. Save terminal text
+three passing storage tests. Clear all data stops writers and removes closed
+files before clearing other saved data, blocking starts until cleanup finishes.
+Two more coordinator tests cover that path. Consent, controls, live cleanup and
+document-picker checks remain. Save terminal text
 exports the retained screen and scrollback; it does not preserve output discarded
 from the buffer.
 

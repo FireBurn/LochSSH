@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 
 internal class RecordingCoordinator(private val files: RecordingFiles, private val scope: CoroutineScope) {
     class Recording(val id: String, val writer: RecordingWriter) {
@@ -18,9 +19,11 @@ internal class RecordingCoordinator(private val files: RecordingFiles, private v
     }
 
     private val active = mutableMapOf<RecordingCapture, Recording>()
+    private var clearing = false
 
     @Synchronized fun start(capture: RecordingCapture, hostLabel: String): Recording {
         scope.ensureActive()
+        check(!clearing) { "Recordings are being cleared" }
         check(capture !in active) { "Recording is already active or closing" }
         val (id, writer) = files.create(hostLabel)
         try { capture.start(writer) }
@@ -53,5 +56,21 @@ internal class RecordingCoordinator(private val files: RecordingFiles, private v
             }
         }
         return recording
+    }
+
+    suspend fun clear(afterFiles: suspend () -> Unit = {}) {
+        val recordings = synchronized(this) {
+            check(!clearing) { "Recordings are being cleared" }
+            clearing = true
+            active.values.toList()
+        }
+        try {
+            recordings.forEach { it.stop() }
+            withTimeout(5_000) {
+                recordings.forEach { it.completion.first { result -> result != null } }
+            }
+            files.list().forEach { files.delete(it) }
+            afterFiles()
+        } finally { synchronized(this) { clearing = false } }
     }
 }

@@ -28,6 +28,12 @@ class SessionRecordings @Inject constructor(@ApplicationContext private val cont
 
     internal suspend fun list() = withContext(Dispatchers.IO) { files.list() }
 
+    suspend fun clear() = withContext(Dispatchers.IO) { coordinator.clear() }
+
+    suspend fun clearThen(block: suspend () -> Unit) = withContext(Dispatchers.IO) {
+        coordinator.clear(block)
+    }
+
     internal suspend fun delete(entry: RecordingFiles.Entry) = withContext(Dispatchers.IO) {
         files.delete(entry)
     }

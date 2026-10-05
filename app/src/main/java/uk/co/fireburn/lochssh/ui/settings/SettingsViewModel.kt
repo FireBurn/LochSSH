@@ -30,7 +30,8 @@ class SettingsViewModel @Inject constructor(
     private val database: LochSshDatabase,
     private val secrets: EncryptedStorageManager,
     private val history: ConnectionHistoryRecorder,
-    private val recovery: SecretRecovery
+    private val recovery: SecretRecovery,
+    private val recordings: uk.co.fireburn.lochssh.data.SessionRecordings
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize
@@ -70,14 +71,16 @@ class SettingsViewModel @Inject constructor(
             runCatching {
                 withContext(Dispatchers.IO) {
                     secrets.change {
-                        HostShortcuts.disable(context)
-                        history.clear()
-                        database.clearDataDao().clearSavedData()
-                        secrets.clear()
-                        database.clearDataDao().clearCleanup()
-                        HostKeyTrust.clear(context)
-                        preferences.reset()
-                        recovery.clearError()
+                        recordings.clearThen {
+                            HostShortcuts.disable(context)
+                            history.clear()
+                            database.clearDataDao().clearSavedData()
+                            secrets.clear()
+                            database.clearDataDao().clearCleanup()
+                            HostKeyTrust.clear(context)
+                            preferences.reset()
+                            recovery.clearError()
+                        }
                     }
                 }
             }.onFailure { _error.value = "Could not clear all data: ${it.message ?: "storage error"}" }
