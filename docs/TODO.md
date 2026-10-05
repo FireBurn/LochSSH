@@ -3,9 +3,8 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and 383 local tests with real SSH/SFTP and
-IPv6 enabled. The previous Android run passed 112 Android 13 tests with one
-Android 14+ test skipped. This
+The latest checks pass: build, lint and 387 local tests with real SSH/SFTP and
+IPv6 enabled, and 112 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -586,9 +585,13 @@ are outside this audit.
   collision. Host labels and start times are stored separately from raw output;
   malformed, missing or oversized metadata falls back to Unknown host with no
   start time. Three metadata tests cover Unicode, bounds, invalid files and
-  symbolic links. The private app-directory choice, SSH capture, consent,
-  controls and document-picker export remain.
-  No session is recorded.
+  symbolic links. Each SSH manager now has an off-by-default capture hook before
+  parsing incoming output, stopped by reader completion and disconnect. Four
+  capture tests cover explicit start/stop, 128 KiB of exact reader output,
+  continued output after recording failure and rejecting an active replacement.
+  They do not prove a live SSH recording or file finalization on disconnect.
+  The private app-directory choice, storage coordination, consent, controls and
+  document-picker export remain. No user session is recorded.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Trailing punctuation and mixed

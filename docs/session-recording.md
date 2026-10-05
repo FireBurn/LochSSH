@@ -1,8 +1,10 @@
 # Session recording
 
-Not available in the app yet. The bounded writer, file store and host/time metadata
-have twelve passing unit tests, but are not connected to SSH or the UI. The
-private app-directory choice remains. Save terminal text
+Not available in the app yet. The bounded writer, file store, host/time metadata
+and per-connection capture hook have sixteen passing unit tests. The SSH reader
+calls the hook before parsing output and stops it on reader completion or
+disconnect, but nothing starts recording from the UI. Private-directory selection,
+file finalization, consent and controls remain. Save terminal text
 exports the retained screen and scrollback; it does not preserve output discarded
 from the buffer.
 

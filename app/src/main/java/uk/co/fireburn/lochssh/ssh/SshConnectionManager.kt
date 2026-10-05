@@ -36,6 +36,7 @@ class SshConnectionManager(
     private val connectingChannels = ConnectingChannels()
     private val sessionChannels = SessionChannels()
     private val windowSize = AtomicReference(config.initialCols to config.initialRows)
+    internal val recording = RecordingCapture()
     val terminal = TerminalSession(config.initialCols, config.initialRows) {
         writeBytes(it.toByteArray(Charsets.US_ASCII))
     }
@@ -204,10 +205,12 @@ class SshConnectionManager(
                 input = inStream,
                 isRunning = { running },
                 onOutput = { buffer, count ->
+                    recording.append(buffer, count)
                     titleScanner.feed(buffer, count)
                     terminal.feed(buffer, count)
                 },
                 onStopped = { failure ->
+                    recording.stop()
                     if (running) {
                         failure?.let { Log.w(TAG, "Read from ${config.host} failed", it) }
                         running = false
@@ -339,6 +342,7 @@ class SshConnectionManager(
     @Synchronized
     fun disconnect() {
         running = false
+        recording.stop()
         warningSubscription?.close()
         warningSubscription = null
         val ch = channel
