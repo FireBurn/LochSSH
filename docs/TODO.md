@@ -4,8 +4,7 @@ This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
 The latest checks pass: build, lint and 371 local tests with real SSH/SFTP and
-IPv6 enabled. The previous Android run passed 108 Android 13 tests with one
-Android 14+ test skipped. This
+IPv6 enabled, and 110 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -112,14 +111,18 @@ checks listed below.
   sharing settings while retaining credential, proxy and forwarding differences.
   Two Android tests pass for the host-menu action and the global button, including
   disabling it when no hosts are saved. Check discovery on quark, multiple
-  hosts, reception loss and live shared tunnels on the phone. The latest tested
-  APK is installed on the phone, including these host-list updates and keyboard
-  fixes. Its installed checksum matches the local build; live checks remain.
+  hosts, reception loss and live shared tunnels on the phone. The phone has the
+  tested APK from commit 008a87c, including these host-list updates and keyboard
+  fixes. Its installed checksum matches that build; newer fixes and live checks remain.
   The remote session chooser offers Connect all and avoids duplicating open targets.
   It also reuses dropped rows instead of adding a second row, and recognizes
   Screen targets despite changes in their attached/detached state. Five unit
   tests cover row reuse, opening connections, targets on another host,
   preserving server-key review and preferring an opening row over a failed one.
+  Discovery also retries disconnected managers before their exit callback records
+  an error, and prefers an already-opening row over such a stale connection.
+  Two Android tests reproduced both missed retries and selecting the stale row;
+  both pass with the shared reconnect rule.
   The main host list and session drawer offer Reconnect all dropped sessions,
   sharing the same button and eligibility rule. A unit test checks that opening
   connections and server-key reviews cannot reconnect. Failed connections
