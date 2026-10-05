@@ -19,6 +19,8 @@ internal class RecordingCoordinator(private val files: RecordingFiles, private v
     }
 
     private val active = mutableMapOf<RecordingCapture, Recording>()
+    private val current = MutableStateFlow<Map<RecordingCapture, Recording>>(emptyMap())
+    val recordings = current.asStateFlow()
     private var clearing = false
 
     @Synchronized fun start(capture: RecordingCapture, hostLabel: String): Recording {
@@ -34,6 +36,7 @@ internal class RecordingCoordinator(private val files: RecordingFiles, private v
         }
         val recording = Recording(id, writer)
         active[capture] = recording
+        current.value = active.toMap()
         val job = scope.launch(Dispatchers.IO) {
             var error: String? = null
             try {
@@ -44,14 +47,20 @@ internal class RecordingCoordinator(private val files: RecordingFiles, private v
                 writer.stop()
                 error = "Could not finish recording file"
             } finally {
-                synchronized(this@RecordingCoordinator) { active.remove(capture, recording) }
+                synchronized(this@RecordingCoordinator) {
+                    active.remove(capture, recording)
+                    current.value = active.toMap()
+                }
                 recording.finished(error)
             }
         }
         job.invokeOnCompletion {
             if (recording.completion.value == null) {
                 writer.stop()
-                synchronized(this) { active.remove(capture, recording) }
+                synchronized(this) {
+                    active.remove(capture, recording)
+                    current.value = active.toMap()
+                }
                 recording.finished("Recording interrupted")
             }
         }

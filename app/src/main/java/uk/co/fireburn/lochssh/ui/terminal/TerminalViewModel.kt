@@ -29,7 +29,8 @@ class TerminalViewModel @Inject constructor(
     private val preferences: AppPreferences,
     private val registry: SessionRegistry,
     private val savedCommandDao: SavedCommandDao,
-    @ApplicationContext private val context: Context
+    @ApplicationContext private val context: Context,
+    internal val recordings: uk.co.fireburn.lochssh.data.SessionRecordings
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize

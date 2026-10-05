@@ -43,6 +43,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
@@ -55,6 +56,9 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.CancellationException
+import uk.co.fireburn.lochssh.ssh.RecordingCoordinator
 import uk.co.fireburn.lochssh.service.SshForegroundService
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import uk.co.fireburn.lochssh.ssh.RemoteSessions
@@ -117,6 +121,33 @@ fun TerminalScreen(
     val session = sessions.firstOrNull { it.id == sessionId }
     val savedCommands by viewModel.savedCommands.collectAsStateWithLifecycle()
     val manager = session?.manager
+    val activeRecordings by viewModel.recordings.recordings.collectAsStateWithLifecycle()
+    var lastRecording by remember(manager) { mutableStateOf<RecordingCoordinator.Recording?>(null) }
+    val recording = activeRecordings[manager?.recording] ?: lastRecording
+    var confirmRecording by remember(manager) { mutableStateOf(false) }
+    var startingRecording by remember(manager) { mutableStateOf(false) }
+    var recordingError by remember(manager) { mutableStateOf<String?>(null) }
+    val recordingScope = rememberCoroutineScope()
+    LaunchedEffect(activeRecordings, manager) {
+        activeRecordings[manager?.recording]?.let { lastRecording = it }
+    }
+    if (confirmRecording && manager != null) {
+        AlertDialog(onDismissRequest = { confirmRecording = false },
+            title = { Text("Start recording?") },
+            text = { Text("Save raw output from this connection in private app storage. Output may contain passwords, tokens and private text. Recording stops when this connection closes and does not restart on reconnect.") },
+            confirmButton = { TextButton(onClick = {
+                confirmRecording = false
+                startingRecording = true
+                recordingError = null
+                recordingScope.launch {
+                    try { lastRecording = viewModel.recordings.start(manager, session.hostName) }
+                    catch (cancelled: CancellationException) { throw cancelled }
+                    catch (_: Exception) { recordingError = "Could not start recording" }
+                    finally { startingRecording = false }
+                }
+            }) { Text("Start recording") } },
+            dismissButton = { TextButton(onClick = { confirmRecording = false }) { Text("Cancel") } })
+    }
     val modifiers = rememberTerminalModifiers(sessionId to manager)
     if (performanceOpen && manager != null) {
         key(manager) {
@@ -431,6 +462,13 @@ fun TerminalScreen(
                                 DropdownMenuItem(text = { Text("Save terminal text") },
                                     enabled = terminalBuffer != null,
                                     onClick = { moreOpen = false; confirmExport = true })
+                                DropdownMenuItem(text = { Text(if (activeRecordings.containsKey(manager?.recording)) "Stop recording" else "Start recording") },
+                                    enabled = !startingRecording && (activeRecordings.containsKey(manager?.recording) || session?.isConnected == true),
+                                    onClick = {
+                                        moreOpen = false
+                                        val active = activeRecordings[manager?.recording]
+                                        if (active != null) active.stop() else confirmRecording = true
+                                    })
                                 if (selectedText != null) {
                                     if (selectedLinks.isNotEmpty()) {
                                         DropdownMenuItem(text = { Text("Open selected link") }, onClick = {
@@ -486,6 +524,7 @@ fun TerminalScreen(
                         .padding(padding)
                         .windowInsetsPadding(WindowInsets.ime.union(WindowInsets.navigationBars))
                 ) {
+                    RecordingStatus(recording, startingRecording, recordingError)
                     val error = session?.error
                     if (session == null || error != null || (manager != null && !manager.isConnected)) {
                         Column(

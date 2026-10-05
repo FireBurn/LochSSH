@@ -1,17 +1,21 @@
 # Session recording
 
-Not available in the app yet. The bounded writer, file store, host/time metadata
+Start and Stop recording are now in the terminal menu. Starting requires consent;
+the terminal shows recording, closing and write/finalization errors. The recordings
+list and document-picker export are not available yet. The bounded writer, file store, host/time metadata
 and per-connection capture hook have eighteen passing unit tests. Five more tests
 cover coordination between capture and file finalization. The SSH reader
 calls the hook before parsing output and stops it on reader completion or
-disconnect, rejecting later starts, but nothing starts recording from the UI.
+disconnect, rejecting later starts. Controls use the selected connection's capture,
+not a host-wide flag, and reconnecting does not start another recording.
 An Android singleton owns the coordinator and private no-backup directory, with
 three passing storage tests. Clear all data stops writers and removes closed
 files and orphan host/time details before clearing other saved data, blocking
 starts until cleanup finishes. Cleanup refuses linked details and leaves unrelated
 files untouched.
-Two more coordinator tests cover that path. Consent, controls, live cleanup and
-document-picker checks remain. Save terminal text
+Two more coordinator tests cover that path. Live consent, capture, cleanup and
+document-picker checks remain. Two Android tests cover closing/error status and
+switching the displayed connection without stopping its recording. Save terminal text
 exports the retained screen and scrollback; it does not preserve output discarded
 from the buffer.
 

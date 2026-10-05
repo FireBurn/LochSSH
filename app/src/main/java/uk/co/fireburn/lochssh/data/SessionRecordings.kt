@@ -20,6 +20,7 @@ class SessionRecordings @Inject constructor(@ApplicationContext private val cont
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val files = RecordingFiles(File(context.noBackupFilesDir, "terminal-recordings"))
     private val coordinator = RecordingCoordinator(files, scope)
+    internal val recordings = coordinator.recordings
 
     internal suspend fun start(manager: SshConnectionManager, hostLabel: String) = withContext(Dispatchers.IO) {
         check(manager.isConnected) { "Connection is closed" }

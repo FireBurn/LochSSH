@@ -4,7 +4,7 @@ This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
 The latest checks pass: build, lint and 399 local tests with real SSH/SFTP and
-IPv6 enabled, and 115 Android 13 tests. One Android 14+ test is skipped. This
+IPv6 enabled, and 117 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -611,7 +611,12 @@ are outside this audit.
   linked files and leaves unrelated files untouched. Three file-store tests cover
   orphan cleanup, linked details and refusing cleanup while a writer is active.
   Live settings interaction, stuck writes and interrupted
-  cleanup still need checks. Consent and controls remain. No user session is recorded.
+  cleanup still need checks. Start/Stop controls now require consent and show
+  recording, closing and file errors for the selected connection. Reconnecting
+  does not restart recording. Two Android tests cover closing/error status and
+  removing the indicator when another connection is selected without stopping
+  the original writer. The recordings list and export UI remain, as do
+  live SSH capture and consent checks. Recording is off until explicitly started.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Trailing punctuation and mixed

@@ -36,7 +36,8 @@ class TerminalRecoveryAndroidTest {
         val hosts = mutableStateOf(false)
         lateinit var model: TerminalViewModel
         ui.runOnUiThread {
-            model = TerminalViewModel(AppPreferences(context), registry, database.savedCommandDao(), context)
+            model = TerminalViewModel(AppPreferences(context), registry, database.savedCommandDao(), context,
+                uk.co.fireburn.lochssh.data.SessionRecordings(context))
             store.put("terminal", model)
         }
         ui.setContent {
