@@ -4,8 +4,10 @@ Not available in the app yet. The bounded writer, file store, host/time metadata
 and per-connection capture hook have eighteen passing unit tests. Five more tests
 cover coordination between capture and file finalization. The SSH reader
 calls the hook before parsing output and stops it on reader completion or
-disconnect, rejecting later starts, but nothing starts recording from the UI. Private-directory selection,
-the coordinator's app-lifetime owner, consent and controls remain. Save terminal text
+disconnect, rejecting later starts, but nothing starts recording from the UI.
+An Android singleton owns the coordinator and private no-backup directory, with
+three passing storage tests. Consent, controls, Clear all data and document-picker
+checks remain. Save terminal text
 exports the retained screen and scrollback; it does not preserve output discarded
 from the buffer.
 

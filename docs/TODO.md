@@ -4,8 +4,7 @@ This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
 The latest checks pass: build, lint and 394 local tests with real SSH/SFTP and
-IPv6 enabled. The previous Android run passed 112 Android 13 tests with one
-Android 14+ test skipped. This
+IPv6 enabled, and 115 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -598,9 +597,13 @@ are outside this audit.
   duplicate starts, removes files from rejected starts, and reports finalization
   errors separately. Five coordinator tests cover close-driven finalization,
   rejected-start cleanup, duplicate starts, cancelled owners and old Stop actions
-  not stopping a newer recording. Its app-lifetime owner and private directory
-  are not wired yet. Consent, controls, Clear all data and document-picker export
-  remain. No user session is recorded.
+  not stopping a newer recording. The Android singleton now owns the coordinator
+  independently of a terminal ViewModel, uses a terminal-recordings folder under
+  noBackupFilesDir and runs file operations on IO threads. It rejects starts on
+  disconnected managers. Three Android tests cover lazy folder creation, rejected
+  starts and reading/deleting a separate private test folder. Document output is
+  closed after export, but live capture and document-picker export remain untested.
+  Consent, controls and Clear all data wiring remain. No user session is recorded.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Trailing punctuation and mixed
