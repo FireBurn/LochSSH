@@ -8,6 +8,19 @@ IPv6 enabled, and 110 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
+## Conversation sources
+
+Claude's LochSSH conversation includes the keyboard, terminal, session and icon
+requests reflected below. The indexed Antigravity conversation, LochSSH Visual
+Asset Generation, contains the branding request and quota errors, without a
+completed response. Its launcher, splash and three image-prompt requirements
+are represented in `branding.md` and the app assets.
+
+No LochSSH conversation was found in the current Qwen session metadata or the
+OpenCode session index. This does not prove older or exported logs are absent;
+include them if a project log becomes available. Unrelated project conversations
+are outside this audit.
+
 ## Fix before wider use
 
 - Test duplicate service start requests for the same session.
