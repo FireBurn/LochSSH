@@ -4,7 +4,7 @@ This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
 The latest checks pass: build, lint and 411 local tests with real SSH/SFTP and
-IPv6 enabled, and 123 Android 13 tests. One Android 14+ test is skipped. This
+IPv6 enabled, and 126 Android 13 tests. One Android 14+ test is skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -652,6 +652,13 @@ are outside this audit.
   for missing/active files and closing the output stream while preserving the source.
   Android file-URI checks cover raw bytes and a missing source leaving an existing
   destination untouched; external document-provider checks remain.
+  The main screen has a Recordings action so saved files can be reached without
+  an open connection. Its separate screen keeps file-picker selection across
+  rotation through a ViewModel; process death requires selecting the file again.
+  Three Android tests cover opening without a connection, closing, cancelled
+  selection and an unavailable source's error. A manual Android 13 check opens
+  the browser from the real main-screen button with no saved hosts or connections.
+  Check rotation during export and returning from a provider.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Trailing punctuation and mixed

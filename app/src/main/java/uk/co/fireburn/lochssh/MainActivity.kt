@@ -44,10 +44,12 @@ import uk.co.fireburn.lochssh.ui.sftp.SftpScreen
 import uk.co.fireburn.lochssh.ui.terminal.TerminalScreen
 import uk.co.fireburn.lochssh.ui.terminal.switchTerminal
 import uk.co.fireburn.lochssh.ui.terminal.openSessionNotification
+import uk.co.fireburn.lochssh.ui.terminal.RecordingsScreen
 import uk.co.fireburn.lochssh.ui.theme.LochSSHTheme
 
 object Routes {
     const val HOSTS = "hosts"
+    const val RECORDINGS = "recordings"
     const val HOST_SHORTCUT = "host_shortcut?hostId={hostId}"
     fun hostShortcut(id: Long) = "host_shortcut?hostId=$id"
     const val HOST_EDITOR = "host_editor?id={id}"
@@ -186,8 +188,12 @@ fun LochSshNavHost(resumeSession: MutableStateFlow<Long?>, shortcutHost: Mutable
                 onEdit = { id -> navController.navigate(Routes.hostEditor(id)) },
                 onNew = { navController.navigate(Routes.hostEditor(0)) },
                 onIdentities = { navController.navigate(Routes.IDENTITIES) },
-                onSettings = { navController.navigate(Routes.SETTINGS) }
+                onSettings = { navController.navigate(Routes.SETTINGS) },
+                onRecordings = { navController.navigate(Routes.RECORDINGS) }
             )
+        }
+        composable(Routes.RECORDINGS) {
+            RecordingsScreen(onBack = { navController.popBackStack() })
         }
         composable(
             Routes.HOST_EDITOR,

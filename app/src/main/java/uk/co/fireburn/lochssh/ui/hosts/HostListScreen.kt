@@ -54,7 +54,8 @@ fun HostListScreen(
     onNew: () -> Unit,
     onIdentities: () -> Unit,
     onSettings: () -> Unit,
-    viewModel: HostsViewModel = hiltViewModel()
+    viewModel: HostsViewModel = hiltViewModel(),
+    onRecordings: () -> Unit = {}
 ) {
     val hosts by viewModel.hosts.collectAsStateWithLifecycle(
         emptyList(),
@@ -79,6 +80,7 @@ fun HostListScreen(
             TopAppBar(
                 title = { Text("LochSSH") },
                 actions = {
+                    TextButton(onClick = onRecordings) { Text("Recordings") }
                     IconButton(onClick = onIdentities) {
                         Icon(Icons.Filled.Lock, contentDescription = "Identities")
                     }

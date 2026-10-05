@@ -147,7 +147,8 @@ reporting is off. Scrolling local history does not send keys to the remote progr
 Use Start recording in the terminal menu to save incoming raw output in private
 app storage. Output may contain secrets. Stop recording, or disconnect, to close
 the file; reconnecting does not restart it. Open Recordings to export or delete
-closed files. Exports include terminal escape sequences, not just plain text.
+closed files. Recordings is also available from the main screen without an open
+connection. Exports include terminal escape sequences, not just plain text.
 Save terminal text is separate: it saves only the retained screen and scrollback.
 
 ## Server performance
