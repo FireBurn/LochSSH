@@ -1,7 +1,8 @@
 # Session recording
 
-Not available in the app yet. The bounded writer exists and has five passing
-unit tests, but is not connected to SSH or file storage. Save terminal text
+Not available in the app yet. The bounded writer and file store have eight passing
+unit tests, but are not connected to SSH or the UI. Host/time metadata and the
+private app-directory choice remain. Save terminal text
 exports the retained screen and scrollback; it does not preserve output discarded
 from the buffer.
 

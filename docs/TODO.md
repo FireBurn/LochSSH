@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and 376 local tests with real SSH/SFTP and
+The latest checks pass: build, lint and 379 local tests with real SSH/SFTP and
 IPv6 enabled. The previous Android run passed 112 Android 13 tests with one
 Android 14+ test skipped. This
 does not replace the live-session, launcher, concurrency and process-death
@@ -578,8 +578,13 @@ are outside this audit.
   Queue overflow and size limits stop acceptance while draining accepted chunks.
   Stop closes the stream after draining; write and close failures are reported.
   Five unit tests cover buffer reuse, split bytes, draining, limits, a blocked
-  writer with a full queue and write/close failures. Private-file storage, SSH
-  capture, consent, controls and export are still missing. No session is recorded.
+  writer with a full queue and write/close failures. The unwired file store creates
+  UUID-named partial files and renames them only after a successful writer close.
+  It lists incomplete files after reopening, copies closed output for export,
+  blocks active-file export/deletion and rejects invalid IDs and symbolic links.
+  Three file tests cover those paths. Host/time metadata, the private app-directory
+  choice, SSH capture, consent, controls and document-picker export remain.
+  No session is recorded.
 - Check opening links from selected terminal text on a device. The menu lists
   valid HTTP/HTTPS links for confirmation, rejects credentials and other
   schemes, and reports browser launch failures. Trailing punctuation and mixed
