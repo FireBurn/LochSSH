@@ -4,7 +4,9 @@ This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
 The latest checks pass: build, lint and 413 local tests with real SSH/SFTP and
-IPv6 enabled, and 126 Android 13 tests. One Android 14+ test is skipped. This
+IPv6 enabled (the unit suite was rerun on 8 October after the joined-emoji and
+flag changes), and 127 Android 13 emulator tests on 8 October (commit 39b6ca6).
+One Android 14+ test is skipped by its own guard. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
