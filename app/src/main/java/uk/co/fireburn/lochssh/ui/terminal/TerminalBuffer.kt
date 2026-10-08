@@ -19,6 +19,7 @@ class TerminalBuffer(
     private var wraparound = true
     private var lineWrapping = true
     private var clippedCharacter = false
+    private var joinNext = false
 
     fun setLineWrapping(enabled: Boolean) {
         synchronized(lock) { lineWrapping = enabled }
@@ -346,7 +347,8 @@ class TerminalBuffer(
     }
 
     private fun putCodePoint(code: Int) {
-        if (TerminalWidth.columns(code) == 0) {
+        if (joinsPrevious(code)) {
+            joinNext = code == ZERO_WIDTH_JOINER
             if (!clippedCharacter) appendMark(code)
             return
         }
@@ -384,6 +386,15 @@ class TerminalBuffer(
         lastWritten = Point(cursorRow, cursorCol)
         cursorCol = if (wraparound || !lineWrapping) cursorCol + width
         else (cursorCol + width).coerceAtMost(cols - 1)
+    }
+
+    // A joiner glues the next character, and emoji skin tones glue to the one before them,
+    // so the whole sequence shares one cell.
+    private fun joinsPrevious(code: Int): Boolean {
+        val joined = joinNext
+        joinNext = false
+        return joined || code == ZERO_WIDTH_JOINER || code in SKIN_TONES ||
+            TerminalWidth.columns(code) == 0
     }
 
     private fun appendMark(code: Int) {
@@ -765,6 +776,8 @@ class TerminalBuffer(
 
     companion object {
         private const val MAX_CELL_CODE_UNITS = 128
+        private const val ZERO_WIDTH_JOINER = 0x200D
+        private val SKIN_TONES = 0x1F3FB..0x1F3FF
         const val MAX_SCROLLBACK_ROWS = 2000
         const val DEFAULT_FG = 1
         const val DEFAULT_BG = 0

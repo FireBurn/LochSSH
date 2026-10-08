@@ -447,8 +447,10 @@ are outside this audit.
   tests cover accents, edge wrapping, split input, screen changes and bounded cells.
   Resizing now moves the remembered base cell with its row on both screens;
   two regression tests cover accents arriving after a height change.
-  Check accent shaping, selection and right-edge output on a device. Variation-selector widths,
-  spacing marks and joined emoji still need implementation. Spacing marks
+  Check accent shaping, selection and right-edge output on a device. Joined emoji now share one cell: a
+  zero-width joiner glues the next character and skin-tone modifiers glue to the
+  one before; four unit tests cover this. Variation-selector widths and flag
+  pairs are not handled, and spacing marks
   currently occupy separate cells; a width regression covers Devanagari,
   Bengali and a two-column Vietnamese reading mark. Shaping and selection
   must respect Unicode boundary properties separately from column widths;
