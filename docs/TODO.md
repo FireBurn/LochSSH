@@ -6,7 +6,8 @@ This list reflects the current app and the project conversations. The older
 The latest checks pass: build, lint and 413 local tests with real SSH/SFTP and
 IPv6 enabled (the unit suite was rerun on 8 October after the joined-emoji and
 flag changes), and 127 Android 13 emulator tests on 8 October (commit 39b6ca6).
-One Android 14+ test is skipped by its own guard. This
+The same 127 tests also pass on an Android 14 emulator, where the Android 14+
+service declaration test runs instead of being skipped. This
 does not replace the live-session, launcher, concurrency and process-death
 checks listed below.
 
@@ -219,8 +220,8 @@ are outside this audit.
   declaration is compiled but not yet run. Actual service start, timeout
   delivery and long screen-off runs still need device checks.
   The special-use declaration needs review before Google Play publication.
-  The Android 14+ declaration test is skipped on Android 13. This does not verify
-  the newer service type.
+  The Android 14+ declaration test is skipped on Android 13 and passes on an
+  Android 14 emulator. Service start and timeout delivery still need a phone.
   A separate legacy declaration test passes on Android 13, checking the
   selected type and base foreground-service permission.
 - Check host-key review and removal on a device, including a changed server key.
