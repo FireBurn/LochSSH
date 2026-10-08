@@ -424,7 +424,23 @@ class TerminalBuffer(
         val mark = String(Character.toChars(code))
         if (previous.text.length + mark.length <= MAX_CELL_CODE_UNITS) {
             grid[cursorRow][col] = previous.copy(text = previous.text + mark)
+            if (code == EMOJI_SELECTOR) widenForEmoji(col)
         }
+    }
+
+    // The selector turns a one-column symbol into a two-column emoji when the next cell is free.
+    private fun widenForEmoji(col: Int) {
+        val row = grid[cursorRow]
+        val base = row[col]
+        val next = col + 1
+        if (base.columns != 1 || next >= cols || cursorCol != next ||
+            base.text.codePointCount(0, base.text.length) != 2 ||
+            !TerminalWidth.widensWithEmojiSelector(base.text.codePointAt(0))) return
+        clearCell(row, next)
+        row[col] = base.copy(columns = 2)
+        row[next] = base.copy(text = "", columns = 0)
+        cursorCol = next + 1
+        lastWritten = Point(cursorRow, col)
     }
 
     private fun cell(text: String) =
@@ -795,6 +811,7 @@ class TerminalBuffer(
     companion object {
         private const val MAX_CELL_CODE_UNITS = 128
         private const val ZERO_WIDTH_JOINER = 0x200D
+        private const val EMOJI_SELECTOR = 0xFE0F
         private val REGIONAL_INDICATORS = 0x1F1E6..0x1F1FF
         private val SKIN_TONES = 0x1F3FB..0x1F3FF
         const val MAX_SCROLLBACK_ROWS = 2000
