@@ -449,8 +449,8 @@ are outside this audit.
   two regression tests cover accents arriving after a height change.
   Check accent shaping, selection and right-edge output on a device. Joined emoji now share one cell: a
   zero-width joiner glues the next character and skin-tone modifiers glue to the
-  one before; four unit tests cover this. Variation-selector widths and flag
-  pairs are not handled, and spacing marks
+  one before; four unit tests cover this. Two regional indicators in a row now form one
+  two-column flag. Variation-selector widths are not handled, and spacing marks
   currently occupy separate cells; a width regression covers Devanagari,
   Bengali and a two-column Vietnamese reading mark. Shaping and selection
   must respect Unicode boundary properties separately from column widths;

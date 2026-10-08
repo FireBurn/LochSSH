@@ -347,6 +347,7 @@ class TerminalBuffer(
     }
 
     private fun putCodePoint(code: Int) {
+        if (code in REGIONAL_INDICATORS && pairFlag(code)) return
         if (joinsPrevious(code)) {
             joinNext = code == ZERO_WIDTH_JOINER
             if (!clippedCharacter) appendMark(code)
@@ -386,6 +387,23 @@ class TerminalBuffer(
         lastWritten = Point(cursorRow, cursorCol)
         cursorCol = if (wraparound || !lineWrapping) cursorCol + width
         else (cursorCol + width).coerceAtMost(cols - 1)
+    }
+
+    // Two regional indicators in a row form one two-column flag.
+    private fun pairFlag(code: Int): Boolean {
+        val last = lastWritten ?: return false
+        val row = grid[cursorRow]
+        val first = row.getOrNull(last.col) ?: return false
+        if (last.row != cursorRow || cursorCol != last.col + 1 || cursorCol >= cols) return false
+        if (first.columns != 1 || first.text.codePointCount(0, first.text.length) != 1 ||
+            first.text.codePointAt(0) !in REGIONAL_INDICATORS) return false
+        joinNext = false
+        clearCell(row, cursorCol)
+        row[last.col] = first.copy(text = first.text + String(Character.toChars(code)), columns = 2)
+        row[cursorCol] = row[last.col].copy(text = "", columns = 0)
+        cursorCol++
+        lastWritten = Point(cursorRow, last.col)
+        return true
     }
 
     // A joiner glues the next character, and emoji skin tones glue to the one before them,
@@ -777,6 +795,7 @@ class TerminalBuffer(
     companion object {
         private const val MAX_CELL_CODE_UNITS = 128
         private const val ZERO_WIDTH_JOINER = 0x200D
+        private val REGIONAL_INDICATORS = 0x1F1E6..0x1F1FF
         private val SKIN_TONES = 0x1F3FB..0x1F3FF
         const val MAX_SCROLLBACK_ROWS = 2000
         const val DEFAULT_FG = 1

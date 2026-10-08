@@ -44,6 +44,18 @@ class TerminalJoinedTest {
         assertEquals("c", buffer.cellAt(0, 1).text)
     }
 
+    @Test
+    fun regionalIndicatorPairsFormOneFlag() {
+        val buffer = TerminalBuffer(10, 3)
+        val flag = "\uD83C\uDDEC\uD83C\uDDE7"
+        buffer.send("a${flag}b\uD83C\uDDEC")
+        assertEquals(flag, buffer.cellAt(0, 1).text)
+        assertEquals(2, buffer.cellAt(0, 1).columns)
+        assertEquals("b", buffer.cellAt(0, 3).text)
+        assertEquals(1, buffer.cellAt(0, 4).columns)
+        assertEquals(0 to 5, buffer.cursor)
+    }
+
     private fun TerminalBuffer.send(text: String) {
         val bytes = text.toByteArray(Charsets.UTF_8)
         feed(bytes, bytes.size)
