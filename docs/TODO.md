@@ -813,6 +813,9 @@ are outside this audit.
   invalid ports without changing stored data, and disabling knocking with an invalid
   hidden pause. Check editor field interaction, IPv6 on Android, startup cancellation, DNS delays,
   actual knockd rules and reconnecting shared transports on a device.
+- Designs for split terminals, Telnet, serial and Mosh are in
+  [other-sessions.md](other-sessions.md). Build in that order; Mosh is blocked on the
+  Kotlin-only rule.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
   behavior. Implement it as a separate session type.
 - Add Telnet, serial connections, split terminals, and opt-in encrypted
