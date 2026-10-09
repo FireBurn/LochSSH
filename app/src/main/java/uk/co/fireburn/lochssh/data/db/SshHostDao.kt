@@ -20,6 +20,11 @@ interface SshHostDao {
     @Insert
     suspend fun insert(host: SshHostEntity): Long
 
+    @Query("UPDATE ssh_hosts SET tmux_seen = :seen WHERE id = :id")
+    suspend fun setTmuxSeen(id: Long, seen: Boolean)
+    @Query("UPDATE ssh_hosts SET screen_seen = :seen WHERE id = :id")
+    suspend fun setScreenSeen(id: Long, seen: Boolean)
+
     @Update
     suspend fun update(host: SshHostEntity): Int
 

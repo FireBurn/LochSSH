@@ -35,6 +35,7 @@ import uk.co.fireburn.lochssh.ssh.PortForwardSpec
 import uk.co.fireburn.lochssh.ssh.RemoteSessionOptions
 import uk.co.fireburn.lochssh.ssh.RemoteSessions
 import uk.co.fireburn.lochssh.ssh.SessionRegistry
+import uk.co.fireburn.lochssh.ssh.AutoReattach
 import uk.co.fireburn.lochssh.ssh.SshConnectionConfig
 import uk.co.fireburn.lochssh.ssh.SshConnectionManager
 import java.util.concurrent.ConcurrentHashMap
@@ -86,6 +87,9 @@ class SshForegroundService : Service() {
     private val managers = ConcurrentHashMap<Long, SshConnectionManager>()
     private val connectedTokens = ConcurrentHashMap<Long, String>()
     private val attempts = ConcurrentHashMap<Long, ConnectionAttempt>()
+    private val reattach: MutableSet<Long> = ConcurrentHashMap.newKeySet()
+    private val waiting: MutableSet<Long> = ConcurrentHashMap.newKeySet()
+    private val retryCounts = ConcurrentHashMap<Long, Int>()
     private val hostLocks = ConcurrentHashMap<Long, Mutex>()
     private var wakeLock: PowerManager.WakeLock? = null
     private var stopReason: String? = null
@@ -238,6 +242,8 @@ class SshForegroundService : Service() {
                 history.finished(it, ConnectionStates.ENDED)
             }
             history.connected(attempt.token)
+            if (AutoReattach.applies(attempt.remoteCommand, connected.config.remoteSessionMode)) reattach.add(sessionId)
+            else reattach.remove(sessionId)
             val initialCommand = connected.config.autoCommand.takeIf {
                 attempt.remoteCommand == null &&
                 connected.config.remoteSessionMode == RemoteSessionModes.SHELL && it.isNotBlank()
@@ -268,6 +274,7 @@ class SshForegroundService : Service() {
 
     private fun announceConnected(sessionId: Long, manager: SshConnectionManager, name: String, host: String) {
         if (managers[sessionId] !== manager) return
+        retryCounts.remove(sessionId)
         registry.connected(sessionId, manager)
         showSessionNotification(sessionId, registry.find(sessionId)?.notificationTitle ?: name, "Connected to $host")
         updateSummary()
@@ -291,6 +298,7 @@ class SshForegroundService : Service() {
             RemoteSessionOptions(error = "Could not check remote sessions")
         }
         if (managers[sessionId] !== manager) return
+        registry.find(sessionId)?.hostId?.let { recordTools(it, config.remoteSessionMode, options) }
         if (config.remoteSessionMode == RemoteSessionModes.CONNECT_ALL && options.sessions.isNotEmpty()) {
             registry.connected(sessionId, manager)
             val connections = uk.co.fireburn.lochssh.ssh.RemoteSessionConnections.plan(
@@ -313,6 +321,12 @@ class SshForegroundService : Service() {
             }
             registry.offerRemoteSessions(sessionId, options.copy(error = options.error ?: missing))
         }
+    }
+
+    private suspend fun recordTools(hostId: Long, mode: String, options: RemoteSessionOptions) {
+        if (options.error != null) return
+        if (mode != RemoteSessionModes.SCREEN) hostDao.setTmuxSeen(hostId, options.tmuxAvailable)
+        if (mode != RemoteSessionModes.TMUX) hostDao.setScreenSeen(hostId, options.screenAvailable)
     }
 
     private fun onSessionTitle(sessionId: Long, manager: SshConnectionManager, title: String) {
@@ -355,7 +369,32 @@ class SshForegroundService : Service() {
     private fun onSessionExit(sessionId: Long, manager: SshConnectionManager, code: Int) {
         if (managers[sessionId] !== manager && attempts[sessionId]?.manager !== manager) return
         Log.i(TAG, "Session $sessionId exited with code $code")
+        val retry = sessionId in reattach && AutoReattach.shouldRetry(code)
+        if (retry) waiting.add(sessionId)
         endSession(sessionId, if (code == 0) null else "Connection closed (exit code $code)")
+        if (retry) scheduleReattach(sessionId)
+    }
+
+    private fun scheduleReattach(sessionId: Long) {
+        val tries = retryCounts.getOrDefault(sessionId, 0)
+        val wait = AutoReattach.delayMs(tries) ?: run {
+            retryCounts.remove(sessionId)
+            stopIfIdle()
+            return
+        }
+        retryCounts[sessionId] = tries + 1
+        waiting.add(sessionId)
+        registry.failed(sessionId, "Connection lost. Reconnecting in ${wait / 1000} seconds")
+        scope.launch {
+            delay(wait)
+            waiting.remove(sessionId)
+            val session = registry.find(sessionId) ?: return@launch
+            if (!session.canReconnect || attempts.containsKey(sessionId) || sessionId !in reattach) {
+                stopIfIdle()
+                return@launch
+            }
+            start(this@SshForegroundService, session.hostId, sessionId, session.remoteCommand)
+        }
     }
 
     private fun closeUnusedShell(sourceId: Long, targetId: Long) {
@@ -373,7 +412,12 @@ class SshForegroundService : Service() {
         connectedTokens.remove(sessionId)?.let {
             history.finished(it, if (error == null) ConnectionStates.ENDED else ConnectionStates.FAILED)
         }
-        if (error == null) registry.remove(sessionId) else registry.failed(sessionId, error)
+        if (error == null) {
+            reattach.remove(sessionId)
+            retryCounts.remove(sessionId)
+            waiting.remove(sessionId)
+            registry.remove(sessionId)
+        } else registry.failed(sessionId, error)
         NotificationManagerCompat.from(this).cancel(sessionNotificationId(sessionId))
         stopIfIdle()
     }
@@ -382,11 +426,12 @@ class SshForegroundService : Service() {
         Log.e(TAG, "Session $sessionId failed: $message")
         registry.failed(sessionId, "Connection failed: $message", review)
         NotificationManagerCompat.from(this).cancel(sessionNotificationId(sessionId))
+        if (review == null && sessionId in reattach && retryCounts.containsKey(sessionId)) scheduleReattach(sessionId)
         stopIfIdle()
     }
 
     private fun stopIfIdle() {
-        if (managers.isEmpty() && attempts.isEmpty()) {
+        if (managers.isEmpty() && attempts.isEmpty() && waiting.isEmpty()) {
             stopSelf()
         } else {
             updateSummary()

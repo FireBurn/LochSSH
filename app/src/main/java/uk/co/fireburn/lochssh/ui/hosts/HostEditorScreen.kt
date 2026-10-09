@@ -62,6 +62,8 @@ fun HostEditorScreen(
     var agentForwarding by remember(hostId) { mutableStateOf(false) }
     var telnet by remember(hostId) { mutableStateOf(false) }
     var localShell by remember(hostId) { mutableStateOf(false) }
+    var tmuxSeen by remember(hostId) { mutableStateOf(false) }
+    var screenSeen by remember(hostId) { mutableStateOf(false) }
     var confirmAgent by remember(hostId) { mutableStateOf(false) }
     if (confirmAgent) {
         androidx.compose.material3.AlertDialog(
@@ -117,6 +119,8 @@ fun HostEditorScreen(
             agentForwarding = it.agentForwarding
             telnet = it.telnet
             localShell = it.localShell
+            tmuxSeen = it.tmuxSeen
+            screenSeen = it.screenSeen
             proxy = HostProxyFields.from(it)
         }
     }
@@ -275,9 +279,9 @@ fun HostEditorScreen(
                 }
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                listOf(
-                    RemoteSessionModes.TMUX to "Auto tmux",
-                    RemoteSessionModes.SCREEN to "Auto screen"
+                listOfNotNull(
+                    (RemoteSessionModes.TMUX to "Auto tmux").takeIf { tmuxSeen || remoteSessionMode == RemoteSessionModes.TMUX },
+                    (RemoteSessionModes.SCREEN to "Auto screen").takeIf { screenSeen || remoteSessionMode == RemoteSessionModes.SCREEN }
                 ).forEach { (mode, label) ->
                     FilterChip(
                         selected = remoteSessionMode == mode,
@@ -287,9 +291,10 @@ fun HostEditorScreen(
                 }
             }
             Text(
-                "Ask lists remote sessions after connecting. Auto tmux resumes or creates " +
+                "Ask lists remote sessions after connecting. Auto tmux and Auto screen appear " +
+                    "once the host has been seen to have that tool. Auto tmux resumes or creates " +
                     "a session named lochssh. Auto screen resumes the first available session " +
-                    "or creates one.",
+                    "or creates one. A dropped connection to one of these reconnects by itself.",
                 style = MaterialTheme.typography.bodySmall
             )
             FilterChip(selected = remoteSessionMode == RemoteSessionModes.CONNECT_ALL,

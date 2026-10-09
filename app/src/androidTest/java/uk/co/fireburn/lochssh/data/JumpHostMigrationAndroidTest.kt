@@ -65,7 +65,7 @@ class JumpHostMigrationAndroidTest {
                 .addMigrations(LochSshDatabase.MIGRATION_6_7, LochSshDatabase.MIGRATION_7_8,
                     LochSshDatabase.MIGRATION_8_9, LochSshDatabase.MIGRATION_9_10,
                     LochSshDatabase.MIGRATION_10_11, LochSshDatabase.MIGRATION_11_12,
-                    LochSshDatabase.MIGRATION_12_13).build()
+                    LochSshDatabase.MIGRATION_12_13, LochSshDatabase.MIGRATION_13_14).build()
             database = migrated
             val host = requireNotNull(migrated.sshHostDao().getById(1))
             if (startVersion == 6) assertNull(host.jumpHostId) else assertEquals(2L, host.jumpHostId)

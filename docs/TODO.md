@@ -848,3 +848,15 @@ include Mosh, port-knocking, performance-monitor, and plugin code. The
 [JuiceSSH plugin library](https://github.com/Sonelli/juicessh-pluginlibrary)
 includes an SFTP client API. The original LochSSH spec also calls for a
 customizable keyboard.
+
+## Automatic reattach and tool detection
+
+- A dropped connection to a tmux or Screen session (attached from the chooser, or a host set
+  to Auto tmux or Auto screen) reconnects by itself: up to five tries, waiting 2, 5, 10, 20 and
+  30 seconds, shown as "Connection lost. Reconnecting in N seconds". Clean exits and manual
+  disconnects do not retry. Logic is in `ssh/AutoReattach.kt` and `SshForegroundService`; the
+  timing and retry rules have unit tests but the loop itself has not run against a real drop.
+  Check on the phone: toggle airplane mode, then see the same tmux session come back.
+- The host editor offers Auto tmux and Auto screen only after a connection has found that tool
+  on the host (`tmux_seen` and `screen_seen`, DB version 14). The terminal's remote session
+  dialog already offered New tmux and New Screen only when found.
