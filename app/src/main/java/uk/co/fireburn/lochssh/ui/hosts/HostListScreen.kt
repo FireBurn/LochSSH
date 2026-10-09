@@ -196,6 +196,7 @@ internal fun HostRow(
             Column(modifier = Modifier.weight(1f)) {
                 Text(host.name, style = MaterialTheme.typography.titleMedium)
                 val subtitle = buildString {
+                    if (host.telnet) append("Telnet · ")
                     append("${host.host}:${host.port}")
                     if (host.group.isNotBlank()) append(" · ${host.group}")
                 }

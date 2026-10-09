@@ -823,7 +823,7 @@ are outside this audit.
   hosts, proxies, knocking and agent forwarding. An emulator test connects to a
   fake server, answers its option requests, shows its text, sends input and sees
   it close. Still to check on a phone: the editor switch, reconnect after a drop,
-  and real servers. Session lists do not yet label Telnet connections.
+  and real servers. The host list labels Telnet hosts; open session rows do not.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
   behavior. Implement it as a separate session type.
 - Add Telnet, serial connections, split terminals, and opt-in encrypted
