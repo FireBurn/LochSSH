@@ -67,6 +67,9 @@ dependencies {
 
     implementation(libs.kotlinx.coroutines.android)
 
+    // JSch falls back to these classes when the platform cannot do Ed25519 or X25519.
+    implementation(libs.bouncycastle)
+
     // TEMP: local JSch and Android support builds until the upstream release
     implementation(files("libs/jsch-patched.jar"))
     implementation(files("libs/jsch-android.jar"))
