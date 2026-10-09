@@ -85,6 +85,20 @@ class LiveSshAndroidTest {
         }
     }
 
+    @Test
+    fun jumpHostReachesTheServerThroughAnotherConnection() {
+        val key = File(arguments.getString("ed25519Key")!!).readText()
+        val target = config(key).copy(host = "127.0.0.1", jumpHosts = listOf(config(key)))
+        val manager = connect(target)
+        try {
+            assertTrue(manager.isConnected)
+            manager.write("echo JUMPED_$((3*3))\n".toByteArray())
+            waitFor("jump host shell output") { screen(manager).contains("JUMPED_9") }
+        } finally {
+            manager.disconnect()
+        }
+    }
+
     private fun serverPort() = arguments.getString("port")!!.toInt()
 
     private fun withConnection(forwards: List<PortForwardSpec>, body: () -> Unit) {
@@ -123,17 +137,19 @@ class LiveSshAndroidTest {
         keepAliveSeconds = 30, forwards = forwards
     )
 
-    private fun connect(key: String, forwards: List<PortForwardSpec> = emptyList()): SshConnectionManager {
-        val config = config(key, forwards)
+    private fun connect(key: String, forwards: List<PortForwardSpec> = emptyList()) =
+        connect(config(key, forwards))
+
+    private fun connect(config: SshConnectionConfig): SshConnectionManager {
         val exited = CountDownLatch(1)
-        repeat(2) { attempt ->
+        repeat(4) { attempt ->
             val manager = SshConnectionManager(context, config) { exited.countDown() }
             try {
                 manager.connect()
                 return manager
             } catch (e: Throwable) {
                 val review = generateSequence(e) { it.cause }.filterIsInstance<HostKeyReviewRequired>().firstOrNull()
-                if (review == null || attempt > 0) throw e
+                if (review == null || attempt == 3) throw e
                 HostKeyTrust.accept(context, review.key)
             }
         }

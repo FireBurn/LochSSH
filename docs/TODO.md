@@ -575,6 +575,9 @@ are outside this audit.
   error paths in the phone UI. Check connection history and the 5→6 migration on a device,
   including failed, cancelled, and interrupted connections.
 - Check jump hosts and SSH-agent forwarding on a device.
+  On 9 October a live emulator test connected through a jump host (two
+  host-key approvals, then a shell command) on Android 13; the phone, two
+  different servers and cancellation remain.
   The [jump-host plan](jump-hosts.md) covers separate identities, server-key
   checks and connection cleanup. The transport now carries SSH through
   direct-tcpip channels; a local nested SSH login and command test passes with
@@ -813,7 +816,9 @@ are outside this audit.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
   behavior. Implement it as a separate session type.
 - Add Telnet, serial connections, split terminals, and opt-in encrypted
-  backup/sync. These need separate protocol and data-handling designs.
+  backup/sync. `BackupCipher` (AES-256-GCM, PBKDF2-SHA256 at 600,000 rounds,
+  authenticated header, four unit tests) exists as the encryption layer; there is
+  no backup file format, export/import screen or sync yet. These need separate protocol and data-handling designs.
 
 ConnectBot's [SSH library](https://github.com/connectbot/cbssh) lists local,
 remote, and dynamic forwarding. [Termius for Android](https://www.termius.com/free-ssh-client-for-android)
