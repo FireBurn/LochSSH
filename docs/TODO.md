@@ -816,6 +816,8 @@ are outside this audit.
 - Designs for split terminals, Telnet, serial and Mosh are in
   [other-sessions.md](other-sessions.md). Build in that order; Mosh is blocked on the
   Kotlin-only rule.
+  Telnet's protocol layer (`TelnetNegotiator`, seven unit tests) is built; the
+  socket transport, host kind, database migration and editor fields are not.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
   behavior. Implement it as a separate session type.
 - Add Telnet, serial connections, split terminals, and opt-in encrypted
