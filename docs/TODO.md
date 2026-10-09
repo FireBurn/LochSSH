@@ -505,8 +505,10 @@ are outside this audit.
   Four unit tests cover the selected check, missing tools, picker discovery
   and allowed commands. Check startup time against a remote server on a device.
 - Test SOCKS5 forwarding through a live SSH server on a device. A JVM-side
-  loopback test passed through a real SSH session, but no Android tunnel run has
-  been recorded. Bind and proxy connection failures now appear in the terminal;
+  loopback test passed through a real SSH session. On 9 October the live
+  emulator test also passed a local forward, a SOCKS5 request that read the
+  server banner, and a second shell sharing the first connection after the
+  first shell closed, on Android 13. A phone run has not been recorded. Bind and proxy connection failures now appear in the terminal;
   verify those warnings on a device.
   Sessions for the same saved host and connection settings now share one SSH
   connection, with a separate shell for each terminal. Check local, remote

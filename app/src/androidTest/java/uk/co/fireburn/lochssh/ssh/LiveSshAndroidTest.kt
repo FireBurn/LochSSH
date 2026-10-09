@@ -2,6 +2,8 @@ package uk.co.fireburn.lochssh.ssh
 
 import androidx.test.platform.app.InstrumentationRegistry
 import java.io.File
+import java.net.InetSocketAddress
+import java.net.Socket
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import org.junit.Assert.assertEquals
@@ -12,6 +14,7 @@ import org.junit.Assume.assumeTrue
 import org.junit.Before
 import org.junit.Test
 import uk.co.fireburn.lochssh.data.db.AuthTypes
+import uk.co.fireburn.lochssh.data.db.ForwardTypes
 
 // Needs a reachable test server: pass host, port, user, ed25519Key and rsaKey (file paths
 // readable by the app) as instrumentation arguments. Skipped when they are missing.
@@ -30,6 +33,64 @@ class LiveSshAndroidTest {
 
     @Test
     fun rsaKeyConnects() = exercise("rsaKey")
+
+    @Test
+    fun localForwardReachesTheServerThroughTheTunnel() {
+        val forward = PortForwardSpec(ForwardTypes.LOCAL, 18222, "127.0.0.1", serverPort())
+        withConnection(listOf(forward)) {
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress("127.0.0.1", 18222), 5_000)
+                socket.soTimeout = 5_000
+                assertEquals("SSH-", String(socket.getInputStream().readNBytes(4)))
+            }
+        }
+    }
+
+    @Test
+    fun socks5ForwardReachesTheServerThroughTheTunnel() {
+        val forward = PortForwardSpec(ForwardTypes.DYNAMIC, 11080, "", 0)
+        withConnection(listOf(forward)) {
+            Socket().use { socket ->
+                socket.connect(InetSocketAddress("127.0.0.1", 11080), 5_000)
+                socket.soTimeout = 5_000
+                val out = socket.getOutputStream()
+                val input = socket.getInputStream()
+                out.write(byteArrayOf(5, 1, 0))
+                assertEquals(listOf<Byte>(5, 0), input.readNBytes(2).toList())
+                val port = serverPort()
+                out.write(byteArrayOf(5, 1, 0, 1, 127, 0, 0, 1, (port shr 8).toByte(), port.toByte()))
+                assertEquals(0.toByte(), input.readNBytes(10)[1])
+                assertEquals("SSH-", String(input.readNBytes(4)))
+            }
+        }
+    }
+
+    @Test
+    fun secondShellSharesTheFirstConnection() {
+        val key = File(arguments.getString("ed25519Key")!!).readText()
+        val first = connect(key)
+        try {
+            val second = SshConnectionManager(context, config(key), first) {}
+            second.connect()
+            try {
+                assertTrue(second.isConnected)
+                first.disconnect()
+                second.write("echo SHARED_$((5*5))\n".toByteArray())
+                waitFor("shared shell output") { screen(second).contains("SHARED_25") }
+            } finally {
+                second.disconnect()
+            }
+        } finally {
+            first.disconnect()
+        }
+    }
+
+    private fun serverPort() = arguments.getString("port")!!.toInt()
+
+    private fun withConnection(forwards: List<PortForwardSpec>, body: () -> Unit) {
+        val manager = connect(File(arguments.getString("ed25519Key")!!).readText(), forwards)
+        try { body() } finally { manager.disconnect() }
+    }
 
     private fun exercise(keyArgument: String) {
         val manager = connect(File(arguments.getString(keyArgument)!!).readText())
@@ -53,15 +114,17 @@ class LiveSshAndroidTest {
         }
     }
 
-    private fun connect(key: String): SshConnectionManager {
-        val config = SshConnectionConfig(
-            host = arguments.getString("host")!!,
-            port = arguments.getString("port")!!.toInt(),
-            username = arguments.getString("user")!!,
-            authType = AuthTypes.PUBLIC_KEY,
-            password = null, keyPath = null, keyMaterial = key, keyPassphrase = null,
-            keepAliveSeconds = 30
-        )
+    private fun config(key: String, forwards: List<PortForwardSpec> = emptyList()) = SshConnectionConfig(
+        host = arguments.getString("host")!!,
+        port = serverPort(),
+        username = arguments.getString("user")!!,
+        authType = AuthTypes.PUBLIC_KEY,
+        password = null, keyPath = null, keyMaterial = key, keyPassphrase = null,
+        keepAliveSeconds = 30, forwards = forwards
+    )
+
+    private fun connect(key: String, forwards: List<PortForwardSpec> = emptyList()): SshConnectionManager {
+        val config = config(key, forwards)
         val exited = CountDownLatch(1)
         repeat(2) { attempt ->
             val manager = SshConnectionManager(context, config) { exited.countDown() }
