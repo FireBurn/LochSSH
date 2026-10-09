@@ -49,6 +49,7 @@ import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -121,6 +122,13 @@ fun TerminalScreen(
     val session = sessions.firstOrNull { it.id == sessionId }
     val savedCommands by viewModel.savedCommands.collectAsStateWithLifecycle()
     val manager = session?.manager
+    var splitId by remember(sessionId) { mutableStateOf<Long?>(null) }
+    var splitFocused by remember(sessionId) { mutableStateOf(false) }
+    var splitPicker by remember(sessionId) { mutableStateOf(false) }
+    val splitSession = splitId?.takeIf { it != sessionId }?.let { id -> sessions.firstOrNull { it.id == id } }
+    val splitManager = splitSession?.manager?.takeIf { it.isConnected }
+    val inputManager = if (splitFocused && splitManager != null) splitManager else manager
+    val inputId = if (inputManager === splitManager && splitManager != null) splitSession!!.id else sessionId
     var recordingsOpen by remember { mutableStateOf(false) }
     val recordingExportError by viewModel.recordingExportError.collectAsStateWithLifecycle()
     val recordingPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) {
@@ -164,7 +172,7 @@ fun TerminalScreen(
             }) { Text("Start recording") } },
             dismissButton = { TextButton(onClick = { confirmRecording = false }) { Text("Cancel") } })
     }
-    val modifiers = rememberTerminalModifiers(sessionId to manager)
+    val modifiers = rememberTerminalModifiers(inputId to inputManager)
     if (performanceOpen && manager != null) {
         key(manager) {
             PerformanceDialog(session.hostName, manager::readPerformance) { performanceOpen = false }
@@ -206,9 +214,10 @@ fun TerminalScreen(
     }
 
     fun sendPaste(text: String) {
-        val target = manager ?: return
+        val target = inputManager ?: return
         val content = ImeKeyEncoder.encodeText(text.replace("\r\n", "\n"))
-        val bytes = if (terminalBuffer?.let { it.read { it.bracketedPaste } } == true) {
+        val pasteBuffer = target.terminal.buffer
+        val bytes = if (pasteBuffer.read { pasteBuffer.bracketedPaste }) {
             "\u001B[200~".toByteArray() + content + "\u001B[201~".toByteArray()
         } else content
         target.write(bytes)
@@ -231,11 +240,11 @@ fun TerminalScreen(
         onBack()
     }
 
-    fun usesApplicationCursor(): Boolean = manager?.terminal?.buffer?.let { buffer ->
+    fun usesApplicationCursor(): Boolean = inputManager?.terminal?.buffer?.let { buffer ->
         buffer.read { buffer.applicationCursor }
     } == true
 
-    fun usesApplicationKeypad(): Boolean = manager?.terminal?.buffer?.let { buffer ->
+    fun usesApplicationKeypad(): Boolean = inputManager?.terminal?.buffer?.let { buffer ->
         buffer.read { buffer.applicationKeypad }
     } == true
 
@@ -311,7 +320,7 @@ fun TerminalScreen(
             onInsert = ::sendPaste,
             onRun = { command ->
                 sendPaste(command)
-                manager?.write(byteArrayOf('\n'.code.toByte()))
+                inputManager?.write(byteArrayOf('\n'.code.toByte()))
             },
             onClose = { savedCommandsOpen = false }
         )
@@ -405,6 +414,23 @@ fun TerminalScreen(
         }
     }
 
+    if (splitPicker) {
+        AlertDialog(onDismissRequest = { splitPicker = false },
+            title = { Text("Show beside this session") },
+            text = {
+                Column {
+                    sessions.filter { it.id != sessionId && it.manager?.isConnected == true }.forEach { other ->
+                        TextButton(onClick = {
+                            splitId = other.id
+                            splitFocused = true
+                            splitPicker = false
+                        }) { Text(other.label.ifBlank { other.hostName }) }
+                    }
+                }
+            },
+            confirmButton = { TextButton(onClick = { splitPicker = false }) { Text("Cancel") } })
+    }
+
     SessionDrawer(sessions, sessionId, onSwitchSession, onHosts, onReconnectAll = {
         sessions.filter { it.canReconnect }.forEach {
             SshForegroundService.start(context, it.hostId, it.id, it.remoteCommand)
@@ -444,6 +470,14 @@ fun TerminalScreen(
                                     moreOpen = false
                                     openSessions()
                                 })
+                                DropdownMenuItem(
+                                    text = { Text(if (splitManager == null) "Split view" else "Close split view") },
+                                    enabled = splitManager != null || sessions.any { it.id != sessionId && it.manager?.isConnected == true },
+                                    onClick = {
+                                        moreOpen = false
+                                        if (splitManager == null) splitPicker = true
+                                        else { splitId = null; splitFocused = false }
+                                    })
                                 DropdownMenuItem(text = { Text("Background connections") }, onClick = {
                                     moreOpen = false
                                     batterySettingsOpen = true
@@ -567,21 +601,42 @@ fun TerminalScreen(
                             }
                         }
                     } else {
-                        TerminalView(
-                            manager = manager,
-                            fontSize = fontSize.sp,
-                            typeface = terminalTypeface,
-                            wrapLines = wrapLines,
-                            theme = terminalTheme,
-                            scrollToLiveKey = liveRequest,
-                            clearSelectionKey = selectionClearKey,
-                            onScrollOffsetChanged = { scrollbackOffset = it },
-                            onSelectionChanged = { selectedText = it?.takeIf { text -> text.isNotEmpty() } },
-                            onBuffer = { terminalBuffer = it },
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxWidth()
-                        )
+                        val primary: @Composable (Modifier) -> Unit = { paneModifier ->
+                            TerminalView(
+                                manager = manager,
+                                fontSize = fontSize.sp,
+                                typeface = terminalTypeface,
+                                wrapLines = wrapLines,
+                                theme = terminalTheme,
+                                scrollToLiveKey = liveRequest,
+                                clearSelectionKey = selectionClearKey,
+                                onScrollOffsetChanged = { scrollbackOffset = it },
+                                onSelectionChanged = { selectedText = it?.takeIf { text -> text.isNotEmpty() } },
+                                onBuffer = { terminalBuffer = it },
+                                modifier = paneModifier
+                            )
+                        }
+                        if (splitManager == null) {
+                            primary(Modifier.weight(1f).fillMaxWidth())
+                        } else {
+                            val accent = MaterialTheme.colorScheme.primary
+                            SplitPanes(
+                                horizontal = LocalConfiguration.current.orientation ==
+                                    android.content.res.Configuration.ORIENTATION_LANDSCAPE,
+                                modifier = Modifier.weight(1f).fillMaxWidth(),
+                                first = { primary(it.splitFocus(!splitFocused, accent) { splitFocused = false }) },
+                                second = {
+                                    TerminalView(
+                                        manager = splitManager,
+                                        fontSize = fontSize.sp,
+                                        typeface = terminalTypeface,
+                                        wrapLines = wrapLines,
+                                        theme = terminalTheme,
+                                        modifier = it.splitFocus(splitFocused, accent) { splitFocused = true }
+                                    )
+                                }
+                            )
+                        }
                     }
                     TerminalImeInput(
                         onText = {
@@ -590,7 +645,7 @@ fun TerminalScreen(
                             } else {
                                 liveRequest++
                                 selectionClearKey++
-                                manager?.write(
+                                inputManager?.write(
                                     ImeKeyEncoder.encodeText(it, modifiers.ctrl, modifiers.alt)
                                 )
                             }
@@ -610,7 +665,7 @@ fun TerminalScreen(
                                 if (bytes != null) {
                                     liveRequest++
                                     selectionClearKey++
-                                    manager?.write(bytes)
+                                    inputManager?.write(bytes)
                                     modifiers.clear()
                                     true
                                 } else {
@@ -621,7 +676,7 @@ fun TerminalScreen(
                         onDelete = { n ->
                             liveRequest++
                             selectionClearKey++
-                            manager?.write(ByteArray(n) { 0x7F })
+                            inputManager?.write(ByteArray(n) { 0x7F })
                             modifiers.clear()
                         },
                         modifier = Modifier
@@ -631,14 +686,14 @@ fun TerminalScreen(
                         onReady = { imeEditText = it }
                     )
                     JuiceSshKeyboardBar(
-                        inputTarget = sessionId to manager,
+                        inputTarget = inputId to inputManager,
                         layout = keyboardLayout,
                         applicationCursor = ::usesApplicationCursor,
                         modifiers = modifiers,
                         onSend = {
                             liveRequest++
                             selectionClearKey++
-                            manager?.write(it)
+                            inputManager?.write(it)
                         },
                         onFontSizeChange = { viewModel.changeFontSize(it) },
                         onImeToggle = {

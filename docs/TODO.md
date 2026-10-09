@@ -813,6 +813,16 @@ are outside this audit.
   invalid ports without changing stored data, and disabling knocking with an invalid
   hidden pause. Check editor field interaction, IPv6 on Android, startup cancellation, DNS delays,
   actual knockd rules and reconnecting shared transports on a device.
+- Split terminals are built: Terminal actions > Split view shows another connected
+  session beside (landscape) or below (portrait) the current one. Touching a
+  pane focuses it; the focused pane gets the keyboard bar, IME input, paste and
+  saved commands, and has the accent border. Each pane resizes its own
+  connection. Close split view returns to one pane. Switching sessions or
+  leaving ends the split. Three emulator tests cover side-by-side and stacked
+  layout and a touch both moving focus and reaching the pane. Not yet checked
+  on a phone: typing into each pane, selection and scrolling in the second pane,
+  rotation with a split open, a pane's connection dropping, and the toolbar
+  hide timer. The second pane has no scrollback indicator or selection menu.
 - Designs for split terminals, Telnet, serial and Mosh are in
   [other-sessions.md](other-sessions.md). Build in that order; Mosh is blocked on the
   Kotlin-only rule.
