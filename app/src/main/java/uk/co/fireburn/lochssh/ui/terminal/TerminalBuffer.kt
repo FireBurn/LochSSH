@@ -425,7 +425,20 @@ class TerminalBuffer(
         if (previous.text.length + mark.length <= MAX_CELL_CODE_UNITS) {
             grid[cursorRow][col] = previous.copy(text = previous.text + mark)
             if (code == EMOJI_SELECTOR) widenForEmoji(col)
+            if (code == TEXT_SELECTOR) narrowForText(col)
         }
+    }
+
+    private fun narrowForText(col: Int) {
+        val row = grid[cursorRow]
+        val base = row[col]
+        if (base.columns != 2 || col + 1 >= cols || row[col + 1].columns != 0 ||
+            base.text.codePointCount(0, base.text.length) != 2 ||
+            !TerminalWidth.narrowsWithTextSelector(base.text.codePointAt(0))) return
+        row[col] = base.copy(columns = 1)
+        row[col + 1] = blank()
+        cursorCol = col + 1
+        lastWritten = Point(cursorRow, col)
     }
 
     // The selector turns a one-column symbol into a two-column emoji when the next cell is free.
@@ -812,6 +825,7 @@ class TerminalBuffer(
         private const val MAX_CELL_CODE_UNITS = 128
         private const val ZERO_WIDTH_JOINER = 0x200D
         private const val EMOJI_SELECTOR = 0xFE0F
+        private const val TEXT_SELECTOR = 0xFE0E
         private val REGIONAL_INDICATORS = 0x1F1E6..0x1F1FF
         private val SKIN_TONES = 0x1F3FB..0x1F3FF
         const val MAX_SCROLLBACK_ROWS = 2000

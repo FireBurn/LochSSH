@@ -21,8 +21,8 @@ Joined emoji, skin tones and flag pairs share one cell. A character listed with
 an emoji style in
 [emoji-variation-sequences.txt](https://www.unicode.org/Public/17.0.0/ucd/emoji/emoji-variation-sequences.txt)
 becomes two columns when U+FE0F follows it and the next cell is free; ASCII
-characters stay one column. Spacing marks and the text-style selector (U+FE0E)
-still need work. Check glyph placement and font fallback on a device.
+characters stay one column. U+FE0E narrows a listed two-column emoji to one
+column. Spacing marks still need work. Check glyph placement and font fallback on a device.
 
 Spacing marks currently occupy their own grid cells. Devanagari U+093E and
 U+093F and Bengali U+09BE use one column; U+16FF0 uses two. A regression test

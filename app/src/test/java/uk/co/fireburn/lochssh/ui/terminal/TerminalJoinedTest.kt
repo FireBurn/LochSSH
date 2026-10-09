@@ -78,6 +78,17 @@ class TerminalJoinedTest {
         assertEquals(0, buffer.cursorRow)
     }
 
+    @Test
+    fun textSelectorNarrowsATwoColumnEmojiToOneColumn() {
+        val buffer = TerminalBuffer(10, 3)
+        buffer.send("a\u231A\uFE0Eb\u231Ac")
+        assertEquals("\u231A\uFE0E", buffer.cellAt(0, 1).text)
+        assertEquals(1, buffer.cellAt(0, 1).columns)
+        assertEquals("b", buffer.cellAt(0, 2).text)
+        assertEquals(2, buffer.cellAt(0, 3).columns)
+        assertEquals("c", buffer.cellAt(0, 5).text)
+    }
+
     private fun TerminalBuffer.send(text: String) {
         val bytes = text.toByteArray(Charsets.UTF_8)
         feed(bytes, bytes.size)

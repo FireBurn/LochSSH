@@ -465,7 +465,7 @@ are outside this audit.
   zero-width joiner glues the next character and skin-tone modifiers glue to the
   one before; four unit tests cover this. Two regional indicators in a row now form one
   two-column flag. The emoji selector U+FE0F widens listed symbols to two columns
-  (see terminal-widths.md); U+FE0E is not handled, and spacing marks
+  (see terminal-widths.md); U+FE0E narrows listed emoji to one column, and spacing marks
   currently occupy separate cells; a width regression covers Devanagari,
   Bengali and a two-column Vietnamese reading mark. Shaping and selection
   must respect Unicode boundary properties separately from column widths;
