@@ -190,6 +190,7 @@ class SshForegroundService : Service() {
                         knockSequence = host.knockSequence,
                         knockPause = host.knockPause,
                         proxy = SavedSshProxy.resolve(host, identityDao::getById, secrets::getSecret),
+                        telnet = host.id == hostId && host.telnet,
                         forwards = if (host.id == hostId) portForwardDao.getByHost(hostId).map {
                             PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
                         } else emptyList()

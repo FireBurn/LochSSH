@@ -38,5 +38,6 @@ data class SshHostEntity(
     @ColumnInfo(name = "proxy_type", defaultValue = "'NONE'") val proxyType: String = "NONE",
     @ColumnInfo(name = "proxy_host", defaultValue = "''") val proxyHost: String = "",
     @ColumnInfo(name = "proxy_port", defaultValue = "1080") val proxyPort: Int = 1080,
-    @ColumnInfo(name = "proxy_identity_id", defaultValue = "NULL") val proxyIdentityId: Long? = null
+    @ColumnInfo(name = "proxy_identity_id", defaultValue = "NULL") val proxyIdentityId: Long? = null,
+    @ColumnInfo(name = "telnet", defaultValue = "0") val telnet: Boolean = false
 )

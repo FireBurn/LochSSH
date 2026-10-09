@@ -60,6 +60,7 @@ fun HostEditorScreen(
     var jumpHostId by remember(hostId) { mutableStateOf<Long?>(null) }
     var jumpMenu by remember(hostId) { mutableStateOf(false) }
     var agentForwarding by remember(hostId) { mutableStateOf(false) }
+    var telnet by remember(hostId) { mutableStateOf(false) }
     var confirmAgent by remember(hostId) { mutableStateOf(false) }
     if (confirmAgent) {
         androidx.compose.material3.AlertDialog(
@@ -113,6 +114,7 @@ fun HostEditorScreen(
             identityId = it.identityId
             jumpHostId = it.jumpHostId
             agentForwarding = it.agentForwarding
+            telnet = it.telnet
             proxy = HostProxyFields.from(it)
         }
     }
@@ -147,7 +149,7 @@ fun HostEditorScreen(
         saving = true
         saveError = null
         viewModel.save(name, host, port, keepAlive, group, identityId, autoCommand, remoteSessionMode,
-            jumpHostId, agentForwarding, knockSequence, knockPause, proxy) { error ->
+            jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet) { error ->
             saving = false
             if (error == null) onBack() else saveError = error
         }
@@ -330,6 +332,17 @@ fun HostEditorScreen(
                     DropdownMenuItem(text = { Text(jump.name) },
                         onClick = { jumpHostId = jump.id; jumpMenu = false })
                 }
+            }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Use Telnet")
+                    Text("Unencrypted: text and passwords can be read on the network. No tunnels, jump hosts or proxy.",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                androidx.compose.material3.Switch(checked = telnet, onCheckedChange = {
+                    telnet = it
+                    if (it && port == "22") port = "23" else if (!it && port == "23") port = "22"
+                })
             }
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {

@@ -9,9 +9,12 @@ import com.jcraft.jsch.Session
 import com.jcraft.jsch.android.AndroidJSch
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
+import uk.co.fireburn.lochssh.telnet.TelnetConnection
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.OutputStream
+import java.net.InetSocketAddress
+import java.net.Socket
 import uk.co.fireburn.lochssh.ui.terminal.TerminalSession
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -57,6 +60,10 @@ class SshConnectionManager(
     private var transport: SharedSshConnection? = null
     private var warningSubscription: AutoCloseable? = null
     @Volatile
+    private var telnetConnection: TelnetConnection? = null
+    @Volatile
+    private var connectingTelnet: Socket? = null
+    @Volatile
     private var running = false
 
     var startupOptions: RemoteSessionOptions? = null
@@ -66,11 +73,12 @@ class SshConnectionManager(
     val isUnusedShell: Boolean get() = ShellCleanup.canClose(config, startupCommand, hasInput, terminal.buffer)
 
     val isConnected: Boolean
-        get() = running && channel?.isConnected == true && session?.isConnected == true
+        get() = running && (telnetConnection?.isOpen
+            ?: (channel?.isConnected == true && session?.isConnected == true))
 
     @Synchronized
     fun connect() {
-        try { connectionAttempt.run { connectChain() } }
+        try { connectionAttempt.run { if (config.telnet) connectTelnet() else connectChain() } }
         finally {
             connectingChannels.clear()
             connectingSessions.clear()
@@ -79,6 +87,7 @@ class SshConnectionManager(
 
     fun cancelConnect() = connectionAttempt.cancel()
     fun closeConnectingSessions() {
+        runCatching { connectingTelnet?.close() }
         connectingChannels.close()
         connectingSessions.close()
     }
@@ -87,6 +96,41 @@ class SshConnectionManager(
         config.sameTransport(other) && transport?.isConnected == true
 
     private fun acquireTransport(): SharedSshConnection? = transport?.takeIf { it.acquire() }
+
+    private fun connectTelnet() {
+        require(config.jumpHosts.isEmpty() && config.proxy == null && config.forwards.isEmpty()) {
+            "Telnet does not support jump hosts, proxies or tunnels"
+        }
+        val socket = Socket()
+        connectingTelnet = socket
+        socket.connect(InetSocketAddress(config.host, config.port), CONNECT_TIMEOUT_MS)
+        connectionAttempt.checkCancelled()
+        val size = windowSize.get()
+        val connection = TelnetConnection(socket, size.first, size.second)
+        telnetConnection = connection
+        remoteOut = connection.output
+        writer = Executors.newSingleThreadExecutor { r -> Thread(r, "telnet-writer") }
+        running = true
+        readerThread = thread(name = "telnet-reader") {
+            ShellOutputReader.read(
+                input = connection.input,
+                isRunning = { running },
+                onOutput = { buffer, count ->
+                    recording.append(buffer, count)
+                    titleScanner.feed(buffer, count)
+                    terminal.feed(buffer, count)
+                },
+                onStopped = { failure ->
+                    recording.close()
+                    if (running) {
+                        failure?.let { Log.w(TAG, "Read from ${config.host} failed", it) }
+                        running = false
+                        onExit(if (failure == null) 0 else -1)
+                    }
+                }
+            )
+        }
+    }
 
     private fun connectChain() {
         SshProxyRoute.validate(config)
@@ -323,6 +367,11 @@ class SshConnectionManager(
     fun resize(cols: Int, rows: Int) {
         require(cols > 0 && rows > 0)
         windowSize.set(cols to rows)
+        telnetConnection?.let { telnet ->
+            try { writer?.execute { runCatching { telnet.resize(cols, rows) } } }
+            catch (_: RejectedExecutionException) { }
+            return
+        }
         val ch = channel ?: return
         queueResize(ch)
     }
@@ -348,6 +397,10 @@ class SshConnectionManager(
         recording.close()
         warningSubscription?.close()
         warningSubscription = null
+        val telnet = telnetConnection
+        telnetConnection = null
+        runCatching { connectingTelnet?.close() }
+        connectingTelnet = null
         val ch = channel
         val s = session
         val out = remoteOut
@@ -364,6 +417,7 @@ class SshConnectionManager(
         dynamicForwards.clear()
         // Closing sends packets, so it cannot run on the caller's thread either.
         thread(name = "ssh-disconnect") {
+            telnet?.close()
             sessionChannels.close()
             runCatching { out?.close() }
             runCatching { ch?.disconnect() }

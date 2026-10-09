@@ -816,8 +816,14 @@ are outside this audit.
 - Designs for split terminals, Telnet, serial and Mosh are in
   [other-sessions.md](other-sessions.md). Build in that order; Mosh is blocked on the
   Kotlin-only rule.
-  Telnet's protocol layer (`TelnetNegotiator`, seven unit tests) is built; the
-  socket transport, host kind, database migration and editor fields are not.
+  Telnet is built: `TelnetNegotiator` and `TelnetConnection` (unit tests with a
+  fake server), a Telnet path in the connection manager, a `telnet` host column
+  (database version 12, migration tested on Android 13), and a Use Telnet switch in
+  the host editor that moves the port between 22 and 23 and rejects tunnels, jump
+  hosts, proxies, knocking and agent forwarding. An emulator test connects to a
+  fake server, answers its option requests, shows its text, sends input and sees
+  it close. Still to check on a phone: the editor switch, reconnect after a drop,
+  and real servers. Session lists do not yet label Telnet connections.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
   behavior. Implement it as a separate session type.
 - Add Telnet, serial connections, split terminals, and opt-in encrypted

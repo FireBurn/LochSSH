@@ -105,11 +105,12 @@ class HostEditorViewModel @Inject constructor(
         knockSequence: String = "",
         knockPause: String = "200",
         proxy: HostProxyFields = HostProxyFields(),
+        telnet: Boolean = false,
         onFinished: (String?) -> Unit
     ) {
         viewModelScope.launch {
             val error = try {
-                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause, proxy)
+                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet)
                 null
             } catch (e: CancellationException) {
                 throw e
@@ -133,7 +134,8 @@ class HostEditorViewModel @Inject constructor(
         agentForwarding: Boolean,
         knockSequence: String,
         knockPause: String,
-        proxy: HostProxyFields
+        proxy: HostProxyFields,
+        telnet: Boolean
     ) {
         check(loaded) { loadError ?: "Wait for the host to load" }
         val existing = host
@@ -149,6 +151,10 @@ class HostEditorViewModel @Inject constructor(
         val pause = if (knockSequence.isBlank()) 200L else knockPause.toLongOrNull()
         require(pause != null && pause in 0..5000) { "Pause must be between 0 and 5000 milliseconds" }
         require(jumpHostId == null || knockSequence.isBlank()) { "Configure knocking on the first jump host instead" }
+        require(!telnet || (jumpHostId == null && forwards.isEmpty() && !agentForwarding &&
+            proxy.type == SavedSshProxy.NONE && knockSequence.isBlank())) {
+            "Telnet does not support jump hosts, proxies, tunnels, knocking or agent forwarding"
+        }
         val details = existing?.copy(
             name = name,
             host = hostName,
@@ -161,7 +167,8 @@ class HostEditorViewModel @Inject constructor(
             jumpHostId = jumpHostId,
             agentForwarding = agentForwarding,
             knockSequence = knockSequence.trim(),
-            knockPause = pause
+            knockPause = pause,
+            telnet = telnet
         ) ?: SshHostEntity(
             name = name,
             host = hostName,
@@ -174,7 +181,8 @@ class HostEditorViewModel @Inject constructor(
             jumpHostId = jumpHostId,
             agentForwarding = agentForwarding,
             knockSequence = knockSequence.trim(),
-            knockPause = pause
+            knockPause = pause,
+            telnet = telnet
         )
         val entity = proxy.applyTo(details)
         database.withTransaction {
