@@ -3,13 +3,24 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and 413 local tests with real SSH/SFTP and
-IPv6 enabled (the unit suite was rerun on 8 October after the joined-emoji and
-flag changes), and 127 Android 13 emulator tests on 8 October (commit 39b6ca6).
-The same 127 tests also pass on an Android 14 emulator, where the Android 14+
-service declaration test runs instead of being skipped. This
-does not replace the live-session, launcher, concurrency and process-death
-checks listed below.
+The latest checks pass: build, lint and the local unit tests, and 129 Android
+tests on Android 13 and Android 14 emulators (9 October). Two of those are live
+SSH tests that run only when given a server (see below) and skip otherwise.
+The Android 14 emulator also runs the Android 14+ service declaration test.
+Under load (two emulators at once) one or two timing-based Compose tests fail
+at random and pass on rerun; run one emulator at a time.
+
+Live SSH from the app on an emulator: `LiveSshAndroidTest` connects with an
+Ed25519 key and an RSA key to a real OpenSSH server, approves the first-seen host
+key, runs a command in the shell, lists tmux sessions, reads performance values
+and lists a directory over SFTP. Start a throwaway server with its own host key and
+`authorized_keys` (see HANDOVER.md), push the private keys to `/data/local/tmp`,
+and pass `-e host 10.0.2.2 -e port 2222 -e user NAME -e ed25519Key PATH -e rsaKey PATH`
+to `am instrument`. It passes on both emulators. It found that the emulator images
+cannot sign with Ed25519 through the platform, so the app now bundles BouncyCastle
+as JSch's fallback; before that, an Ed25519-only server and curve25519 key exchange
+were unavailable on those images, and likely on real phones before Android 14.
+This does not replace a check on the real phone.
 
 ## Notifications
 
