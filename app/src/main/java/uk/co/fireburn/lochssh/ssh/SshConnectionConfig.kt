@@ -29,7 +29,8 @@ data class SshConnectionConfig(
     val knockSequence: String = "",
     val knockPause: Long = 200,
     val proxy: SshProxySettings? = null,
-    val telnet: Boolean = false
+    val telnet: Boolean = false,
+    val local: Boolean = false
 ) {
     fun sameTransport(other: SshConnectionConfig): Boolean =
         copy(autoCommand = other.autoCommand, remoteSessionMode = other.remoteSessionMode) == other

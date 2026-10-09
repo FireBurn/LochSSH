@@ -692,7 +692,7 @@ are outside this audit.
   balanced paths and mixed brackets with intervening punctuation.
   Six parsing tests pass;
   wrapped links and the selection-to-browser interaction still need checks.
-- Add local shell sessions. There is no local-shell implementation in the app.
+- Local shell: built in plain Kotlin over pipes (host editor switch "Run a shell on this device", DB version 13). The app echoes and edits typing, so there is no tab completion, history or full-screen programs; a real pty needs native code. Interrupt (Ctrl-C) and Ctrl-D work. Check on the phone: prompt, rotation, Ctrl-C during a long command.
   A local terminal needs a real terminal connection for interactive programs,
   resize handling, input, output and exit status, not a process with plain pipes.
   Keep it separate from SSH host settings, server keys and network reconnects.

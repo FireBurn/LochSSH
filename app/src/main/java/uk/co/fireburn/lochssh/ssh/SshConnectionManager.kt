@@ -9,6 +9,7 @@ import com.jcraft.jsch.Session
 import com.jcraft.jsch.android.AndroidJSch
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
+import uk.co.fireburn.lochssh.local.LocalShellConnection
 import uk.co.fireburn.lochssh.telnet.TelnetConnection
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -62,6 +63,8 @@ class SshConnectionManager(
     @Volatile
     private var telnetConnection: TelnetConnection? = null
     @Volatile
+    private var localShell: LocalShellConnection? = null
+    @Volatile
     private var connectingTelnet: Socket? = null
     @Volatile
     private var running = false
@@ -74,11 +77,12 @@ class SshConnectionManager(
 
     val isConnected: Boolean
         get() = running && (telnetConnection?.isOpen
+            ?: localShell?.isOpen
             ?: (channel?.isConnected == true && session?.isConnected == true))
 
     @Synchronized
     fun connect() {
-        try { connectionAttempt.run { if (config.telnet) connectTelnet() else connectChain() } }
+        try { connectionAttempt.run { if (config.local) connectLocal() else if (config.telnet) connectTelnet() else connectChain() } }
         finally {
             connectingChannels.clear()
             connectingSessions.clear()
@@ -96,6 +100,34 @@ class SshConnectionManager(
         config.sameTransport(other) && transport?.isConnected == true
 
     private fun acquireTransport(): SharedSshConnection? = transport?.takeIf { it.acquire() }
+
+    private fun connectLocal() {
+        val home = java.io.File(System.getProperty("java.io.tmpdir") ?: "/").parentFile ?: java.io.File("/")
+        val connection = LocalShellConnection(home)
+        localShell = connection
+        remoteOut = connection.output
+        writer = Executors.newSingleThreadExecutor { r -> Thread(r, "local-writer") }
+        running = true
+        readerThread = thread(name = "local-reader") {
+            ShellOutputReader.read(
+                input = connection.input,
+                isRunning = { running },
+                onOutput = { buffer, count ->
+                    recording.append(buffer, count)
+                    titleScanner.feed(buffer, count)
+                    terminal.feed(buffer, count)
+                },
+                onStopped = { failure ->
+                    recording.close()
+                    if (running) {
+                        failure?.let { Log.w(TAG, "Local shell failed", it) }
+                        running = false
+                        onExit(if (failure == null) 0 else -1)
+                    }
+                }
+            )
+        }
+    }
 
     private fun connectTelnet() {
         require(config.jumpHosts.isEmpty() && config.proxy == null && config.forwards.isEmpty()) {
@@ -367,6 +399,7 @@ class SshConnectionManager(
     fun resize(cols: Int, rows: Int) {
         require(cols > 0 && rows > 0)
         windowSize.set(cols to rows)
+        if (localShell != null) return
         telnetConnection?.let { telnet ->
             try { writer?.execute { runCatching { telnet.resize(cols, rows) } } }
             catch (_: RejectedExecutionException) { }
@@ -399,6 +432,8 @@ class SshConnectionManager(
         warningSubscription = null
         val telnet = telnetConnection
         telnetConnection = null
+        val local = localShell
+        localShell = null
         runCatching { connectingTelnet?.close() }
         connectingTelnet = null
         val ch = channel
@@ -418,6 +453,7 @@ class SshConnectionManager(
         // Closing sends packets, so it cannot run on the caller's thread either.
         thread(name = "ssh-disconnect") {
             telnet?.close()
+            local?.close()
             sessionChannels.close()
             runCatching { out?.close() }
             runCatching { ch?.disconnect() }

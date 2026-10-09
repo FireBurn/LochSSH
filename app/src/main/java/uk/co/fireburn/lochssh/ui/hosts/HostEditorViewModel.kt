@@ -106,11 +106,12 @@ class HostEditorViewModel @Inject constructor(
         knockPause: String = "200",
         proxy: HostProxyFields = HostProxyFields(),
         telnet: Boolean = false,
+        localShell: Boolean = false,
         onFinished: (String?) -> Unit
     ) {
         viewModelScope.launch {
             val error = try {
-                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet)
+                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet, localShell)
                 null
             } catch (e: CancellationException) {
                 throw e
@@ -135,7 +136,8 @@ class HostEditorViewModel @Inject constructor(
         knockSequence: String,
         knockPause: String,
         proxy: HostProxyFields,
-        telnet: Boolean
+        telnet: Boolean,
+        localShell: Boolean = false
     ) {
         check(loaded) { loadError ?: "Wait for the host to load" }
         val existing = host
@@ -155,6 +157,7 @@ class HostEditorViewModel @Inject constructor(
             proxy.type == SavedSshProxy.NONE && knockSequence.isBlank())) {
             "Telnet does not support jump hosts, proxies, tunnels, knocking or agent forwarding"
         }
+        require(!(localShell && telnet)) { "Choose Telnet or this device, not both" }
         val details = existing?.copy(
             name = name,
             host = hostName,
@@ -168,7 +171,8 @@ class HostEditorViewModel @Inject constructor(
             agentForwarding = agentForwarding,
             knockSequence = knockSequence.trim(),
             knockPause = pause,
-            telnet = telnet
+            telnet = telnet,
+            localShell = localShell
         ) ?: SshHostEntity(
             name = name,
             host = hostName,
@@ -182,7 +186,8 @@ class HostEditorViewModel @Inject constructor(
             agentForwarding = agentForwarding,
             knockSequence = knockSequence.trim(),
             knockPause = pause,
-            telnet = telnet
+            telnet = telnet,
+            localShell = localShell
         )
         val entity = proxy.applyTo(details)
         database.withTransaction {

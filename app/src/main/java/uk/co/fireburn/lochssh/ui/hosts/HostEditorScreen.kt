@@ -61,6 +61,7 @@ fun HostEditorScreen(
     var jumpMenu by remember(hostId) { mutableStateOf(false) }
     var agentForwarding by remember(hostId) { mutableStateOf(false) }
     var telnet by remember(hostId) { mutableStateOf(false) }
+    var localShell by remember(hostId) { mutableStateOf(false) }
     var confirmAgent by remember(hostId) { mutableStateOf(false) }
     if (confirmAgent) {
         androidx.compose.material3.AlertDialog(
@@ -115,6 +116,7 @@ fun HostEditorScreen(
             jumpHostId = it.jumpHostId
             agentForwarding = it.agentForwarding
             telnet = it.telnet
+            localShell = it.localShell
             proxy = HostProxyFields.from(it)
         }
     }
@@ -149,7 +151,7 @@ fun HostEditorScreen(
         saving = true
         saveError = null
         viewModel.save(name, host, port, keepAlive, group, identityId, autoCommand, remoteSessionMode,
-            jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet) { error ->
+            jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet, localShell) { error ->
             saving = false
             if (error == null) onBack() else saveError = error
         }
@@ -341,7 +343,19 @@ fun HostEditorScreen(
                 }
                 androidx.compose.material3.Switch(checked = telnet, onCheckedChange = {
                     telnet = it
+                    if (it) localShell = false
                     if (it && port == "22") port = "23" else if (!it && port == "23") port = "22"
+                })
+            }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Run a shell on this device")
+                    Text("Starts the Android shell here, with no network. Typing is edited by the app, so full-screen programs do not work.",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                androidx.compose.material3.Switch(checked = localShell, onCheckedChange = {
+                    localShell = it
+                    if (it) telnet = false
                 })
             }
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
