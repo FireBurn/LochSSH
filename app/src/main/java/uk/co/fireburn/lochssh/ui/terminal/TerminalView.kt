@@ -1,6 +1,9 @@
 package uk.co.fireburn.lochssh.ui.terminal
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
 import androidx.compose.runtime.Composable
@@ -52,11 +55,13 @@ fun TerminalView(
     onScrollOffsetChanged: (Int) -> Unit = {},
     onSelectionChanged: (String?) -> Unit = {},
     onBuffer: (TerminalBuffer) -> Unit = {},
+    onLinkTap: (String) -> Unit = {},
     onRemoteScroll: (ByteArray) -> Unit = { manager?.write(it) }
 ) {
     val terminal = remember(manager) { manager?.terminal ?: TerminalSession(MIN_COLS, MIN_ROWS) }
     val buffer = terminal.buffer
     val sendScroll by rememberUpdatedState(onRemoteScroll)
+    val openLink by rememberUpdatedState(onLinkTap)
     val frame = remember(buffer) { mutableIntStateOf(0) }
     val scrollOffset = remember(buffer) { mutableIntStateOf(0) }
     var selection by remember(buffer) { mutableStateOf<Selection?>(null) }
@@ -154,6 +159,16 @@ fun TerminalView(
                 )
             }
             .pointerInput(metrics.width, metrics.height, buffer) {
+                // Does not consume, so taps still reach whatever shows the keyboard.
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val up = waitForUpOrCancellation() ?: return@awaitEachGesture
+                    if ((up.position - down.position).getDistance() > viewConfiguration.touchSlop) return@awaitEachGesture
+                    val link = buffer.read { linkAt(buffer, pointAt(up.position, metrics, buffer), scrollOffset.intValue) }
+                    if (link != null) openLink(link)
+                }
+            }
+            .pointerInput(metrics.width, metrics.height, buffer) {
                 detectDragGesturesAfterLongPress(
                     onDragStart = { position ->
                         val point = pointAt(position, metrics, buffer)
@@ -187,6 +202,14 @@ fun TerminalView(
             drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue, selection, theme)
         }
     }
+}
+
+private fun linkAt(buffer: TerminalBuffer, point: TerminalBuffer.Point, scrollOffset: Int): String? {
+    if (buffer.selectedText(point, point, scrollOffset).isBlank()) return null
+    val row = buffer.selectedText(TerminalBuffer.Point(point.row, 0),
+        TerminalBuffer.Point(point.row, buffer.cols - 1), scrollOffset)
+    val before = buffer.selectedText(TerminalBuffer.Point(point.row, 0), point, scrollOffset)
+    return TerminalLinks.at(row, before.length - 1)
 }
 
 private fun pointAt(position: Offset, metrics: CellMetrics, buffer: TerminalBuffer):

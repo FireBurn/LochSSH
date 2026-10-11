@@ -613,6 +613,7 @@ fun TerminalScreen(
                                 onScrollOffsetChanged = { scrollbackOffset = it },
                                 onSelectionChanged = { selectedText = it?.takeIf { text -> text.isNotEmpty() } },
                                 onBuffer = { terminalBuffer = it },
+                                onLinkTap = { pendingLinks = listOf(it) },
                                 modifier = paneModifier
                             )
                         }

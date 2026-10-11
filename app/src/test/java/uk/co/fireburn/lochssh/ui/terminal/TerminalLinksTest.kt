@@ -43,4 +43,13 @@ class TerminalLinksTest {
     fun rejectsOtherSchemesCredentialsAndInvalidHosts() {
         assertTrue(TerminalLinks.find("file:///tmp/a javascript:alert(1) https://user@example.com/ https:///bad https://example.com:99999/").isEmpty())
     }
+
+    @Test
+    fun linkAtFindsOnlyTheLinkUnderTheIndex() {
+        val text = "see (https://example.com/a?b=1). then http://x.test/y"
+        assertEquals("https://example.com/a?b=1", TerminalLinks.at(text, text.indexOf("example")))
+        assertEquals("http://x.test/y", TerminalLinks.at(text, text.length - 1))
+        assertEquals(null, TerminalLinks.at(text, 1))
+        assertEquals(null, TerminalLinks.at(text, text.indexOf(").") + 1))
+    }
 }

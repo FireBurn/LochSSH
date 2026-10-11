@@ -860,3 +860,11 @@ customizable keyboard.
 - The host editor offers Auto tmux and Auto screen only after a connection has found that tool
   on the host (`tmux_seen` and `screen_seen`, DB version 14). The terminal's remote session
   dialog already offered New tmux and New Screen only when found.
+
+## Tap to open links
+
+- Tapping a link in terminal output asks "Open link in browser?" with that link, using the same
+  checks as selected text (HTTP/HTTPS only, no credentials). The tap handler does not consume the
+  touch. `TerminalLinks.at` has a unit test; the tap itself is unchecked on a device, including
+  against scrolling, selection and tmux mouse mode. Links are not underlined yet, and the split
+  view's second pane does not open links.

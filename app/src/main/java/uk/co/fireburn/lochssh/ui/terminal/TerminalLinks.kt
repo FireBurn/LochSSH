@@ -14,6 +14,13 @@ object TerminalLinks {
         value
     }.distinct().toList()
 
+    // The link that covers the character at index, if any.
+    fun at(text: String, index: Int): String? = link.findAll(text).firstNotNullOfOrNull { match ->
+        val value = trimPunctuation(match.value)
+        val start = match.range.first
+        if (index in start until start + value.length) find(value).firstOrNull() else null
+    }
+
     private fun trimPunctuation(value: String): String {
         val excess = IntArray(3)
         for (char in value) {
