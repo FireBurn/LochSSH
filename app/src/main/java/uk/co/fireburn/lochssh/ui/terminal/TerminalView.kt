@@ -40,6 +40,8 @@ private const val REF_RUN = 64
 private const val RESIZE_DELAY_MS = 150L
 
 private class CellMetrics(val width: Float, val height: Float, val baseline: Float)
+private const val MAX_WRAPPED_ROWS = 20
+
 private data class Selection(val start: TerminalBuffer.Point, val end: TerminalBuffer.Point)
 
 @Composable
@@ -204,12 +206,23 @@ fun TerminalView(
     }
 }
 
-private fun linkAt(buffer: TerminalBuffer, point: TerminalBuffer.Point, scrollOffset: Int): String? {
+// The buffer does not record soft wraps, so a row that is full to its last column and is
+// followed by a row starting with text is taken to continue onto it.
+internal fun linkAt(buffer: TerminalBuffer, point: TerminalBuffer.Point, scrollOffset: Int): String? {
     if (buffer.selectedText(point, point, scrollOffset).isBlank()) return null
-    val row = buffer.selectedText(TerminalBuffer.Point(point.row, 0),
-        TerminalBuffer.Point(point.row, buffer.cols - 1), scrollOffset)
-    val before = buffer.selectedText(TerminalBuffer.Point(point.row, 0), point, scrollOffset)
-    return TerminalLinks.at(row, before.length - 1)
+    fun full(row: Int) = buffer.visibleCellAt(row, buffer.cols - 1, scrollOffset).text.isNotBlank()
+    fun starts(row: Int) = buffer.visibleCellAt(row, 0, scrollOffset).text.isNotBlank()
+    var first = point.row
+    while (first > 0 && point.row - first < MAX_WRAPPED_ROWS && full(first - 1) && starts(first)) first--
+    var last = point.row
+    while (last < buffer.rows - 1 && last - point.row < MAX_WRAPPED_ROWS && full(last) && starts(last + 1)) last++
+    val text = StringBuilder()
+    var index = -1
+    for (row in first..last) {
+        if (row == point.row) index = text.length + buffer.visibleRowText(row, 0, point.col + 1, scrollOffset).length - 1
+        text.append(buffer.visibleRowText(row, 0, buffer.cols, scrollOffset))
+    }
+    return TerminalLinks.at(text.toString(), index)
 }
 
 private fun pointAt(position: Offset, metrics: CellMetrics, buffer: TerminalBuffer):

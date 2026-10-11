@@ -866,5 +866,5 @@ customizable keyboard.
 - Tapping a link in terminal output asks "Open link in browser?" with that link, using the same
   checks as selected text (HTTP/HTTPS only, no credentials). The tap handler does not consume the
   touch. `TerminalLinks.at` has a unit test; the tap itself is unchecked on a device, including
-  against scrolling, selection and tmux mouse mode. Links are not underlined yet, and the split
+  against scrolling, selection and tmux mouse mode. A link wrapped over several rows is found by treating a row that is full to its last column, followed by a row starting with text, as one line (the buffer does not record wraps, so a link that ends exactly at the last column with new text below looks the same). Selected text still breaks a wrapped link at the row end, so the menu path misses it. Links are not underlined yet, and the split
   view's second pane does not open links.
