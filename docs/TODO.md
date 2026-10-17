@@ -1,7 +1,6 @@
 # Work left
 
-This list reflects the current app and the project conversations. The older
-`HANDOVER.md` predates the terminal, editor, and icon fixes.
+This list reflects the current app and the project conversations.
 
 On 17 October, the JDK 25 build, lint and all 451 local tests pass with real
 SSH/SFTP and IPv6 enabled. The Android 13 emulator run passes 134 tests and skips
