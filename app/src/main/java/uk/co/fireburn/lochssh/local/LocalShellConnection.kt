@@ -68,7 +68,7 @@ class LocalShellConnection(directory: File) {
                 shellInput.write(result.toShell)
                 shellInput.flush()
             }
-            if (result.interrupt) interrupt()
+            if (result.interrupt) signalChildren(SIGINT)
             if (result.endOfInput) runCatching { shellInput.close() }
         }
 
@@ -78,13 +78,14 @@ class LocalShellConnection(directory: File) {
     fun resize(cols: Int, rows: Int) = Unit
 
     fun close() {
+        if (process.isAlive) signalChildren(SIGTERM)
         runCatching { shellInput.close() }
         process.destroy()
     }
 
     // The shell does not pass the signal on to a running command, so it is sent to each
     // descendant read from /proc.
-    private fun interrupt() {
+    private fun signalChildren(signal: Int) {
         val parents = HashMap<Int, Int>()
         File("/proc").listFiles()?.forEach { entry ->
             val id = entry.name.toIntOrNull() ?: return@forEach
@@ -98,7 +99,7 @@ class LocalShellConnection(directory: File) {
             val current = targets.removeFirst()
             parents.filterValues { it == current }.keys.forEach { found.add(it); targets.add(it) }
         }
-        found.forEach { runCatching { Process.sendSignal(it, SIGINT) } }
+        found.asReversed().forEach { runCatching { Process.sendSignal(it, signal) } }
     }
 
     private fun withCarriageReturns(data: ByteArray, count: Int): ByteArray {
@@ -125,6 +126,7 @@ class LocalShellConnection(directory: File) {
         const val CR = '\r'.code.toByte()
         const val LF = '\n'.code.toByte()
         const val SIGINT = 2
+        const val SIGTERM = 15
         const val POLL_MS = 20L
     }
 }

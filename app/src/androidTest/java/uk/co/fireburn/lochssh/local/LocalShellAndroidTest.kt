@@ -53,6 +53,35 @@ class LocalShellAndroidTest {
     }
 
     @Test
+    fun closingTheShellStopsItsRunningCommand() {
+        val childFile = File.createTempFile("shell-child-", ".pid", directory)
+        val connection = LocalShellConnection(directory)
+        var child: Int? = null
+        try {
+            connection.output.write(
+                "sleep 100 & echo \$! > '${childFile.absolutePath}'; wait\r".toByteArray()
+            )
+            val started = System.currentTimeMillis() + 5_000
+            while (childFile.length() == 0L && System.currentTimeMillis() < started) Thread.sleep(20)
+            child = childFile.readText().trim().toInt()
+            assertTrue("Child command did not start", running(child))
+            connection.close()
+            val stopped = System.currentTimeMillis() + 5_000
+            while (running(child) && System.currentTimeMillis() < stopped) Thread.sleep(20)
+            assertTrue("Child command $child is still running", !running(child))
+        } finally {
+            connection.close()
+            child?.let { if (running(it)) android.os.Process.sendSignal(it, 9) }
+            childFile.delete()
+        }
+    }
+
+    private fun running(pid: Int): Boolean {
+        val stat = runCatching { File("/proc/$pid/stat").readText() }.getOrNull() ?: return false
+        return stat.substringAfterLast(')').trim().firstOrNull() != 'Z'
+    }
+
+    @Test
     fun endOfInputEndsTheShell() {
         val connection = LocalShellConnection(directory)
         connection.output.write(byteArrayOf(0x04))

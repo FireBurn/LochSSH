@@ -3,11 +3,10 @@
 This list reflects the current app and the project conversations.
 
 On 17 October, the JDK 25 build, lint and all 456 local tests pass with real
-SSH/SFTP and IPv6 enabled. The Android 13 emulator run passes 137 tests and skips
+SSH/SFTP and IPv6 enabled. The Android 13 emulator run passes 139 tests and skips
 seven: six live-SSH tests without server arguments and the Android 14+ declaration
 test. The Android 14 results below are from 9 October, before the latest changes.
-After the split-pane link fix, all seven link-touch and split-layout tests pass;
-the full emulator suite has not been rerun with that fix.
+The full run includes the split-pane link fix and local-shell disconnect cleanup.
 Under load (two emulators at once) one or two timing-based Compose tests fail
 at random and pass on rerun; run one emulator at a time.
 
@@ -708,6 +707,11 @@ are outside this audit.
   Six parsing tests pass;
   wrapped links and the selection-to-browser interaction still need checks.
 - Local shell: built in plain Kotlin over pipes (host editor switch "Run a shell on this device", DB version 13). The app echoes and edits typing, so there is no tab completion, history or full-screen programs; a real pty needs native code. Interrupt (Ctrl-C) and Ctrl-D work. Check on the phone: prompt, rotation, Ctrl-C during a long command.
+  Closing the connection now sends termination to the shell's descendants before
+  stopping the shell. A background `sleep` previously survived disconnect;
+  its regression test fails before the fix and passes after it. All four local
+  shell Android tests pass. Commands that deliberately ignore termination or
+  detach from the shell are not forcibly killed.
   A local terminal needs a real terminal connection for interactive programs,
   resize handling, input, output and exit status, not a process with plain pipes.
   Keep it separate from SSH host settings, server keys and network reconnects.
