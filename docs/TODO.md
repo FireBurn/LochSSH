@@ -6,6 +6,8 @@ On 17 October, the JDK 25 build, lint and all 456 local tests pass with real
 SSH/SFTP and IPv6 enabled. The Android 13 emulator run passes 137 tests and skips
 seven: six live-SSH tests without server arguments and the Android 14+ declaration
 test. The Android 14 results below are from 9 October, before the latest changes.
+After the split-pane link fix, all seven link-touch and split-layout tests pass;
+the full emulator suite has not been rerun with that fix.
 Under load (two emulators at once) one or two timing-based Compose tests fail
 at random and pass on rerun; run one emulator at a time.
 
@@ -476,6 +478,11 @@ are outside this audit.
   [mwiede/jsch#1160](https://github.com/mwiede/jsch/pull/1160) now adds a separate
   Android artifact and passes Android emulator CI, Maven CI and the SonarCloud
   quality gate.
+  Rechecked on 17 October: the PR is open, with no new comments after 5 October.
+  The reviewer's latest request allows the classes in the main JAR if a cheap
+  runtime check selects them only on Android. Local branch `try/android-in-base`
+  implements that design; its 9 October test results need refreshing before
+  replacing the PR branch. Posting a reply and force-pushing still need approval.
   Stock emulator images still lack imported-key Ed25519 signing, so that test
   needs a provider installed for coverage. The release workflow still publishes
   only the main JAR; agree on Android artifact publishing with the maintainer.
@@ -865,8 +872,9 @@ customizable keyboard.
 
 - Tapping a link in terminal output asks "Open link in browser?" with that link, using the same
   checks as selected text (HTTP/HTTPS only, no credentials). The tap handler does not consume the
-  touch. Three Android 13 touch tests check tapping a wrapped URL, dragging from
-  a link without opening it, and tapping ordinary text. Selection and tmux mouse
+  touch. Four Android 13 touch tests check tapping a wrapped URL, dragging from
+  a link without opening it, tapping ordinary text, and passing a link tap through
+  split-pane focus handling. Both panes use the same link confirmation. Selection and tmux mouse
   mode still need device checks. The buffer records automatic wraps, including their original column
   boundary. Tapping and selection join those rows without absorbing unrelated text
   after an explicit newline. Wraps follow rows into scrollback and survive a width
@@ -878,5 +886,4 @@ customizable keyboard.
   rather than opening a truncated URL.
   Check Claude authentication URLs in a live session: application-inserted hard
   breaks are not automatic wraps. Discarded history, width reductions
-  and full-screen redraws need more checks. Links are not underlined yet, and the split
-  view's second pane does not open links.
+  and full-screen redraws need more checks. Links are not underlined yet.

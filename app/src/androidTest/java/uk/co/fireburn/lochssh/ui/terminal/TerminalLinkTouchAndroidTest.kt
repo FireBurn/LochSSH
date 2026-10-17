@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.click
 import androidx.compose.ui.test.junit4.createComposeRule
@@ -52,9 +53,23 @@ class TerminalLinkTouchAndroidTest {
         ui.runOnIdle { assertTrue(opened.isEmpty()) }
     }
 
-    private fun showTerminal() {
+    @Test fun tappingALinkAlsoFocusesTheSplitPane() {
+        var focused = false
+        showTerminal(Modifier.splitFocus(false, Color.Green) { focused = true })
+        val url = "https://a.test/path"
+        send(url)
+        ui.onNodeWithTag("terminal").performTouchInput {
+            click(Offset(width * 0.1f, height.toFloat() / requireNotNull(buffer).rows * 0.5f))
+        }
+        ui.runOnIdle {
+            assertTrue(focused)
+            assertEquals(listOf(url), opened)
+        }
+    }
+
+    private fun showTerminal(modifier: Modifier = Modifier) {
         ui.setContent { MaterialTheme {
-            TerminalView(Modifier.size(300.dp, 200.dp).testTag("terminal"),
+            TerminalView(modifier.size(300.dp, 200.dp).testTag("terminal"),
                 onBuffer = { buffer = it }, onLinkTap = { opened.add(it) })
         } }
         ui.waitUntil(5_000) { buffer?.cols?.let { it > 20 } == true }

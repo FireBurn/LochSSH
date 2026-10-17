@@ -633,6 +633,7 @@ fun TerminalScreen(
                                         typeface = terminalTypeface,
                                         wrapLines = wrapLines,
                                         theme = terminalTheme,
+                                        onLinkTap = { pendingLinks = listOf(it) },
                                         modifier = it.splitFocus(splitFocused, accent) { splitFocused = true }
                                     )
                                 }
