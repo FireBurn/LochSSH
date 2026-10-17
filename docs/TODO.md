@@ -3,7 +3,7 @@
 This list reflects the current app and the project conversations.
 
 On 17 October, the JDK 25 build, lint and all 456 local tests pass with real
-SSH/SFTP and IPv6 enabled. The Android 13 emulator run passes 134 tests and skips
+SSH/SFTP and IPv6 enabled. The Android 13 emulator run passes 137 tests and skips
 seven: six live-SSH tests without server arguments and the Android 14+ declaration
 test. The Android 14 results below are from 9 October, before the latest changes.
 Under load (two emulators at once) one or two timing-based Compose tests fail
@@ -56,8 +56,8 @@ Asset Generation, contains the branding request and quota errors, without a
 completed response. Its launcher, splash and three image-prompt requirements
 are represented in `branding.md` and the app assets.
 
-No LochSSH conversation was found in the current Qwen session metadata or the
-OpenCode session index. This does not prove older or exported logs are absent;
+No LochSSH conversation was found in Qwen's saved chats, temporary logs or the
+OpenCode session index, rechecked on 17 October. This does not prove older or exported logs are absent;
 include them if a project log becomes available. Unrelated project conversations
 are outside this audit.
 
@@ -865,8 +865,9 @@ customizable keyboard.
 
 - Tapping a link in terminal output asks "Open link in browser?" with that link, using the same
   checks as selected text (HTTP/HTTPS only, no credentials). The tap handler does not consume the
-  touch. The tap itself needs a device check against scrolling, selection and tmux
-  mouse mode. The buffer records automatic wraps, including their original column
+  touch. Three Android 13 touch tests check tapping a wrapped URL, dragging from
+  a link without opening it, and tapping ordinary text. Selection and tmux mouse
+  mode still need device checks. The buffer records automatic wraps, including their original column
   boundary. Tapping and selection join those rows without absorbing unrelated text
   after an explicit newline. Wraps follow rows into scrollback and survive a width
   increase; inserted/deleted rows break the old boundary. A wide character's unused
