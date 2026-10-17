@@ -11,6 +11,8 @@ class TerminalBuffer(
 
     private var grid = blankGrid(cols, rows)
     private val history = ArrayDeque<Array<Cell>>()
+    // Wrap flags must not keep discarded scrollback rows alive.
+    private val wrappedRows = java.util.WeakHashMap<Array<Cell>, Int>()
     private var savedGrid: Array<Array<Cell>>? = null
     private var fg = DEFAULT_FG
     private var bg = DEFAULT_BG
@@ -117,10 +119,15 @@ class TerminalBuffer(
     }
 
     fun visibleCellAt(row: Int, col: Int, scrollOffset: Int): Cell {
-        val index = history.size - scrollOffset.coerceIn(0, history.size) + row
-        val line = if (index < history.size) history[index] else grid[index - history.size]
-        return line[col]
+        return visibleRow(row, scrollOffset)[col]
     }
+
+    private fun visibleRow(row: Int, scrollOffset: Int): Array<Cell> {
+        val index = history.size - scrollOffset.coerceIn(0, history.size) + row
+        return if (index < history.size) history[index] else grid[index - history.size]
+    }
+
+    fun visibleWrapWidth(row: Int, scrollOffset: Int): Int? = wrappedRows[visibleRow(row, scrollOffset)]
 
     fun visibleRowText(row: Int, start: Int, end: Int, scrollOffset: Int): String {
         val sb = StringBuilder(end - start)
@@ -133,13 +140,16 @@ class TerminalBuffer(
         val safeEnd = Point(end.row.coerceIn(0, rows - 1), end.col.coerceIn(0, cols - 1))
         val first = minOf(safeStart, safeEnd, compareBy(Point::row, Point::col))
         val last = maxOf(safeStart, safeEnd, compareBy(Point::row, Point::col))
-        return (first.row..last.row).joinToString("\n") { row ->
+        return buildString { for (row in first.row..last.row) {
             val firstCol = if (row == first.row) first.col else 0
             val from = if (visibleCellAt(row, firstCol, scrollOffset).columns == 0)
                 (firstCol - 1).coerceAtLeast(0) else firstCol
             val until = if (row == last.row) last.col + 1 else cols
-            visibleRowText(row, from, until, scrollOffset).trimEnd()
-        }
+            val wrapWidth = visibleWrapWidth(row, scrollOffset).takeIf { row < last.row }
+            val text = visibleRowText(row, from, minOf(until, wrapWidth ?: cols).coerceAtLeast(from), scrollOffset)
+            append(if (wrapWidth != null) text else text.trimEnd())
+            if (row < last.row && wrapWidth == null) append('\n')
+        } }
     }
 
     fun rowText(row: Int, start: Int, end: Int): String {
@@ -182,7 +192,10 @@ class TerminalBuffer(
                 )
             }
             val resizedHistory = history.map { row ->
-                Array(newCols) { col -> row.getOrNull(col) ?: blank() }.also(::repairRow)
+                Array(newCols) { col -> row.getOrNull(col) ?: blank() }.also {
+                    repairRow(it)
+                    if (newCols >= row.size) wrappedRows[row]?.let { width -> wrappedRows[it] = width }
+                }
             }
             history.clear()
             history.addAll(resizedHistory)
@@ -224,6 +237,7 @@ class TerminalBuffer(
         for (r in 0 until minOf(lines.size, newRows)) {
             for (c in 0 until minOf(lines[r].size, newCols)) target[r][c] = lines[r][c]
             repairRow(target[r])
+            if (newCols >= lines[r].size) wrappedRows[lines[r]]?.let { wrappedRows[target[r]] = it }
         }
         return target
     }
@@ -361,7 +375,7 @@ class TerminalBuffer(
             }
             if (wraparound) {
                 cursorCol = 0
-                lineFeed()
+                lineFeed(wrapped = true)
             } else cursorCol = cols - 1
         }
         val translated = charsets.translate(code)
@@ -376,9 +390,10 @@ class TerminalBuffer(
                 clippedCharacter = true
                 return
             }
+            val end = cursorCol
             clearCell(grid[cursorRow], cursorCol)
             cursorCol = 0
-            lineFeed()
+            lineFeed(wrapped = true, width = end)
         }
         val row = grid[cursorRow]
         for (col in cursorCol until cursorCol + width) clearCell(row, col)
@@ -477,7 +492,8 @@ class TerminalBuffer(
         }
     }
 
-    private fun lineFeed() {
+    private fun lineFeed(wrapped: Boolean = false, width: Int = cols) {
+        if (wrapped) wrappedRows[grid[cursorRow]] = width else wrappedRows.remove(grid[cursorRow])
         cursorCol = cursorCol.coerceAtMost(cols - 1)
         when {
             cursorRow == scrollBottom -> scrollUp(1)
@@ -494,6 +510,7 @@ class TerminalBuffer(
     }
 
     private fun scrollUp(count: Int) {
+        if (scrollTop != 0 || scrollBottom != rows - 1) breakWrapBefore(scrollTop)
         repeat(count.coerceIn(1, scrollBottom - scrollTop + 1)) {
             if (scrollTop == 0 && scrollBottom == rows - 1 && savedGrid == null) {
                 appendHistory(grid[0])
@@ -510,10 +527,17 @@ class TerminalBuffer(
     }
 
     private fun scrollDown(count: Int) {
+        breakWrapBefore(scrollTop)
         repeat(count.coerceIn(1, scrollBottom - scrollTop + 1)) {
             for (r in scrollBottom downTo scrollTop + 1) grid[r] = grid[r - 1]
             grid[scrollTop] = blankRow()
         }
+        wrappedRows.remove(grid[scrollBottom])
+    }
+
+    private fun breakWrapBefore(row: Int) {
+        if (row > 0) wrappedRows.remove(grid[row - 1])
+        else if (savedGrid == null) history.lastOrNull()?.let { wrappedRows.remove(it) }
     }
 
     private fun handleCsi(final: Char) {
@@ -718,14 +742,17 @@ class TerminalBuffer(
 
     private fun insertLines(count: Int) {
         if (cursorRow !in scrollTop..scrollBottom) return
+        breakWrapBefore(cursorRow)
         repeat(count.coerceAtMost(scrollBottom - cursorRow + 1)) {
             for (r in scrollBottom downTo cursorRow + 1) grid[r] = grid[r - 1]
             grid[cursorRow] = blankRow()
         }
+        wrappedRows.remove(grid[scrollBottom])
     }
 
     private fun deleteLines(count: Int) {
         if (cursorRow !in scrollTop..scrollBottom) return
+        breakWrapBefore(cursorRow)
         repeat(count.coerceAtMost(scrollBottom - cursorRow + 1)) {
             for (r in cursorRow until scrollBottom) grid[r] = grid[r + 1]
             grid[scrollBottom] = blankRow()
@@ -810,6 +837,7 @@ class TerminalBuffer(
     }
 
     private fun clearLine(mode: Int) {
+        wrappedRows.remove(grid[cursorRow])
         cursorCol = cursorCol.coerceAtMost(cols - 1)
         when (mode) {
             0 -> for (c in cursorCol.coerceIn(0, cols) until cols) grid[cursorRow][c] = blank()

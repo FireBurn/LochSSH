@@ -206,21 +206,17 @@ fun TerminalView(
     }
 }
 
-// The buffer does not record soft wraps, so a row that is full to its last column and is
-// followed by a row starting with text is taken to continue onto it.
 internal fun linkAt(buffer: TerminalBuffer, point: TerminalBuffer.Point, scrollOffset: Int): String? {
     if (buffer.selectedText(point, point, scrollOffset).isBlank()) return null
-    fun full(row: Int) = buffer.visibleCellAt(row, buffer.cols - 1, scrollOffset).text.isNotBlank()
-    fun starts(row: Int) = buffer.visibleCellAt(row, 0, scrollOffset).text.isNotBlank()
     var first = point.row
-    while (first > 0 && point.row - first < MAX_WRAPPED_ROWS && full(first - 1) && starts(first)) first--
+    while (first > 0 && point.row - first < MAX_WRAPPED_ROWS && buffer.visibleWrapWidth(first - 1, scrollOffset) != null) first--
     var last = point.row
-    while (last < buffer.rows - 1 && last - point.row < MAX_WRAPPED_ROWS && full(last) && starts(last + 1)) last++
+    while (last < buffer.rows - 1 && last - point.row < MAX_WRAPPED_ROWS && buffer.visibleWrapWidth(last, scrollOffset) != null) last++
     val text = StringBuilder()
     var index = -1
     for (row in first..last) {
         if (row == point.row) index = text.length + buffer.visibleRowText(row, 0, point.col + 1, scrollOffset).length - 1
-        text.append(buffer.visibleRowText(row, 0, buffer.cols, scrollOffset))
+        text.append(buffer.visibleRowText(row, 0, buffer.visibleWrapWidth(row, scrollOffset) ?: buffer.cols, scrollOffset))
     }
     return TerminalLinks.at(text.toString(), index)
 }

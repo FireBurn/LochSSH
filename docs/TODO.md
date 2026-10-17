@@ -3,10 +3,10 @@
 This list reflects the current app and the project conversations. The older
 `HANDOVER.md` predates the terminal, editor, and icon fixes.
 
-The latest checks pass: build, lint and the local unit tests, and 129 Android
-tests on Android 13 and Android 14 emulators (9 October). Two of those are live
-SSH tests that run only when given a server (see below) and skip otherwise.
-The Android 14 emulator also runs the Android 14+ service declaration test.
+On 17 October, the JDK 25 build, lint and all 451 local tests pass with real
+SSH/SFTP and IPv6 enabled. The Android 13 emulator run passes 134 tests and skips
+seven: six live-SSH tests without server arguments and the Android 14+ declaration
+test. The Android 14 results below are from 9 October, before the latest changes.
 Under load (two emulators at once) one or two timing-based Compose tests fail
 at random and pass on rerun; run one emulator at a time.
 
@@ -50,7 +50,9 @@ connection notification navigation; actual notification taps still need checking
 ## Conversation sources
 
 Claude's LochSSH conversation includes the keyboard, terminal, session and icon
-requests reflected below. The indexed Antigravity conversation, LochSSH Visual
+requests reflected below. A newer Claude conversation from 8–11 October covers
+live emulator tests, Telnet, split view, the pipe-based local shell, auto-reattach
+and wrapped-link handling. The indexed Antigravity conversation, LochSSH Visual
 Asset Generation, contains the branding request and quota errors, without a
 completed response. Its launcher, splash and three image-prompt requirements
 are represented in `branding.md` and the app assets.
@@ -434,8 +436,7 @@ are outside this audit.
   head is not clipped. A cold-start screenshot on the Android 13 emulator also
   shows the splash creature and prompt intact and legible during the launch
   transition. Other masks, themed icons and the phone splash remain unchecked.
-- Complete terminal character and mode support: spacing marks
-  and joined emoji sequences.
+- Complete spacing-mark support and check joined-emoji rendering on a device.
   Hardware keypad keys now follow the remote application's keypad mode. Num Lock
   selects numeric input; unlocked keys use navigation or application sequences.
   Normal Enter and on-screen keys remain unchanged. Check a physical keypad with
@@ -836,7 +837,7 @@ are outside this audit.
   and real servers. The host list labels Telnet hosts; open session rows do not.
 - Assess Mosh separately: it uses UDP and cannot share SSH port-forwarding
   behavior. Implement it as a separate session type.
-- Add Telnet, serial connections, split terminals, and opt-in encrypted
+- Add serial connections and opt-in encrypted
   backup/sync. `BackupCipher` (AES-256-GCM, PBKDF2-SHA256 at 600,000 rounds,
   authenticated header, four unit tests) exists as the encryption layer; there is
   no backup file format, export/import screen or sync yet. These need separate protocol and data-handling designs.
@@ -865,6 +866,13 @@ customizable keyboard.
 
 - Tapping a link in terminal output asks "Open link in browser?" with that link, using the same
   checks as selected text (HTTP/HTTPS only, no credentials). The tap handler does not consume the
-  touch. `TerminalLinks.at` has a unit test; the tap itself is unchecked on a device, including
-  against scrolling, selection and tmux mouse mode. A link wrapped over several rows is found by treating a row that is full to its last column, followed by a row starting with text, as one line (the buffer does not record wraps, so a link that ends exactly at the last column with new text below looks the same). Selected text still breaks a wrapped link at the row end, so the menu path misses it. Links are not underlined yet, and the split
+  touch. The tap itself needs a device check against scrolling, selection and tmux
+  mouse mode. The buffer records automatic wraps, including their original column
+  boundary. Tapping and selection join those rows without absorbing unrelated text
+  after an explicit newline. Wraps follow rows into scrollback and survive a width
+  increase; inserted/deleted rows break the old boundary. A wide character's unused
+  padding cell is excluded. Eight link tests cover those cases and ordinary links.
+  Check Claude authentication URLs in a live session: application-inserted hard
+  breaks are not automatic wraps. Links beyond the visible viewport, width reductions
+  and full-screen redraws need more checks. Links are not underlined yet, and the split
   view's second pane does not open links.
