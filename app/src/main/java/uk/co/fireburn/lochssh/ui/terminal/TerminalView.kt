@@ -40,7 +40,7 @@ private const val REF_RUN = 64
 private const val RESIZE_DELAY_MS = 150L
 
 private class CellMetrics(val width: Float, val height: Float, val baseline: Float)
-private const val MAX_WRAPPED_ROWS = 20
+private const val MAX_LINK_TEXT = 65_536
 
 private data class Selection(val start: TerminalBuffer.Point, val end: TerminalBuffer.Point)
 
@@ -207,16 +207,24 @@ fun TerminalView(
 }
 
 internal fun linkAt(buffer: TerminalBuffer, point: TerminalBuffer.Point, scrollOffset: Int): String? {
-    if (buffer.selectedText(point, point, scrollOffset).isBlank()) return null
+    if (point.row !in 0 until buffer.rows || point.col !in 0 until buffer.cols) return null
+    val offset = scrollOffset.coerceIn(0, buffer.scrollbackSize)
+    if (buffer.selectedText(point, point, offset).isBlank()) return null
+    val historyOnly = buffer.isAlternateScreen && point.row < offset
+    val oldest = if (buffer.isAlternateScreen && !historyOnly) offset else offset - buffer.scrollbackSize
+    val newest = if (historyOnly) offset - 1 else buffer.rows + offset - 1
     var first = point.row
-    while (first > 0 && point.row - first < MAX_WRAPPED_ROWS && buffer.visibleWrapWidth(first - 1, scrollOffset) != null) first--
+    while (first > oldest && buffer.visibleWrapWidth(first - 1, offset) != null) first--
     var last = point.row
-    while (last < buffer.rows - 1 && last - point.row < MAX_WRAPPED_ROWS && buffer.visibleWrapWidth(last, scrollOffset) != null) last++
+    while (last < newest && buffer.visibleWrapWidth(last, offset) != null) last++
+    if (buffer.visibleWrapWidth(last, offset) != null) return null
     val text = StringBuilder()
     var index = -1
     for (row in first..last) {
-        if (row == point.row) index = text.length + buffer.visibleRowText(row, 0, point.col + 1, scrollOffset).length - 1
-        text.append(buffer.visibleRowText(row, 0, buffer.visibleWrapWidth(row, scrollOffset) ?: buffer.cols, scrollOffset))
+        val line = buffer.visibleRowText(row, 0, buffer.visibleWrapWidth(row, offset) ?: buffer.cols, offset)
+        if (line.length > MAX_LINK_TEXT - text.length) return null
+        if (row == point.row) index = text.length + buffer.visibleRowText(row, 0, point.col + 1, offset).length - 1
+        text.append(line)
     }
     return TerminalLinks.at(text.toString(), index)
 }

@@ -5,6 +5,50 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 class TerminalWrappedLinkTest {
+    @Test fun aHistoryLinkStillWorksWhileAnAlternateScreenIsOpen() {
+        val url = "https://a.test/x"
+        val buffer = TerminalBuffer(40, 2)
+        val primary = "$url\r\nother\r\nlast".toByteArray()
+        buffer.feed(primary, primary.size)
+        val alternate = "\u001B[?1049hnot-a-link".toByteArray()
+        buffer.feed(alternate, alternate.size)
+        assertEquals(url, linkAt(buffer, TerminalBuffer.Point(0, 4), 1))
+    }
+    @Test fun alternateScreenDoesNotJoinThePrimaryScreensHistory() {
+        val url = "https://a.test/" + "x".repeat(40)
+        val buffer = TerminalBuffer(20, 2)
+        val primary = url.toByteArray()
+        buffer.feed(primary, primary.size)
+        val alternate = "\u001B[?1049hnot-a-link".toByteArray()
+        buffer.feed(alternate, alternate.size)
+        assertNull(linkAt(buffer, TerminalBuffer.Point(0, 3), 0))
+        val restore = "\u001B[?1049l".toByteArray()
+        buffer.feed(restore, restore.size)
+        assertEquals(url, linkAt(buffer, TerminalBuffer.Point(0, 3), 0))
+    }
+    @Test fun tappingTheVisibleTailFindsTheUrlBeginningInScrollback() {
+        val url = "https://a.test/" + "x".repeat(100)
+        val buffer = TerminalBuffer(20, 3)
+        val bytes = "$url\r\nnext".toByteArray()
+        buffer.feed(bytes, bytes.size)
+        assertEquals(url, linkAt(buffer, TerminalBuffer.Point(0, 3), 0))
+    }
+
+    @Test fun tappingWhileScrolledBackIncludesTheHiddenEndOfTheUrl() {
+        val url = "https://a.test/" + "x".repeat(100)
+        val buffer = TerminalBuffer(20, 3)
+        val bytes = "$url\r\nnext".toByteArray()
+        buffer.feed(bytes, bytes.size)
+        assertEquals(url, linkAt(buffer, TerminalBuffer.Point(0, 4), buffer.scrollbackSize))
+    }
+
+    @Test fun oversizedWrappedTextDoesNotOpenATruncatedUrl() {
+        val buffer = TerminalBuffer(1000, 100)
+        val bytes = ("https://a.test/" + "x".repeat(70_000)).toByteArray()
+        buffer.feed(bytes, bytes.size)
+        assertNull(linkAt(buffer, TerminalBuffer.Point(0, 4), 0))
+    }
+
     @Test fun wideCharacterWrapDoesNotAddPaddingToTheUrl() {
         val url = "https://a.test/1234😀end"
         val buffer = buffer(url)

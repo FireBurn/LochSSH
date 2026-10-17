@@ -2,7 +2,7 @@
 
 This list reflects the current app and the project conversations.
 
-On 17 October, the JDK 25 build, lint and all 451 local tests pass with real
+On 17 October, the JDK 25 build, lint and all 456 local tests pass with real
 SSH/SFTP and IPv6 enabled. The Android 13 emulator run passes 134 tests and skips
 seven: six live-SSH tests without server arguments and the Android 14+ declaration
 test. The Android 14 results below are from 9 October, before the latest changes.
@@ -870,8 +870,12 @@ customizable keyboard.
   boundary. Tapping and selection join those rows without absorbing unrelated text
   after an explicit newline. Wraps follow rows into scrollback and survive a width
   increase; inserted/deleted rows break the old boundary. A wide character's unused
-  padding cell is excluded. Eight link tests cover those cases and ordinary links.
+  padding cell is excluded. Thirteen link tests cover those cases and ordinary links,
+  including searching retained wrapped rows above and below the viewport. Normal
+  and alternate screens stay separate, including when viewing old history while
+  a full-screen program is open; scans over 65,536 characters are rejected
+  rather than opening a truncated URL.
   Check Claude authentication URLs in a live session: application-inserted hard
-  breaks are not automatic wraps. Links beyond the visible viewport, width reductions
+  breaks are not automatic wraps. Discarded history, width reductions
   and full-screen redraws need more checks. Links are not underlined yet, and the split
   view's second pane does not open links.
