@@ -481,13 +481,14 @@ are outside this audit.
   Rechecked on 17 October: the PR is open, with no new comments after 5 October.
   The reviewer's latest request allows the classes in the main JAR if a cheap
   runtime check selects them only on Android. Local branch `try/android-in-base`
-  implements that design. On 17 October its package build and 505 Maven tests pass.
+  implements that design. On 17 October its package build and 506 Maven tests pass.
   Android 13 passes four tests and skips two for missing stock imported-key Ed25519
   and X25519 providers. Installed-provider signing and X448 fallback pass.
-  Update the Android configuration test: it still assumes opt-in configuration
-  and fixed BouncyCastle defaults, rather than checking automatic selection on
-  both supported and unsupported systems. Add direct fallback coverage when
-  advertised provider services cannot actually sign. Packaged-JAR desktop selection
+  The Android configuration test now checks automatic selection against usable
+  signing providers and X25519 services. A desktop regression test checks that
+  a provider advertising Ed25519 but rejecting imported private keys leaves
+  BouncyCastle configured, and confirms that the rejected import was attempted.
+  Packaged-JAR desktop selection
   and the other Android API levels still need checking. Posting a reply and
   force-pushing still need approval.
   Stock emulator images still lack imported-key Ed25519 signing, so that test
