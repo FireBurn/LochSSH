@@ -921,3 +921,12 @@ customizable keyboard.
   unchecked against a real Screen. Typing or Live leaves scroll mode. Needs tmux or Screen to
   have been started by the app; a tmux typed by hand in a plain shell is not recognised.
 - Local scrollback is still 2000 rows.
+
+Checked on the phone (CPH2747, 2026-10-28, build before the key label fix): app updates in place
+and the database upgrades to version 14 with hosts kept; Quark connects; the new keyboard layout
+shows; "New tmux" and "Rescan" show beside each machine name; swiping scrolls a tmux session
+(position moved from 263 to 99 of 258); with the top bar hidden, the back arrow and Show controls
+stay on screen. Not yet seen: the Live button during tmux scrolling (the session was already in
+scroll mode when the app attached), reconnect after a drop, Auto mode on a fresh host, tap-to-open
+links, the local shell. HOME was clipped to HOM at the phone's font size; key labels now ignore the
+system font size.

@@ -13,6 +13,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.painter.Painter
@@ -97,6 +100,24 @@ private fun Key(
     repeats: Boolean = false,
     onRelease: () -> Unit = {},
     inputTarget: Any? = null,
+    onClick: () -> Unit
+) {
+    // The keys are a fixed 40dp tall and a tenth of the width, so they ignore the system
+    // font size; at large sizes HOME was clipped to HOM.
+    val density = LocalDensity.current
+    CompositionLocalProvider(LocalDensity provides Density(density.density, fontScale = 1f)) {
+        KeyContent(label, modifier, active, repeats, onRelease, inputTarget, onClick)
+    }
+}
+
+@Composable
+private fun KeyContent(
+    label: String,
+    modifier: Modifier,
+    active: Boolean,
+    repeats: Boolean,
+    onRelease: () -> Unit,
+    inputTarget: Any?,
     onClick: () -> Unit
 ) {
     val keyModifier = modifier.height(40.dp).repeatingKey(repeats, onRelease, onClick, inputTarget)
