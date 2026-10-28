@@ -45,15 +45,15 @@ data class KeyboardLayout(val rows: List<List<KeyboardButton>>) {
                 KeyboardButton(KeyboardAction.TEXT, "/"),
                 KeyboardButton(KeyboardAction.TEXT, "|"),
                 KeyboardButton(KeyboardAction.TEXT, "-"),
-                KeyboardButton(KeyboardAction.UP), KeyboardButton(KeyboardAction.HOME),
-                KeyboardButton(KeyboardAction.END), KeyboardButton(KeyboardAction.PAGE_UP),
-                KeyboardButton(KeyboardAction.FONT_UP), KeyboardButton(KeyboardAction.FN)
+                KeyboardButton(KeyboardAction.UP), KeyboardButton(KeyboardAction.DELETE),
+                KeyboardButton(KeyboardAction.HOME), KeyboardButton(KeyboardAction.PAGE_UP),
+                KeyboardButton(KeyboardAction.FONT_UP), KeyboardButton(KeyboardAction.ENTER)
             ),
             listOf(
                 KeyboardButton(KeyboardAction.TAB), KeyboardButton(KeyboardAction.CTRL),
                 KeyboardButton(KeyboardAction.ALT), KeyboardButton(KeyboardAction.LEFT),
                 KeyboardButton(KeyboardAction.DOWN), KeyboardButton(KeyboardAction.RIGHT),
-                KeyboardButton(KeyboardAction.DELETE), KeyboardButton(KeyboardAction.PAGE_DOWN),
+                KeyboardButton(KeyboardAction.END), KeyboardButton(KeyboardAction.PAGE_DOWN),
                 KeyboardButton(KeyboardAction.FONT_DOWN), KeyboardButton(KeyboardAction.KEYBOARD)
             )
         ))
