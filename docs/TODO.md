@@ -982,3 +982,14 @@ Phone run 2026-10-28 20:00 (CPH2747, build 3898c72), all against Quark:
   to the same tmux session. Works.
 - Ending the tmux session from the server: the app returned to the host list and did not recreate it.
 Open on the phone: Auto mode on a new host, tapping a link, the local shell (all seen on the emulator only).
+
+Phone run 2026-10-28 20:03 to 20:08, throwaway hosts created and deleted afterwards (build 3898c72):
+- The new-host screen starts on Auto, with Auto tmux and Auto screen hidden for an unseen host.
+- Auto mode on a new host with Quark's identity created and attached a tmux session named lochssh with
+  no other setup. Ending the session returned to the host list without recreating it.
+- Local shell: clean prompt, typing echoed, command output shown. No New tmux or Rescan on that host row
+  or its session group.
+- Tapping a link in the local shell opened the confirmation with the right URL.
+- Found: a session whose host was deleted still showed New tmux and Rescan in its group. Fixed by showing
+  them only when the host exists and can run tmux.
+Open: serial, Mosh, spacing marks.
