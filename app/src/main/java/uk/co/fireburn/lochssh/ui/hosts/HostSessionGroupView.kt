@@ -31,8 +31,10 @@ internal fun HostSessionGroupView(group: HostSessionGroup, onResume: (Long) -> U
                 group.address?.let { Text(it, style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant) }
             }
-            TextButton(onClick = onNewSession) { Text("New tmux") }
-            TextButton(onClick = onRescan) { Text("Rescan") }
+            if (group.hasTmux) {
+                TextButton(onClick = onNewSession) { Text("New tmux") }
+                TextButton(onClick = onRescan) { Text("Rescan") }
+            }
         }
         group.sessions.forEach { session -> key(session.id) {
             Card(onClick = { onResume(session.id) }, modifier = Modifier.fillMaxWidth()) {

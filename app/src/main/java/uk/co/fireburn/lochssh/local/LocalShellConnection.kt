@@ -9,7 +9,7 @@ import java.io.OutputStream
 // Runs the device shell over pipes. Input goes through LineDiscipline, output has its
 // line ends changed to CR LF, and interrupts go to the shell's children by signal.
 class LocalShellConnection(directory: File) {
-    private val process = ProcessBuilder("/system/bin/sh", "-c", "echo \$\$; exec /system/bin/sh -i")
+    private val process = ProcessBuilder("/system/bin/sh", "-c", "echo \$\$; exec /system/bin/sh -i 2>/dev/null")
         .directory(directory)
         .redirectErrorStream(true)
         .apply { environment()["TERM"] = "xterm-256color" }
@@ -20,6 +20,13 @@ class LocalShellConnection(directory: File) {
     private val echoed = java.util.concurrent.LinkedBlockingQueue<ByteArray>()
     private var lastWasCarriageReturn = false
     private val pid: Int = readPid(process.inputStream)
+
+    init {
+        // The shell warns that it has no terminal before it reads any input, so stderr starts
+        // closed and is joined to the output once it is running.
+        shellInput.write("exec 2>&1\n".toByteArray())
+        shellInput.flush()
+    }
 
     val isOpen: Boolean get() = process.isAlive
 

@@ -949,3 +949,16 @@ Phone run 2026-10-28 (CPH2747, over wireless adb), second pass:
   the phone.
 - Left to check on the phone: reconnect with the fix, the Live button, tapping a link, Auto mode on a
   new host, the local shell.
+
+Emulator run 2026-10-28 (Pixel 3a, Android 13, UI driven over adb), after the phone locked:
+- New host starts in Auto mode (Run on connect is greyed out as it is for any non-Shell mode).
+- Local shell: opens to a clean prompt, echoes typing, prints command output and errors, shows the exit
+  status in the prompt. The two "no tty" warnings it used to print are hidden.
+- Tapping a link opens the confirmation with the right URL, including when the link is split over two
+  rows by the command echo.
+- Reconnect after a drop: a Telnet host to a throwaway server that resets the connection reconnected by
+  itself in a few seconds and showed the new greeting. A clean close from the server ends the session
+  without retrying, as intended.
+- Session groups no longer show New tmux and Rescan for Telnet and this-device hosts.
+Still only seen on the phone before the fixes, not after: Live while scrolling tmux with mouse mode on,
+reconnect into a created tmux session, HOME's label. Needs the phone unlocked.

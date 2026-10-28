@@ -33,4 +33,17 @@ class HostSessionGroupAndroidTest {
         compose.onNodeWithContentDescription("Dismiss").performClick()
         compose.runOnIdle { assertEquals(9L, dismissed) }
     }
+
+    @Test fun tmuxButtonsAppearOnlyForHostsThatCanRunTmux() {
+        val sessions = listOf(SessionRegistry.Session(3, 7, "Quark"))
+        val ssh = HostSessionGroup(7, "Quark", null, sessions)
+        val local = HostSessionGroup(7, "Phone", null, sessions, hasTmux = false)
+        val shown = androidx.compose.runtime.mutableStateOf(ssh)
+        compose.setContent { MaterialTheme { HostSessionGroupView(shown.value, {}, {}) } }
+        compose.onNodeWithText("New tmux").assertExists()
+        compose.onNodeWithText("Rescan").assertExists()
+        compose.runOnIdle { shown.value = local }
+        compose.onNodeWithText("New tmux").assertDoesNotExist()
+        compose.onNodeWithText("Rescan").assertDoesNotExist()
+    }
 }
