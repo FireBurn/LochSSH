@@ -30,7 +30,8 @@ class TerminalViewModel @Inject constructor(
     private val registry: SessionRegistry,
     private val savedCommandDao: SavedCommandDao,
     @ApplicationContext private val context: Context,
-    internal val recordings: uk.co.fireburn.lochssh.data.SessionRecordings
+    internal val recordings: uk.co.fireburn.lochssh.data.SessionRecordings,
+    private val memory: uk.co.fireburn.lochssh.ssh.SessionMemory
 ) : ViewModel() {
 
     val fontSize = preferences.terminalFontSize
@@ -104,8 +105,13 @@ class TerminalViewModel @Inject constructor(
         sessions.firstOrNull { it.id == id }
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
+    fun remembered(id: Long) = memory.find(id)
+
+    fun leftTerminal() = memory.view(null)
+
     fun load(id: Long) {
         sessionId.value = id
+        memory.view(id)
     }
 
     fun newSessionId(): Long = registry.newId()

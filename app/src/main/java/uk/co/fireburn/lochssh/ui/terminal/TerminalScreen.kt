@@ -241,6 +241,7 @@ fun TerminalScreen(
     fun leave() {
         if (leaving) return
         leaving = true
+        viewModel.leftTerminal()
         onBack()
     }
 
@@ -413,8 +414,14 @@ fun TerminalScreen(
         if (session != null) hadSession = true
         else if (hadSession) leave()
         else {
-            delay(1_000)
-            if (viewModel.sessions.value.none { it.id == sessionId }) onHosts()
+            val saved = viewModel.remembered(sessionId)
+            if (saved != null) {
+                // The app was freed in the background: reconnect to where this session was.
+                SshForegroundService.start(context, saved.hostId, sessionId, saved.remoteCommand)
+            } else {
+                delay(1_000)
+                if (viewModel.sessions.value.none { it.id == sessionId }) onHosts()
+            }
         }
     }
 

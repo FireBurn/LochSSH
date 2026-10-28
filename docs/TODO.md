@@ -962,3 +962,11 @@ Emulator run 2026-10-28 (Pixel 3a, Android 13, UI driven over adb), after the ph
 - Session groups no longer show New tmux and Rescan for Telnet and this-device hosts.
 Still only seen on the phone before the fixes, not after: Live while scrolling tmux with mouse mode on,
 reconnect into a created tmux session, HOME's label. Needs the phone unlocked.
+
+Session restore (2026-10-28): the app keeps open sessions only in memory, so Android freeing it in the
+background lost them and the terminal screen said the connection was no longer available and went to the
+host list. Each session's host and tmux/Screen command are now saved (`SessionMemory`, three days) and
+forgotten when the user disconnects or the remote shell exits. On a fresh launch with no live sessions
+the app reconnects to all remembered ones and opens the one that was on screen; a stale session screen
+reconnects in place. Checked on the emulator by killing the app process while in a Telnet session and
+reopening from recents: it reconnected and returned to that session. Not yet seen on the phone.

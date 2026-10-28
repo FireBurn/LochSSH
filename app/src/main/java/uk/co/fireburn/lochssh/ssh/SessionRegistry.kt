@@ -68,6 +68,9 @@ class SessionRegistry @Inject constructor() {
 
     fun newId(): Long = nextId.getAndIncrement()
 
+    // Sessions restored from an earlier run keep their ids, so new ones must start above them.
+    fun reserveIdsThrough(id: Long) { nextId.updateAndGet { maxOf(it, id + 1) } }
+
     fun opening(id: Long, hostId: Long, hostName: String, remoteCommand: String? = null,
         findRemoteSessions: Boolean? = null) = update(id) {
         Session(id = id, hostId = hostId, hostName = hostName,

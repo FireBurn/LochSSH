@@ -37,7 +37,8 @@ class TerminalRecoveryAndroidTest {
         lateinit var model: TerminalViewModel
         ui.runOnUiThread {
             model = TerminalViewModel(AppPreferences(context), registry, database.savedCommandDao(), context,
-                uk.co.fireburn.lochssh.data.SessionRecordings(context))
+                uk.co.fireburn.lochssh.data.SessionRecordings(context),
+                uk.co.fireburn.lochssh.ssh.SessionMemory(context))
             store.put("terminal", model)
         }
         ui.setContent {

@@ -70,6 +70,8 @@ object Routes {
 class MainActivity : ComponentActivity() {
 
     @Inject lateinit var preferences: AppPreferences
+    @Inject lateinit var registry: uk.co.fireburn.lochssh.ssh.SessionRegistry
+    @Inject lateinit var memory: uk.co.fireburn.lochssh.ssh.SessionMemory
     private val lockModel: AppLockViewModel by viewModels()
     private val unlockDevice = registerForActivityResult(ActivityResultContracts.StartActivityForResult()) {
         lockModel.lock.result(it.resultCode == RESULT_OK)
@@ -93,6 +95,7 @@ class MainActivity : ComponentActivity() {
             }
         }
         if (savedInstanceState == null) readLaunch(intent)
+        restoreSessions()
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             askNotifications.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
@@ -108,6 +111,19 @@ class MainActivity : ComponentActivity() {
                 }
             }
         }
+    }
+
+    // Android may free the app in the background, which loses the open sessions. Reconnect
+    // to the ones remembered from before and go back to the one that was on screen.
+    private fun restoreSessions() {
+        if (registry.sessions.value.isNotEmpty()) return
+        val saved = memory.all()
+        if (saved.isEmpty()) return
+        registry.reserveIdsThrough(saved.keys.max())
+        saved.forEach { (id, session) ->
+            runCatching { SshForegroundService.start(this, session.hostId, id, session.remoteCommand) }
+        }
+        if (resumeSession.value == null) memory.lastViewed()?.takeIf { it in saved }?.let { resumeSession.value = it }
     }
 
     override fun onPause() {

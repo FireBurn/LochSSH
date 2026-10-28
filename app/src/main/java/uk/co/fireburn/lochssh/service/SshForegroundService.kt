@@ -36,6 +36,7 @@ import uk.co.fireburn.lochssh.ssh.RemoteSessionOptions
 import uk.co.fireburn.lochssh.ssh.RemoteSessions
 import uk.co.fireburn.lochssh.ssh.SessionRegistry
 import uk.co.fireburn.lochssh.ssh.AutoReattach
+import uk.co.fireburn.lochssh.ssh.SessionMemory
 import uk.co.fireburn.lochssh.ssh.SshConnectionConfig
 import uk.co.fireburn.lochssh.ssh.SshConnectionManager
 import java.util.concurrent.ConcurrentHashMap
@@ -83,6 +84,8 @@ class SshForegroundService : Service() {
     lateinit var registry: SessionRegistry
     @Inject
     lateinit var history: ConnectionHistoryRecorder
+    @Inject
+    lateinit var memory: SessionMemory
 
     private val managers = ConcurrentHashMap<Long, SshConnectionManager>()
     private val connectedTokens = ConcurrentHashMap<Long, String>()
@@ -150,6 +153,7 @@ class SshForegroundService : Service() {
         attempts.put(sessionId, attempt)?.let(::cancelAttempt)
         history.started(attempt.token, hostId)
         registry.opening(sessionId, hostId, "Host", attempt.remoteCommand, attempt.findRemoteSessions)
+        memory.remember(sessionId, hostId, attempt.remoteCommand)
         scope.launch { connect(attempt) }
         return Service.START_NOT_STICKY
     }
@@ -444,6 +448,7 @@ class SshForegroundService : Service() {
             retryCounts.remove(sessionId)
             waiting.remove(sessionId)
             parked.remove(sessionId)
+            memory.forget(sessionId)
             registry.remove(sessionId)
         } else registry.failed(sessionId, error)
         NotificationManagerCompat.from(this).cancel(sessionNotificationId(sessionId))
