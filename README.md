@@ -13,12 +13,30 @@ LochSSH is an Android SSH client. It is under active development and is not read
 - Saved jump hosts and optional SSH-agent forwarding.
 - Saved SSH host keys. New keys need fingerprint approval; changed keys block connections.
 - SFTP browsing and file transfers, saved commands, and connection history.
+- Reconnecting dropped connections by itself, back into the same tmux or Screen session.
+- Telnet, Mosh, a shell on the phone itself, and USB serial hosts. See the next section for what has been tested.
 
 Check a new server's displayed fingerprint with its owner before choosing
 Trust and connect. The prompt identifies the server, including jump hosts.
 Review or remove saved keys under Settings → Saved host keys. Existing saved
 keys are kept. Check [the work list](docs/TODO.md) before relying on the app for
 sensitive connections.
+
+## Other connection types
+
+Each is a switch in the host editor. None of them supports jump hosts, proxies, tunnels or agent forwarding.
+
+- **Telnet** is unencrypted. Tested against a local test server on an emulator and a phone.
+- **Mosh** signs in over SSH, starts `mosh-server` on the host and then carries on over UDP. It needs `mosh-server`
+  installed on the host and a reachable UDP port. Tested against a `mosh-server` built from source, on an emulator and
+  on a phone. There is no local echo prediction yet.
+- **This device** runs the Android shell over pipes, so there is no terminal driver: the app echoes and edits typing,
+  and full-screen programs do not work. Tested on an emulator and a phone.
+- **USB serial** talks to a USB serial adapter plugged into the phone (usb-serial-for-android).
+  **It has not been tested with a real adapter.** The line settings, the data path and the unplug handling are
+  tested with a fake port, and connecting with no adapter shows a clear message, but nothing has been tried against
+  real hardware, the Android USB permission prompt, or a real device's flow control. Treat it as untested until a
+  note here says otherwise.
 
 ## Create and install a key
 

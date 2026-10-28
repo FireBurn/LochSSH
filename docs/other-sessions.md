@@ -28,7 +28,7 @@ byte script, 0xFF escaping, split reads, and a local server round trip.
 
 ## Serial
 
-Built (host switch "Use USB serial", database version 16). Uses `usb-serial-for-android` 3.9.0 (Java, MIT,
+**Not tested with a real adapter.** Built (host switch "Use USB serial", database version 16). Uses `usb-serial-for-android` 3.9.0 (Java, MIT,
 fetched from JitPack for that one group only; licence in `licenses/`). The line settings (baud, data bits,
 parity, stop bits, flow control, optional vendor:product id) are one validated text column
 (`SerialSettings`). Connecting finds the adapter, asks for Android's USB permission (waits 30 seconds),
