@@ -1045,3 +1045,10 @@ Phone run 2026-10-28 23:15 to 23:21 (CPH2747, build 50f3c40):
 - Ordering is now Axion, Quark by name, with sessions by when they were opened; the unnamed tmux session shows its
   name.
 Open: USB serial with a real adapter; local echo prediction in Mosh (not built).
+
+Session names (2026-10-28 night): a tmux session the app named itself (New tmux, Auto mode, `loch<digits>`) is now
+refreshed like any other, so it shows tmux's number, what is running and its title (for example
+`12 · sudo · emerge · quark: emerge: (1 of 1) dev-java/openjdk-17.0.21.0.3_p1 Compile`) instead of the generated
+name. The refresh also runs two seconds after a connect instead of waiting for the next 15 second round, and the
+label before it arrives is `tmux 12` rather than `tmux $12`. Seen on the phone: Axion showed `21 · claude · python3 ·
+claude · Handover and todo`. Quark's app-named session was not looked at after the last two changes.

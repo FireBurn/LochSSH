@@ -46,6 +46,7 @@ object RemoteSessions {
         return "command -v $name >/dev/null 2>&1"
     }
 
+    private val generatedName = Regex("loch[0-9]{1,6}")
     private val tmuxId = Regex("\\$[0-9]+")
     private val screenId = Regex("[0-9]+\\.[^\\x00-\\x1f\\x7f/]+")
     private val screenStatus = Regex("\\((Attached|Detached|Multi, attached|Multi, detached)\\)\\s*$")
@@ -59,11 +60,14 @@ object RemoteSessions {
             return@mapNotNull null
         }
         val attached = line.substring(last + 1).toIntOrNull()?.takeIf { it >= 0 } ?: return@mapNotNull null
+        val id = line.substring(0, first)
         RemoteSessionEntry(
             RemoteSessionModes.TMUX,
-            line.substring(0, first),
-            line.substring(first + 1, last).split('\t').map { field ->
-                field.filterNot { it.code < 32 || it.code == 127 }.trim()
+            id,
+            line.substring(first + 1, last).split('\t').mapIndexed { index, field ->
+                val clean = field.filterNot { it.code < 32 || it.code == 127 }.trim()
+                // A name the app made up is replaced by tmux's own number, as in a hand-made session.
+                if (index == 0 && generatedName.matches(clean)) id.removePrefix("$") else clean
             }.filter { it.isNotBlank() }.distinct().joinToString(" · "),
             attached > 0,
             line.substring(first + 1, last).substringBefore('\t').filterNot { it.code < 32 || it.code == 127 }.trim()

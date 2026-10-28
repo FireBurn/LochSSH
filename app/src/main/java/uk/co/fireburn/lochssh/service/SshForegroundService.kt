@@ -36,6 +36,7 @@ import uk.co.fireburn.lochssh.ssh.RemoteSessionOptions
 import uk.co.fireburn.lochssh.ssh.RemoteSessions
 import uk.co.fireburn.lochssh.ssh.SessionRegistry
 import uk.co.fireburn.lochssh.ssh.AutoReattach
+import uk.co.fireburn.lochssh.ssh.Multiplexer
 import uk.co.fireburn.lochssh.ssh.SessionMemory
 import uk.co.fireburn.lochssh.ssh.SshConnectionConfig
 import uk.co.fireburn.lochssh.ssh.SshConnectionManager
@@ -91,6 +92,7 @@ class SshForegroundService : Service() {
     private val connectedTokens = ConcurrentHashMap<Long, String>()
     private val attempts = ConcurrentHashMap<Long, ConnectionAttempt>()
     private val reattach: MutableSet<Long> = ConcurrentHashMap.newKeySet()
+    private val nameRefreshQueued = java.util.concurrent.atomic.AtomicBoolean(false)
     private val parked: MutableSet<Long> = ConcurrentHashMap.newKeySet()
     private val waiting: MutableSet<Long> = ConcurrentHashMap.newKeySet()
     private val retryCounts = ConcurrentHashMap<Long, Int>()
@@ -293,6 +295,12 @@ class SshForegroundService : Service() {
         if (managers[sessionId] !== manager) return
         retryCounts.remove(sessionId)
         connectedAt[sessionId] = System.currentTimeMillis()
+        // Names come from a scan, so do one soon instead of waiting for the next regular one.
+        if (nameRefreshQueued.compareAndSet(false, true)) scope.launch {
+            delay(NAME_REFRESH_SOON_MS)
+            nameRefreshQueued.set(false)
+            refreshRemoteNames()
+        }
         registry.connected(sessionId, manager)
         showSessionNotification(sessionId, registry.find(sessionId)?.notificationTitle ?: name, "Connected to $host")
         updateSummary()
@@ -359,7 +367,7 @@ class SshForegroundService : Service() {
 
     private suspend fun refreshRemoteNames() {
         val targets = registry.sessions.value.filter {
-            it.isConnected && it.remoteCommand?.startsWith("tmux attach-session -t ") == true
+            it.isConnected && Multiplexer.parse(it.remoteCommand)?.tool == Multiplexer.Tool.TMUX
         }.groupBy { it.hostId }
         targets.values.forEach { sessions ->
             val manager = sessions.first().manager ?: return@forEach
@@ -368,7 +376,9 @@ class SshForegroundService : Service() {
             } ?: return@forEach
             sessions.forEach sessionLoop@ { session ->
                 if (registry.find(session.id)?.manager !== session.manager) return@sessionLoop
+                val opened = Multiplexer.parse(session.remoteCommand)
                 val entry = options.sessions.firstOrNull { RemoteSessions.attach(it) == session.remoteCommand }
+                    ?: options.sessions.firstOrNull { opened?.refersTo(it) == true }
                     ?: return@sessionLoop
                 if (entry.name != session.remoteName) {
                     registry.named(session.id, entry.name)
@@ -663,6 +673,7 @@ class SshForegroundService : Service() {
         private const val WAKE_LOCK_TAG = "lochssh:ssh-service"
         private const val WAKE_LOCK_TIMEOUT_MS = 12L * 60 * 60 * 1000
         private const val TAG = "LochSSH"
+        private const val NAME_REFRESH_SOON_MS = 2_000L
 
         private fun sessionNotificationId(sessionId: Long) =
             SESSION_NOTIFICATION_BASE + sessionId.toInt()

@@ -94,4 +94,20 @@ class RemoteSessionConnectionsTest {
         assertEquals(77L, plan.single().id)
         assertTrue(plan.single().connect)
     }
+
+    @Test
+    fun aNameTheAppMadeUpShowsTmuxsNumberWithWhatIsRunning() {
+        // The process id column is replaced by the running program before parsing, as the app does.
+        val line = "\$12|loch30158\tsudo\tsudo\temerge\tquark: emerge: (1 of 1) dev-java/openjdk-17.0.21.0.3_p1 Compile|1"
+        val entry = RemoteSessions.parseTmux(line).single()
+        assertEquals("12 · sudo · emerge · quark: emerge: (1 of 1) dev-java/openjdk-17.0.21.0.3_p1 Compile", entry.name)
+        assertEquals("loch30158", entry.sessionName)
+    }
+
+    @Test
+    fun aNameYouChoseIsKept() {
+        val entry = RemoteSessions.parseTmux("\$3|build\tmake\tmake\tmake\tmake|0").single()
+        assertEquals("build · make", entry.name)
+        assertEquals("0", RemoteSessions.parseTmux("\$0|0\tbash\tbash\tbash\tbash|0").single().name.substringBefore(" "))
+    }
 }

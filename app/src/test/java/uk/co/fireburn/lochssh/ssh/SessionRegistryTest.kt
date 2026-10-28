@@ -178,7 +178,7 @@ class SessionRegistryTest {
     fun aSessionOpenedByNameIsLabelledWithThatName() {
         assertEquals("loch42", SessionRegistry.Session(1, 1, "Quark", remoteCommand = RemoteSessions.create("TMUX", "loch42")).label)
         assertEquals("work", SessionRegistry.Session(1, 1, "Quark", remoteCommand = "screen -A -r '1234.work'").label)
-        assertEquals("tmux \$3", SessionRegistry.Session(1, 1, "Quark", remoteCommand = "tmux attach-session -t '\$3'").label)
+        assertEquals("tmux 3", SessionRegistry.Session(1, 1, "Quark", remoteCommand = "tmux attach-session -t '\$3'").label)
         assertEquals("Quark", SessionRegistry.Session(1, 1, "Quark").label)
     }
 }
