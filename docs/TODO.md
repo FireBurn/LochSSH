@@ -1032,3 +1032,16 @@ Fixes from phone use (2026-10-28 evening):
 
 Font size (2026-10-28): the terminal font range is now 3 to 64 sp (was 8 to 28); steps are one point up to 24 and
 two points above it. Set from the terminal bar (Aa+ and Aa-) and Settings. Not yet looked at on the phone.
+
+Phone run 2026-10-28 23:15 to 23:21 (CPH2747, build 50f3c40):
+- Font size: 3 to 64 sp works from the key bar. At the minimum a whole Claude Code screen fits and is readable;
+  at 52 sp a word fills the line. Settings hold the same range. Put back to 14 afterwards.
+- Mosh on the phone: a throwaway host on this machine (mosh-server built from source on the PATH, plain sshd on
+  192.168.1.3:2222) signed in over SSH, ran mosh-server with the tmux command (Auto mode chose tmux), and the
+  session ran `echo MOSH_PHONE_$((6*7))` over UDP and printed 42. The SSH link closed after the launch, as designed.
+  Typing `exit` ended the session cleanly: no reconnect loop, mosh-server and the tmux session were gone. The host,
+  server and sessions were removed afterwards. Not tried on the phone: changing network (Wi-Fi off would cut the
+  wireless adb link) and the keyboard-focus fix (not reproduced).
+- Ordering is now Axion, Quark by name, with sessions by when they were opened; the unnamed tmux session shows its
+  name.
+Open: USB serial with a real adapter; local echo prediction in Mosh (not built).
