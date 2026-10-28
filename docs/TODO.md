@@ -930,3 +930,7 @@ stay on screen. Not yet seen: the Live button during tmux scrolling (the session
 scroll mode when the app attached), reconnect after a drop, Auto mode on a fresh host, tap-to-open
 links, the local shell. HOME was clipped to HOM at the phone's font size; key labels now ignore the
 system font size.
+
+Host list: each saved host row now has New tmux and Rescan buttons (not for Telnet or this-device
+hosts), New tmux opens the new session, and the list scrolls far enough for the last host's menu to
+clear the add button.

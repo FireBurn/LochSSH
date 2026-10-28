@@ -76,6 +76,12 @@ fun HostListScreen(
         catch (e: Exception) { viewModel.findFailed(id, e.message ?: "Could not find remote sessions") }
     }
 
+    fun startNewTmux(host: SshHostEntity) {
+        val id = viewModel.newSessionId()
+        SshForegroundService.start(context, host.id, id, RemoteSessions.createPreferred(host.tmuxSeen, host.screenSeen))
+        onResumeSession(id)
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -99,7 +105,7 @@ fun HostListScreen(
     ) { padding ->
         LazyColumn(
             modifier = Modifier.padding(padding),
-            contentPadding = PaddingValues(12.dp),
+            contentPadding = PaddingValues(start = 12.dp, top = 12.dp, end = 12.dp, bottom = 96.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             if (sessions.isNotEmpty()) {
@@ -117,12 +123,7 @@ fun HostListScreen(
                     val host = hosts.firstOrNull { it.id == group.hostId }
                     HostSessionGroupView(group, onResumeSession,
                         onDisconnect = { SshForegroundService.disconnect(context, it) },
-                        onNewSession = {
-                            host?.let {
-                                SshForegroundService.start(context, it.id, viewModel.newSessionId(),
-                                    RemoteSessions.createPreferred(it.tmuxSeen, it.screenSeen))
-                            }
-                        },
+                        onNewSession = { host?.let(::startNewTmux) },
                         onRescan = { host?.let(::findRemoteSessions) })
                 }
             }
@@ -140,7 +141,8 @@ fun HostListScreen(
                     onDuplicate = { viewModel.duplicateHost(host.id) },
                     onDelete = { pendingDelete = host },
                     onShortcut = { scope.launch { shortcutError = HostShortcuts.pin(context, host) } },
-                    onFindRemoteSessions = { findRemoteSessions(host) }
+                    onFindRemoteSessions = { findRemoteSessions(host) },
+                    onNewTmux = { startNewTmux(host) }
                 )
             }
         }
@@ -194,7 +196,8 @@ internal fun HostRow(
     onDuplicate: () -> Unit,
     onDelete: () -> Unit,
     onShortcut: () -> Unit,
-    onFindRemoteSessions: () -> Unit
+    onFindRemoteSessions: () -> Unit,
+    onNewTmux: () -> Unit = {}
 ) {
     var menuOpen by remember { mutableStateOf(false) }
 
@@ -216,6 +219,12 @@ internal fun HostRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                if (!host.telnet && !host.localShell) {
+                    Row {
+                        TextButton(onClick = onNewTmux) { Text("New tmux") }
+                        TextButton(onClick = onFindRemoteSessions) { Text("Rescan") }
+                    }
+                }
             }
             Box {
                 IconButton(onClick = { menuOpen = true }) {

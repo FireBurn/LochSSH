@@ -25,6 +25,20 @@ class HostRemoteSessionsAndroidTest {
         compose.runOnIdle { assertEquals(1, discoveries) }
     }
 
+    @Test fun hostRowHasNewTmuxAndRescanButtonsExceptForTelnetAndLocalHosts() {
+        var tmux = 0
+        var rescans = 0
+        val host = mutableStateOf(SshHostEntity(name = "Quark", host = "test.invalid"))
+        compose.setContent { MaterialTheme {
+            HostRow(host.value, {}, {}, {}, {}, {}, { rescans++ }, { tmux++ })
+        } }
+        compose.onNodeWithText("New tmux").performClick()
+        compose.onNodeWithText("Rescan").performClick()
+        compose.runOnIdle { assertEquals(1, tmux); assertEquals(1, rescans); host.value = host.value.copy(telnet = true) }
+        compose.onNodeWithText("New tmux").assertDoesNotExist()
+        compose.onNodeWithText("Rescan").assertDoesNotExist()
+    }
+
     @Test fun globalButtonCallsDiscoveryAndDisablesWithoutHosts() {
         var calls = 0
         val enabled = mutableStateOf(true)
