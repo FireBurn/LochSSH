@@ -60,6 +60,7 @@ fun TerminalView(
     onLinkTap: (String) -> Unit = {},
     onMultiplexerScroll: (up: Boolean, lines: Int) -> Boolean = { _, _ -> false },
     onRemoteWheel: () -> Unit = {},
+    onTap: () -> Unit = {},
     onRemoteScroll: (ByteArray) -> Unit = { manager?.write(it) }
 ) {
     val terminal = remember(manager) { manager?.terminal ?: TerminalSession(MIN_COLS, MIN_ROWS) }
@@ -68,6 +69,7 @@ fun TerminalView(
     val openLink by rememberUpdatedState(onLinkTap)
     val scrollMultiplexer by rememberUpdatedState(onMultiplexerScroll)
     val remoteWheel by rememberUpdatedState(onRemoteWheel)
+    val tapped by rememberUpdatedState(onTap)
     val frame = remember(buffer) { mutableIntStateOf(0) }
     val scrollOffset = remember(buffer) { mutableIntStateOf(0) }
     var selection by remember(buffer) { mutableStateOf<Selection?>(null) }
@@ -174,6 +176,7 @@ fun TerminalView(
                     val down = awaitFirstDown(requireUnconsumed = false)
                     val up = waitForUpOrCancellation() ?: return@awaitEachGesture
                     if ((up.position - down.position).getDistance() > viewConfiguration.touchSlop) return@awaitEachGesture
+                    tapped()
                     val link = buffer.read { linkAt(buffer, pointAt(up.position, metrics, buffer), scrollOffset.intValue) }
                     if (link != null) openLink(link)
                 }

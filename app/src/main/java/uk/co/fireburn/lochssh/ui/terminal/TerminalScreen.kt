@@ -41,6 +41,8 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,7 +73,7 @@ import uk.co.fireburn.lochssh.ui.keyboard.TerminalEditText
 import uk.co.fireburn.lochssh.ui.keyboard.TerminalImeInput
 import uk.co.fireburn.lochssh.ui.settings.BatterySettingsCard
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
 fun TerminalScreen(
     sessionId: Long,
@@ -98,6 +100,17 @@ fun TerminalScreen(
     }
     var imeVisible by remember { mutableStateOf(false) }
     var imeEditText by remember { mutableStateOf<TerminalEditText?>(null) }
+    val imeShown = WindowInsets.isImeVisible
+    val imeShownNow by rememberUpdatedState(imeShown)
+    // The keyboard can stay up after the hidden input lost focus (a dialog, a reconnect), and then
+    // typing goes nowhere until it is hidden and shown. Give focus back and restart the keyboard link.
+    fun restoreImeFocus() {
+        val view = imeEditText ?: return
+        if (imeShownNow && !view.hasFocus()) {
+            view.requestFocus()
+            imm.restartInput(view)
+        }
+    }
     var hadSession by remember(sessionId) { mutableStateOf(false) }
     var leaving by remember(sessionId) { mutableStateOf(false) }
     var scrollbackOffset by remember(sessionId) { mutableIntStateOf(0) }
@@ -403,6 +416,15 @@ fun TerminalScreen(
     }
 
     LaunchedEffect(sessionId) { viewModel.load(sessionId) }
+    LaunchedEffect(imeShown, imeEditText) {
+        imeVisible = imeShown
+        restoreImeFocus()
+    }
+    LaunchedEffect(manager, splitFocused) {
+        delay(300)
+        restoreImeFocus()
+    }
+    androidx.lifecycle.compose.LifecycleEventEffect(androidx.lifecycle.Lifecycle.Event.ON_RESUME) { restoreImeFocus() }
     LaunchedEffect(toolbarVisible, moreOpen, sessionId) {
         if (toolbarVisible && !moreOpen) {
             delay(8_000)
@@ -643,6 +665,7 @@ fun TerminalScreen(
                                 onLinkTap = { pendingLinks = listOf(it) },
                                 onMultiplexerScroll = { up, lines -> manager?.scrollMultiplexer(up, lines) == true },
                                 onRemoteWheel = { manager?.noteRemoteWheel() },
+                                onTap = ::restoreImeFocus,
                                 modifier = paneModifier
                             )
                         }
@@ -665,6 +688,7 @@ fun TerminalScreen(
                                         onLinkTap = { pendingLinks = listOf(it) },
                                         onMultiplexerScroll = { up, lines -> splitManager.scrollMultiplexer(up, lines) },
                                         onRemoteWheel = { splitManager.noteRemoteWheel() },
+                                        onTap = ::restoreImeFocus,
                                         modifier = it.splitFocus(splitFocused, accent) { splitFocused = true }
                                     )
                                 }
