@@ -56,4 +56,42 @@ class RemoteSessionConnectionsTest {
         assertEquals(8L, plan.single().id)
         assertTrue(plan.single().connect)
     }
+
+    @Test
+    fun aTmuxSessionOpenedByNameIsNotListedAgainWhenAScanFindsItById() {
+        val scanned = RemoteSessions.parseTmux("\$5|loch42\tbash\tbash|1").single()
+        assertEquals("loch42", scanned.sessionName)
+        val existing = SessionRegistry.Session(9, 1, "host",
+            remoteCommand = RemoteSessions.create(RemoteSessionModes.TMUX, "loch42"))
+        val plan = RemoteSessionConnections.plan(1, listOf(scanned), listOf(existing)) { error("Duplicate") }
+        assertEquals(9L, plan.single().id)
+        assertFalse(plan.single().connect)
+    }
+
+    @Test
+    fun theAutomaticTmuxSessionIsRecognisedByItsName() {
+        val scanned = RemoteSessionEntry(RemoteSessionModes.TMUX, "\$1", "lochssh · bash", false, "lochssh")
+        val existing = SessionRegistry.Session(4, 1, "host",
+            remoteCommand = RemoteSessions.automatic(RemoteSessionModes.TMUX))
+        val plan = RemoteSessionConnections.plan(1, listOf(scanned), listOf(existing)) { error("Duplicate") }
+        assertEquals(4L, plan.single().id)
+    }
+
+    @Test
+    fun aScreenSessionOpenedByNameMatchesTheScanEntry() {
+        val existing = SessionRegistry.Session(6, 1, "host",
+            remoteCommand = RemoteSessions.create(RemoteSessionModes.SCREEN, "build"))
+        val plan = RemoteSessionConnections.plan(1, listOf(entry.copy(sessionName = "build")), listOf(existing)) { error("Duplicate") }
+        assertEquals(6L, plan.single().id)
+    }
+
+    @Test
+    fun aDifferentSessionWithTheSameNameOnAnotherHostIsNotMatched() {
+        val scanned = RemoteSessionEntry(RemoteSessionModes.TMUX, "\$5", "loch42", false, "loch42")
+        val other = SessionRegistry.Session(9, 2, "other",
+            remoteCommand = RemoteSessions.create(RemoteSessionModes.TMUX, "loch42"))
+        val plan = RemoteSessionConnections.plan(1, listOf(scanned), listOf(other)) { 77 }
+        assertEquals(77L, plan.single().id)
+        assertTrue(plan.single().connect)
+    }
 }

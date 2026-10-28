@@ -25,11 +25,17 @@ class SessionRegistry @Inject constructor() {
         val findRemoteSessions: Boolean = false
     ) {
         val label: String get() {
-            val remote = remoteName?.takeIf { it.isNotBlank() }
+            val remote = remoteName?.takeIf { it.isNotBlank() } ?: nameFromCommand()
             val live = title?.takeIf {
                 it.isNotBlank() && (remote == null || (it != hostName && it != remote && !remote.endsWith(" · $it")))
             }
             return listOfNotNull(remote, live).distinct().joinToString(" · ").ifBlank { hostName }
+        }
+
+        // A tmux or Screen session opened without a name from a scan still has one in its command.
+        private fun nameFromCommand(): String? {
+            val target = Multiplexer.parse(remoteCommand)?.target ?: return null
+            return if (target.startsWith("$")) "tmux $target" else target.substringAfter('.')
         }
 
         val isConnected: Boolean get() = manager?.isConnected == true
@@ -133,8 +139,14 @@ class SessionRegistry @Inject constructor() {
         val current = _sessions.value
         val existing = current.firstOrNull { it.id == id }
         val updated = block(existing) ?: return
-        _sessions.value =
+        _sessions.value = ordered(
             if (existing == null) current + updated
             else current.map { if (it.id == id) updated else it }
+        )
     }
+
+    // Same order as the host list (by name), then by when each session was opened, so the screen
+    // does not shuffle when sessions are restored or reconnect.
+    private fun ordered(list: List<Session>): List<Session> =
+        list.sortedWith(compareBy<Session, String>(String.CASE_INSENSITIVE_ORDER) { it.hostName }.thenBy { it.id })
 }

@@ -79,6 +79,10 @@ class SshConnectionManager(
     private var running = false
     @Volatile
     private var multiplexer: Multiplexer? = null
+    // The command that was run at connect time, including the one an automatic mode chose.
+    @Volatile
+    var openedCommand: String? = null
+        private set
     private val scrollWorker = Executors.newSingleThreadExecutor { r -> Thread(r, "scroll-worker") }
     private val refreshQueued = java.util.concurrent.atomic.AtomicBoolean(false)
     private val pendingScroll = java.util.concurrent.atomic.AtomicInteger(0)
@@ -270,6 +274,7 @@ class SshConnectionManager(
             "Mosh does not support jump hosts, proxies or tunnels"
         }
         val command = startupCommand ?: automaticCommand()
+        openedCommand = command
         val started = launchMoshServer(command)
         connectionAttempt.checkCancelled()
         val size = windowSize.get()
@@ -375,6 +380,7 @@ class SshConnectionManager(
         val initialSize = windowSize.get()
         val command = startupCommand ?: automaticCommand()
         multiplexer = Multiplexer.parse(command)
+        openedCommand = command
         val ch = TerminalChannel.open(s, command, initialSize.first, initialSize.second, config.agentForwarding)
         channel = ch
         connectingChannels.add(ch)
@@ -405,7 +411,7 @@ class SshConnectionManager(
                     if (running) {
                         failure?.let { Log.w(TAG, "Read from ${config.host} failed", it) }
                         running = false
-                        onExit(if (failure == null && ch.isClosed) ch.exitStatus else -1)
+                        onExit(ExitCodes.of(failure != null, ch.isClosed, ch.exitStatus, session?.isConnected == true))
                     }
                 }
             )

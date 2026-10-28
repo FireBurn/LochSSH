@@ -1016,3 +1016,16 @@ Serial (2026-10-28): built (host switch, line settings, adapter list, USB permis
 settings and a fake port in unit tests; the editor on an emulator; connecting with no adapter shows "No USB
 serial adapter found. Plug it in and try again." Not checked: a real adapter, the permission dialog, wiring
 and flow control. That needs a USB serial adapter and an OTG cable on the phone.
+
+Fixes from phone use (2026-10-28 evening):
+- Typing exit in a session no longer reconnects in a loop. Only a lost connection (code -1) retries; a remote
+  exit with any status does not, is forgotten for the next launch, and a connection that dies within ten
+  seconds three times in a row stops retrying. A closed channel on a link that is still up counts as an exit
+  (the exit status can arrive after the close).
+- A tmux or Screen session opened by name (New tmux, Auto mode) is recognised when a scan finds it by id, so
+  it is no longer listed twice. Auto mode now stores the command it ran.
+- Sessions with no name are labelled from their command (the tmux or Screen name, or "tmux $N").
+- Session groups and sessions inside them are in a fixed order: host name (as the host list), then when each
+  session was opened.
+- Keyboard: when the on-screen keyboard is up but the hidden input lost focus, focus is restored on tap, on
+  resume, after a reconnect and when the keyboard appears. Not yet confirmed on the phone.

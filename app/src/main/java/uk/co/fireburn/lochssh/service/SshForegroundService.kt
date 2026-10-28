@@ -94,6 +94,8 @@ class SshForegroundService : Service() {
     private val parked: MutableSet<Long> = ConcurrentHashMap.newKeySet()
     private val waiting: MutableSet<Long> = ConcurrentHashMap.newKeySet()
     private val retryCounts = ConcurrentHashMap<Long, Int>()
+    private val connectedAt = ConcurrentHashMap<Long, Long>()
+    private val quickDrops = ConcurrentHashMap<Long, Int>()
     private val hostLocks = ConcurrentHashMap<Long, Mutex>()
     private var wakeLock: PowerManager.WakeLock? = null
     private var networkCallback: android.net.ConnectivityManager.NetworkCallback? = null
@@ -252,6 +254,10 @@ class SshForegroundService : Service() {
                 history.finished(it, ConnectionStates.ENDED)
             }
             history.connected(attempt.token)
+            connected.manager.openedCommand?.takeIf { attempt.remoteCommand == null }?.let {
+                registry.opening(sessionId, hostId, host.name, it)
+                memory.remember(sessionId, hostId, it)
+            }
             parked.remove(sessionId)
             if (AutoReattach.applies(connected.config.local || connected.config.mosh || connected.config.serial)) reattach.add(sessionId)
             else reattach.remove(sessionId)
@@ -286,6 +292,7 @@ class SshForegroundService : Service() {
     private fun announceConnected(sessionId: Long, manager: SshConnectionManager, name: String, host: String) {
         if (managers[sessionId] !== manager) return
         retryCounts.remove(sessionId)
+        connectedAt[sessionId] = System.currentTimeMillis()
         registry.connected(sessionId, manager)
         showSessionNotification(sessionId, registry.find(sessionId)?.notificationTitle ?: name, "Connected to $host")
         updateSummary()
@@ -381,7 +388,16 @@ class SshForegroundService : Service() {
     private fun onSessionExit(sessionId: Long, manager: SshConnectionManager, code: Int) {
         if (managers[sessionId] !== manager && attempts[sessionId]?.manager !== manager) return
         Log.i(TAG, "Session $sessionId exited with code $code")
-        val retry = sessionId in reattach && AutoReattach.shouldRetry(code)
+        val lived = System.currentTimeMillis() - (connectedAt.remove(sessionId) ?: 0L)
+        // A connection that keeps dying within seconds of opening is not a drop, so stop trying.
+        val quick = if (lived < AutoReattach.STABLE_MS) quickDrops.merge(sessionId, 1, Int::plus) ?: 1
+            else { quickDrops.remove(sessionId); 0 }
+        val retry = sessionId in reattach && AutoReattach.shouldRetry(code) && quick < AutoReattach.MAX_QUICK_DROPS
+        if (!AutoReattach.shouldRetry(code)) {
+            // The remote side ended the session, so it is not restored on the next launch either.
+            reattach.remove(sessionId)
+            memory.forget(sessionId)
+        }
         if (retry) waiting.add(sessionId)
         endSession(sessionId, if (code == 0) null else "Connection closed (exit code $code)")
         if (retry) scheduleReattach(sessionId)

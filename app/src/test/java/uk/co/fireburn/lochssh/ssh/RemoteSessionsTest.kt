@@ -84,8 +84,8 @@ class RemoteSessionsTest {
         val sessions = RemoteSessions.parseTmux("\$0|work|1\n\$1|editor|0\n")
 
         assertEquals(2, sessions.size)
-        assertEquals(RemoteSessionEntry(RemoteSessionModes.TMUX, "\$0", "work", true), sessions[0])
-        assertEquals(RemoteSessionEntry(RemoteSessionModes.TMUX, "\$1", "editor", false), sessions[1])
+        assertEquals(RemoteSessionEntry(RemoteSessionModes.TMUX, "\$0", "work", true, "work"), sessions[0])
+        assertEquals(RemoteSessionEntry(RemoteSessionModes.TMUX, "\$1", "editor", false, "editor"), sessions[1])
     }
 
     @Test
@@ -107,8 +107,8 @@ class RemoteSessionsTest {
         val sessions = RemoteSessions.parseScreen(output)
 
         assertEquals(2, sessions.size)
-        assertEquals(RemoteSessionEntry(RemoteSessionModes.SCREEN, "1234.work", "work", false), sessions[0])
-        assertEquals(RemoteSessionEntry(RemoteSessionModes.SCREEN, "5678.editor", "editor", true), sessions[1])
+        assertEquals(RemoteSessionEntry(RemoteSessionModes.SCREEN, "1234.work", "work", false, "work"), sessions[0])
+        assertEquals(RemoteSessionEntry(RemoteSessionModes.SCREEN, "5678.editor", "editor", true, "editor"), sessions[1])
     }
 
     @Test

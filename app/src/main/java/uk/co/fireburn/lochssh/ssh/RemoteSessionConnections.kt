@@ -7,7 +7,10 @@ internal object RemoteSessionConnections {
         newId: () -> Long): List<Connection> = entries.distinctBy { it.tool to it.id }.map { entry ->
         val commands = setOf(RemoteSessions.attach(entry.copy(attached = false)),
             RemoteSessions.attach(entry.copy(attached = true)))
-        val matches = sessions.filter { it.hostId == hostId && it.remoteCommand in commands }
+        val matches = sessions.filter {
+            it.hostId == hostId && (it.remoteCommand in commands ||
+                Multiplexer.parse(it.remoteCommand)?.refersTo(entry) == true)
+        }
         val existing = matches.firstOrNull { it.error == null && !it.canReconnect }
             ?: matches.firstOrNull()
         Connection(existing?.id ?: newId(), RemoteSessions.attach(entry),

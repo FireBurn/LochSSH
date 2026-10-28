@@ -8,7 +8,13 @@ object AutoReattach {
 
     fun applies(localShell: Boolean): Boolean = !localShell
 
-    fun shouldRetry(exitCode: Int): Boolean = exitCode != 0
+    // The manager reports -1 when the connection broke. Any other code is the remote program
+    // ending on its own, such as typing exit, which must not be reopened.
+    const val LOST = -1
+    const val STABLE_MS = 10_000L
+    const val MAX_QUICK_DROPS = 3
+
+    fun shouldRetry(exitCode: Int): Boolean = exitCode == LOST
 
     fun delayMs(tries: Int): Long? = delaysMs.getOrNull(tries)
 }

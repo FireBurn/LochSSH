@@ -6,7 +6,9 @@ data class RemoteSessionEntry(
     val tool: String,
     val id: String,
     val name: String,
-    val attached: Boolean
+    val attached: Boolean,
+    // The session's own name, which the app uses to recognise one it already opened.
+    val sessionName: String = ""
 )
 
 data class RemoteSessionOptions(
@@ -63,7 +65,8 @@ object RemoteSessions {
             line.substring(first + 1, last).split('\t').map { field ->
                 field.filterNot { it.code < 32 || it.code == 127 }.trim()
             }.filter { it.isNotBlank() }.distinct().joinToString(" · "),
-            attached > 0
+            attached > 0,
+            line.substring(first + 1, last).substringBefore('\t').filterNot { it.code < 32 || it.code == 127 }.trim()
         )
     }.toList()
 
@@ -83,7 +86,8 @@ object RemoteSessions {
             RemoteSessionModes.SCREEN,
             id,
             id.substringAfter('.'),
-            status.groupValues[1] == "Attached" || status.groupValues[1] == "Multi, attached"
+            status.groupValues[1] == "Attached" || status.groupValues[1] == "Multi, attached",
+            id.substringAfter('.')
         )
     }.toList()
 

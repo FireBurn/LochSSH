@@ -161,4 +161,24 @@ class SessionRegistryTest {
         assertEquals("Key not approved", registry.find(1)?.statusText)
         assertFalse(requireNotNull(registry.find(1)).isConnected)
     }
+
+    @Test
+    fun sessionsAreOrderedByHostNameThenByWhenTheyWereOpened() {
+        val registry = SessionRegistry()
+        registry.opening(5, 2, "quark")
+        registry.opening(9, 1, "Axion")
+        registry.opening(3, 2, "quark")
+        registry.opening(7, 1, "Axion")
+        assertEquals(listOf(7L, 9L, 3L, 5L), registry.sessions.value.map { it.id })
+        registry.opening(1, 3, "axion2")
+        assertEquals(listOf("Axion", "Axion", "axion2", "quark", "quark"), registry.sessions.value.map { it.hostName })
+    }
+
+    @Test
+    fun aSessionOpenedByNameIsLabelledWithThatName() {
+        assertEquals("loch42", SessionRegistry.Session(1, 1, "Quark", remoteCommand = RemoteSessions.create("TMUX", "loch42")).label)
+        assertEquals("work", SessionRegistry.Session(1, 1, "Quark", remoteCommand = "screen -A -r '1234.work'").label)
+        assertEquals("tmux \$3", SessionRegistry.Session(1, 1, "Quark", remoteCommand = "tmux attach-session -t '\$3'").label)
+        assertEquals("Quark", SessionRegistry.Session(1, 1, "Quark").label)
+    }
 }

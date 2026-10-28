@@ -17,7 +17,10 @@ class AutoReattachTest {
     fun onlyDropsRetryNotCleanExits() {
         assertFalse(AutoReattach.shouldRetry(0))
         assertTrue(AutoReattach.shouldRetry(-1))
-        assertTrue(AutoReattach.shouldRetry(255))
+        // A shell that exits with a status, as typing exit after a failed command does, is not a drop.
+        assertFalse(AutoReattach.shouldRetry(1))
+        assertFalse(AutoReattach.shouldRetry(127))
+        assertFalse(AutoReattach.shouldRetry(255))
     }
 
     @Test
