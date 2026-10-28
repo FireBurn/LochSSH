@@ -10,6 +10,8 @@ import com.jcraft.jsch.android.AndroidJSch
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import uk.co.fireburn.lochssh.local.LocalShellConnection
+import uk.co.fireburn.lochssh.mosh.MoshConnection
+import uk.co.fireburn.lochssh.mosh.MoshServerOutput
 import uk.co.fireburn.lochssh.telnet.TelnetConnection
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -63,6 +65,8 @@ class SshConnectionManager(
     @Volatile
     private var telnetConnection: TelnetConnection? = null
     @Volatile
+    private var moshConnection: MoshConnection? = null
+    @Volatile
     private var localShell: LocalShellConnection? = null
     @Volatile
     private var connectingTelnet: Socket? = null
@@ -84,6 +88,7 @@ class SshConnectionManager(
 
     val isConnected: Boolean
         get() = running && (telnetConnection?.isOpen
+            ?: moshConnection?.isOpen
             ?: localShell?.isOpen
             ?: (channel?.isConnected == true && session?.isConnected == true))
 
@@ -175,6 +180,11 @@ class SshConnectionManager(
         SshProxyRoute.validate(config)
         AndroidJSch.configure()
         val reused = sharedConnection?.acquireTransport()
+        if (reused != null && config.mosh) {
+            session = reused.session
+            try { startMosh(ownsSession = false) } finally { reused.release() }
+            return
+        }
         if (reused != null) {
             transport = reused
             session = reused.session
@@ -208,6 +218,10 @@ class SshConnectionManager(
         session = s
         s.connect(CONNECT_TIMEOUT_MS)
         connectionAttempt.checkCancelled()
+        if (config.mosh) {
+            startMosh(ownsSession = true)
+            return
+        }
         val warnings = ForwardWarnings()
         warningSubscription = warnings.listen(onForwardError)
         setupForwards(s, warnings::report)
@@ -215,6 +229,66 @@ class SshConnectionManager(
         transport = SharedSshConnection(s, jumps.toList(), dynamicForwards.toList(), warnings)
 
         openShell(s)
+    }
+
+    // Signs in over SSH only to start mosh-server, then carries on over UDP and drops the SSH link.
+    private fun startMosh(ownsSession: Boolean) {
+        require(config.jumpHosts.isEmpty() && config.proxy == null && config.forwards.isEmpty()) {
+            "Mosh does not support jump hosts, proxies or tunnels"
+        }
+        val command = startupCommand ?: automaticCommand()
+        val started = launchMoshServer(command)
+        connectionAttempt.checkCancelled()
+        val size = windowSize.get()
+        val connection = MoshConnection(config.host, started.port, started.key, size.first, size.second)
+        moshConnection = connection
+        remoteOut = connection.output
+        writer = Executors.newSingleThreadExecutor { r -> Thread(r, "mosh-writer") }
+        running = true
+        if (ownsSession) closeSshAfterMosh() else session = null
+        readerThread = thread(name = "mosh-reader") {
+            ShellOutputReader.read(
+                input = connection.input,
+                isRunning = { running },
+                onOutput = { buffer, count ->
+                    recording.append(buffer, count)
+                    titleScanner.feed(buffer, count)
+                    terminal.feed(buffer, count)
+                },
+                onStopped = { failure ->
+                    recording.close()
+                    if (running) {
+                        failure?.let { Log.w(TAG, "Read from ${config.host} failed", it) }
+                        running = false
+                        onExit(if (failure == null) 0 else -1)
+                    }
+                }
+            )
+        }
+    }
+
+    private fun launchMoshServer(command: String?): MoshServerOutput.Started {
+        val run = command?.let { " -- sh -c " + shellQuote(it) }.orEmpty()
+        var lastOutput = ""
+        for (locale in listOf("C.UTF-8", "en_US.UTF-8")) {
+            val result = remoteCommand("MOSH_SERVER_NETWORK_TMOUT=$SERVER_IDLE_SECONDS LC_ALL=$locale LANG=$locale mosh-server new -c 256$run 2>&1")
+            MoshServerOutput.parse(result.output)?.let { return it }
+            lastOutput = result.output
+        }
+        throw IOException("mosh-server did not start: " + lastOutput.trim().lineSequence().firstOrNull().orEmpty().take(200))
+    }
+
+    private fun shellQuote(value: String) = "'" + value.replace("'", "'\\''") + "'"
+
+    private fun closeSshAfterMosh() {
+        val active = session
+        val held = jumps.toList()
+        jumps.clear()
+        session = null
+        thread(name = "ssh-disconnect") {
+            runCatching { active?.disconnect() }
+            held.forEach { runCatching { it.disconnect() } }
+        }
     }
 
     private fun knock(target: SshConnectionConfig) {
@@ -480,6 +554,11 @@ class SshConnectionManager(
         require(cols > 0 && rows > 0)
         windowSize.set(cols to rows)
         if (localShell != null) return
+        moshConnection?.let { mosh ->
+            try { writer?.execute { runCatching { mosh.resize(cols, rows) } } }
+            catch (_: RejectedExecutionException) { }
+            return
+        }
         telnetConnection?.let { telnet ->
             try { writer?.execute { runCatching { telnet.resize(cols, rows) } } }
             catch (_: RejectedExecutionException) { }
@@ -513,6 +592,8 @@ class SshConnectionManager(
         warningSubscription = null
         val telnet = telnetConnection
         telnetConnection = null
+        val mosh = moshConnection
+        moshConnection = null
         val local = localShell
         localShell = null
         runCatching { connectingTelnet?.close() }
@@ -534,6 +615,7 @@ class SshConnectionManager(
         // Closing sends packets, so it cannot run on the caller's thread either.
         thread(name = "ssh-disconnect") {
             telnet?.close()
+            mosh?.shutdown()
             local?.close()
             sessionChannels.close()
             runCatching { out?.close() }
@@ -581,6 +663,7 @@ class SshConnectionManager(
         private const val PTY_TYPE = "xterm-256color"
         private const val LOCAL_LOOPBACK = "127.0.0.1"
         private const val TAG = "LochSSH"
+        private const val SERVER_IDLE_SECONDS = 3 * 24 * 60 * 60
         private const val SCREEN_HALF_PAGE_ROWS = 10
         private const val WHEEL_SETTLE_MS = 400L
     }

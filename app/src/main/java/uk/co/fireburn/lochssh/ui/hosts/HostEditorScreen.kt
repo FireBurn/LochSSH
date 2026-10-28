@@ -62,6 +62,7 @@ fun HostEditorScreen(
     var agentForwarding by remember(hostId) { mutableStateOf(false) }
     var telnet by remember(hostId) { mutableStateOf(false) }
     var localShell by remember(hostId) { mutableStateOf(false) }
+    var mosh by remember(hostId) { mutableStateOf(false) }
     var tmuxSeen by remember(hostId) { mutableStateOf(false) }
     var screenSeen by remember(hostId) { mutableStateOf(false) }
     var confirmAgent by remember(hostId) { mutableStateOf(false) }
@@ -119,6 +120,7 @@ fun HostEditorScreen(
             agentForwarding = it.agentForwarding
             telnet = it.telnet
             localShell = it.localShell
+            mosh = it.mosh
             tmuxSeen = it.tmuxSeen
             screenSeen = it.screenSeen
             proxy = HostProxyFields.from(it)
@@ -155,7 +157,7 @@ fun HostEditorScreen(
         saving = true
         saveError = null
         viewModel.save(name, host, port, keepAlive, group, identityId, autoCommand, remoteSessionMode,
-            jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet, localShell) { error ->
+            jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet, localShell, mosh) { error ->
             saving = false
             if (error == null) onBack() else saveError = error
         }
@@ -349,7 +351,7 @@ fun HostEditorScreen(
                 }
                 androidx.compose.material3.Switch(checked = telnet, onCheckedChange = {
                     telnet = it
-                    if (it) localShell = false
+                    if (it) { localShell = false; mosh = false }
                     if (it && port == "22") port = "23" else if (!it && port == "23") port = "22"
                 })
             }
@@ -361,7 +363,18 @@ fun HostEditorScreen(
                 }
                 androidx.compose.material3.Switch(checked = localShell, onCheckedChange = {
                     localShell = it
-                    if (it) telnet = false
+                    if (it) { telnet = false; mosh = false }
+                })
+            }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Use Mosh")
+                    Text("Signs in over SSH, then keeps the session alive over UDP through network changes and sleep. Needs mosh-server on the host and a reachable UDP port. No tunnels, jump hosts or proxy.",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                androidx.compose.material3.Switch(checked = mosh, onCheckedChange = {
+                    mosh = it
+                    if (it) { telnet = false; localShell = false }
                 })
             }
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {

@@ -107,11 +107,12 @@ class HostEditorViewModel @Inject constructor(
         proxy: HostProxyFields = HostProxyFields(),
         telnet: Boolean = false,
         localShell: Boolean = false,
+        mosh: Boolean = false,
         onFinished: (String?) -> Unit
     ) {
         viewModelScope.launch {
             val error = try {
-                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet, localShell)
+                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet, localShell, mosh)
                 null
             } catch (e: CancellationException) {
                 throw e
@@ -137,7 +138,8 @@ class HostEditorViewModel @Inject constructor(
         knockPause: String,
         proxy: HostProxyFields,
         telnet: Boolean,
-        localShell: Boolean = false
+        localShell: Boolean = false,
+        mosh: Boolean = false
     ) {
         check(loaded) { loadError ?: "Wait for the host to load" }
         val existing = host
@@ -158,6 +160,11 @@ class HostEditorViewModel @Inject constructor(
             "Telnet does not support jump hosts, proxies, tunnels, knocking or agent forwarding"
         }
         require(!(localShell && telnet)) { "Choose Telnet or this device, not both" }
+        require(listOf(telnet, localShell, mosh).count { it } <= 1) { "Choose one of Telnet, this device or Mosh" }
+        require(!mosh || (jumpHostId == null && forwards.isEmpty() && !agentForwarding &&
+            proxy.type == SavedSshProxy.NONE)) {
+            "Mosh does not support jump hosts, proxies, tunnels or agent forwarding"
+        }
         val details = existing?.copy(
             name = name,
             host = hostName,
@@ -172,7 +179,8 @@ class HostEditorViewModel @Inject constructor(
             knockSequence = knockSequence.trim(),
             knockPause = pause,
             telnet = telnet,
-            localShell = localShell
+            localShell = localShell,
+            mosh = mosh
         ) ?: SshHostEntity(
             name = name,
             host = hostName,
@@ -187,7 +195,8 @@ class HostEditorViewModel @Inject constructor(
             knockSequence = knockSequence.trim(),
             knockPause = pause,
             telnet = telnet,
-            localShell = localShell
+            localShell = localShell,
+            mosh = mosh
         )
         val entity = proxy.applyTo(details)
         database.withTransaction {

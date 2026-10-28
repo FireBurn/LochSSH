@@ -1005,3 +1005,9 @@ JSch jars (2026-10-28): `app/libs` now holds one jar, `jsch-patched.jar`, built 
 inside the main jar. A live test (`LiveSshAndroidTest.hybridMlKemKeyExchangeWorksAlongsideThePlatformX25519`,
 run with `-e mlkem true`) connects to Quark offering only `mlkem768x25519-sha256`; it passed on the Android 13
 emulator, so the PR's platform X25519 works inside the hybrid key exchange with BouncyCastle providing ML-KEM.
+
+Mosh (2026-10-28): built in plain Kotlin and wired into the app (host switch, SSH launch of mosh-server,
+UDP session, DB version 15). Verified: unit tests; a real mosh-server built from source on the host (type,
+screen change, resize, broken socket, shutdown); and an emulator run that signs in over SSH, starts Mosh and
+runs commands (Android 13). Not seen on the phone: Quark has no mosh-server. See `docs/other-sessions.md`.
+Open: serial only.

@@ -37,9 +37,22 @@ loopback through a fake port; the real adapter needs a phone with OTG.
 
 ## Mosh
 
-Not planned yet. Mosh needs its UDP state-synchronisation protocol and a
-native client; there is no maintained Kotlin or Java implementation, so it
-breaks the Kotlin-only rule in AGENTS.md in the same way a local shell does.
-Revisit only if the user waives that rule or a pure-JVM implementation appears.
-It would also be a separate session type, since it cannot share SSH port
-forwards.
+Built in plain Kotlin (package `mosh`), no native code. The host editor has a "Use Mosh" switch. Connecting
+signs in over SSH with the normal host settings, runs `mosh-server new` over an exec channel (it tries
+`C.UTF-8` then `en_US.UTF-8`, sets `MOSH_SERVER_NETWORK_TMOUT` to three days, and runs the tmux or Screen
+command for Auto and New tmux), reads the `MOSH CONNECT port key` line, drops the SSH link and carries on
+over UDP.
+
+The protocol layer follows the Mosh source: AES-128-OCB packets (BouncyCastle, already bundled) with an
+8 byte nonce whose top bit is the direction, zlib-compressed fragments, and a small hand-written protobuf
+codec for the instruction, host and user messages. The client numbers its events as states, resends until
+the server acknowledges, sends a heartbeat every three seconds, answers the server's state numbers, and
+opens a new socket when the network changes, which the server accepts as roaming. Leaving a session sends
+the shutdown instruction so the server's shell ends.
+
+Not done: local echo prediction, and jump hosts, proxies, tunnels and agent forwarding (the editor refuses
+them). The UDP port the server picks must be reachable, and the host needs `mosh-server`.
+
+Tests: protocol unit tests; `MoshInteropTest` starts a real `mosh-server` when `MOSH_SERVER` names one
+(types, sees the screen change, resizes, survives a broken socket, shuts down); and a live test through the
+app (`LiveSshAndroidTest`, `-e mosh true`).

@@ -211,6 +211,7 @@ internal fun HostRow(
                 val subtitle = buildString {
                     if (host.telnet) append("Telnet · ")
                     if (host.localShell) append("This device · ")
+                    if (host.mosh) append("Mosh · ")
                     append("${host.host}:${host.port}")
                     if (host.group.isNotBlank()) append(" · ${host.group}")
                 }

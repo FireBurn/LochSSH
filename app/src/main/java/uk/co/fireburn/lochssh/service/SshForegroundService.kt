@@ -203,6 +203,7 @@ class SshForegroundService : Service() {
                         proxy = SavedSshProxy.resolve(host, identityDao::getById, secrets::getSecret),
                         telnet = host.id == hostId && host.telnet,
                         local = host.id == hostId && host.localShell,
+                        mosh = host.id == hostId && host.mosh,
                         forwards = if (host.id == hostId) portForwardDao.getByHost(hostId).map {
                             PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
                         } else emptyList()
@@ -250,7 +251,7 @@ class SshForegroundService : Service() {
             }
             history.connected(attempt.token)
             parked.remove(sessionId)
-            if (AutoReattach.applies(connected.config.local)) reattach.add(sessionId)
+            if (AutoReattach.applies(connected.config.local || connected.config.mosh)) reattach.add(sessionId)
             else reattach.remove(sessionId)
             val initialCommand = connected.config.autoCommand.takeIf {
                 attempt.remoteCommand == null &&

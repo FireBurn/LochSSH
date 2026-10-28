@@ -43,5 +43,6 @@ data class SshHostEntity(
     @ColumnInfo(name = "telnet", defaultValue = "0") val telnet: Boolean = false,
     @ColumnInfo(name = "local_shell", defaultValue = "0") val localShell: Boolean = false,
     @ColumnInfo(name = "tmux_seen", defaultValue = "0") val tmuxSeen: Boolean = false,
-    @ColumnInfo(name = "screen_seen", defaultValue = "0") val screenSeen: Boolean = false
+    @ColumnInfo(name = "screen_seen", defaultValue = "0") val screenSeen: Boolean = false,
+    @ColumnInfo(name = "mosh", defaultValue = "0") val mosh: Boolean = false
 )

@@ -143,6 +143,26 @@ class LiveSshAndroidTest {
         }
     }
 
+    // Signs in over SSH only to start mosh-server, then runs a command over UDP.
+    @Test
+    fun moshSessionRunsACommandOverUdp() {
+        assumeTrue(arguments.getString("mosh") == "true")
+        val key = File(arguments.getString("ed25519Key")!!).readText()
+        val manager = connect(config(key).copy(mosh = true))
+        try {
+            assertTrue(manager.isConnected)
+            manager.write("echo MOSH_$((6*7))\r".toByteArray())
+            waitFor("mosh screen output") { screen(manager).contains("MOSH_42") }
+            manager.terminal.buffer.resize(100, 30)
+            manager.resize(100, 30)
+            manager.write("echo SIZE_$(stty size | tr ' ' x)\r".toByteArray())
+            try { waitFor("size change") { screen(manager).contains("SIZE_30x100") } }
+            catch (e: AssertionError) { throw AssertionError("screen was:\n" + screen(manager).lines().filter { it.isNotBlank() }.joinToString("\n"), e) }
+        } finally {
+            manager.disconnect()
+        }
+    }
+
     private fun serverPort() = arguments.getString("port")!!.toInt()
 
     private fun withConnection(forwards: List<PortForwardSpec>, body: () -> Unit) {
