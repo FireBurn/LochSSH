@@ -71,7 +71,7 @@ class AppPreferences @Inject constructor(
         _terminalFontSize.value = clamped
     }
 
-    fun changeTerminalFontSize(step: Int) = setTerminalFontSize(_terminalFontSize.value + step)
+    fun changeTerminalFontSize(step: Int) = setTerminalFontSize(nextFontSize(_terminalFontSize.value, step))
 
     fun reset() {
         if (!prefs.edit().clear().commit()) throw IOException("Could not clear settings")
@@ -85,8 +85,15 @@ class AppPreferences @Inject constructor(
     }
 
     companion object {
-        const val MIN_FONT_SIZE = 8
-        const val MAX_FONT_SIZE = 28
+        const val MIN_FONT_SIZE = 3
+        const val MAX_FONT_SIZE = 64
+        private const val BIG_FONT_SIZE = 24
+
+        // One point at a time up to 24, two points above it, so a tap is a visible change at any size.
+        fun nextFontSize(size: Int, step: Int): Int {
+            val width = if ((step > 0 && size >= BIG_FONT_SIZE) || (step < 0 && size > BIG_FONT_SIZE)) 2 else 1
+            return (size + step * width).coerceIn(MIN_FONT_SIZE, MAX_FONT_SIZE)
+        }
         const val DEFAULT_FONT_SIZE = 14
 
         private const val FILE_NAME = "lochssh_settings"

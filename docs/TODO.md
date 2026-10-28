@@ -1029,3 +1029,6 @@ Fixes from phone use (2026-10-28 evening):
   session was opened.
 - Keyboard: when the on-screen keyboard is up but the hidden input lost focus, focus is restored on tap, on
   resume, after a reconnect and when the keyboard appears. Not yet confirmed on the phone.
+
+Font size (2026-10-28): the terminal font range is now 3 to 64 sp (was 8 to 28); steps are one point up to 24 and
+two points above it. Set from the terminal bar (Aa+ and Aa-) and Settings. Not yet looked at on the phone.
