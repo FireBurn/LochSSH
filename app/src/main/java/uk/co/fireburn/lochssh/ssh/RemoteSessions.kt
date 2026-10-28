@@ -96,10 +96,11 @@ object RemoteSessions {
         else -> throw IllegalArgumentException("Unknown remote session tool")
     }
 
-    // Named so the app can find the session again to scroll it.
+    // Named so the app can find the session again to scroll it. The flags attach to it if
+    // it already exists, which is what a reconnect needs.
     fun create(tool: String, name: String = "loch${System.currentTimeMillis() % 100_000}"): String = when (tool) {
-        RemoteSessionModes.TMUX -> "tmux new-session -s $name"
-        RemoteSessionModes.SCREEN -> "screen -S $name"
+        RemoteSessionModes.TMUX -> "tmux new-session -A -s $name"
+        RemoteSessionModes.SCREEN -> "screen -S $name -D -RR"
         else -> throw IllegalArgumentException("Unknown remote session tool")
     }
 

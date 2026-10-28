@@ -411,7 +411,7 @@ class SshForegroundService : Service() {
         }
         retryCounts[sessionId] = tries + 1
         waiting.add(sessionId)
-        registry.failed(sessionId, "Connection lost. Reconnecting in ${wait / 1000} seconds")
+        registry.failed(sessionId, if (wait < 1_000) "Connection lost. Reconnecting" else "Connection lost. Reconnecting in ${wait / 1000} seconds")
         scope.launch {
             delay(wait)
             waiting.remove(sessionId)

@@ -71,6 +71,7 @@ class SshConnectionManager(
     @Volatile
     private var multiplexer: Multiplexer? = null
     private val scrollWorker = Executors.newSingleThreadExecutor { r -> Thread(r, "scroll-worker") }
+    private val refreshQueued = java.util.concurrent.atomic.AtomicBoolean(false)
     private val pendingScroll = java.util.concurrent.atomic.AtomicInteger(0)
     private val _multiplexerScrolled = kotlinx.coroutines.flow.MutableStateFlow(false)
     val multiplexerScrolled: kotlinx.coroutines.flow.StateFlow<Boolean> = _multiplexerScrolled
@@ -331,6 +332,21 @@ class SshConnectionManager(
         return true
     }
 
+    // Wheel events sent straight to tmux (mouse mode) scroll it without the app doing
+    // so, so ask it afterwards whether the pane is still in scroll mode.
+    fun noteRemoteWheel() {
+        val mux = multiplexer?.takeIf { it.tool == Multiplexer.Tool.TMUX } ?: return
+        if (!refreshQueued.compareAndSet(false, true)) return
+        try {
+            scrollWorker.execute {
+                Thread.sleep(WHEEL_SETTLE_MS)
+                refreshQueued.set(false)
+                try { _multiplexerScrolled.value = remoteCommand(mux.mode()).output.trim().endsWith("1") }
+                catch (e: Exception) { Log.w(TAG, "Reading the remote scroll mode failed", e) }
+            }
+        } catch (_: RejectedExecutionException) { }
+    }
+
     fun leaveMultiplexerScroll() {
         if (!_multiplexerScrolled.value) return
         try { scrollWorker.execute { leaveScroll() } } catch (_: RejectedExecutionException) { }
@@ -566,5 +582,6 @@ class SshConnectionManager(
         private const val LOCAL_LOOPBACK = "127.0.0.1"
         private const val TAG = "LochSSH"
         private const val SCREEN_HALF_PAGE_ROWS = 10
+        private const val WHEEL_SETTLE_MS = 400L
     }
 }

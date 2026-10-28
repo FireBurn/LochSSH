@@ -59,6 +59,7 @@ fun TerminalView(
     onBuffer: (TerminalBuffer) -> Unit = {},
     onLinkTap: (String) -> Unit = {},
     onMultiplexerScroll: (up: Boolean, lines: Int) -> Boolean = { _, _ -> false },
+    onRemoteWheel: () -> Unit = {},
     onRemoteScroll: (ByteArray) -> Unit = { manager?.write(it) }
 ) {
     val terminal = remember(manager) { manager?.terminal ?: TerminalSession(MIN_COLS, MIN_ROWS) }
@@ -66,6 +67,7 @@ fun TerminalView(
     val sendScroll by rememberUpdatedState(onRemoteScroll)
     val openLink by rememberUpdatedState(onLinkTap)
     val scrollMultiplexer by rememberUpdatedState(onMultiplexerScroll)
+    val remoteWheel by rememberUpdatedState(onRemoteWheel)
     val frame = remember(buffer) { mutableIntStateOf(0) }
     val scrollOffset = remember(buffer) { mutableIntStateOf(0) }
     var selection by remember(buffer) { mutableStateOf<Selection?>(null) }
@@ -152,6 +154,7 @@ fun TerminalView(
                             }
                             if (wheel != null) {
                                 repeat(kotlin.math.abs(lines).coerceAtMost(32)) { sendScroll(wheel) }
+                                remoteWheel()
                             } else if (scrollOffset.intValue == 0 &&
                                 scrollMultiplexer(lines > 0, kotlin.math.abs(lines))) {
                                 // The session scrolls itself.

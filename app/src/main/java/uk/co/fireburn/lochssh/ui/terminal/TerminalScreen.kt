@@ -635,6 +635,7 @@ fun TerminalScreen(
                                 onBuffer = { terminalBuffer = it },
                                 onLinkTap = { pendingLinks = listOf(it) },
                                 onMultiplexerScroll = { up, lines -> manager?.scrollMultiplexer(up, lines) == true },
+                                onRemoteWheel = { manager?.noteRemoteWheel() },
                                 modifier = paneModifier
                             )
                         }
@@ -656,6 +657,7 @@ fun TerminalScreen(
                                         theme = terminalTheme,
                                         onLinkTap = { pendingLinks = listOf(it) },
                                         onMultiplexerScroll = { up, lines -> splitManager.scrollMultiplexer(up, lines) },
+                                        onRemoteWheel = { splitManager.noteRemoteWheel() },
                                         modifier = it.splitFocus(splitFocused, accent) { splitFocused = true }
                                     )
                                 }

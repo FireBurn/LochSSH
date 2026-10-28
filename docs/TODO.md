@@ -934,3 +934,18 @@ system font size.
 Host list: each saved host row now has New tmux and Rescan buttons (not for Telnet or this-device
 hosts), New tmux opens the new session, and the list scrolls far enough for the last host's menu to
 clear the add button.
+
+Phone run 2026-10-28 (CPH2747, over wireless adb), second pass:
+- New tmux on a saved host row opens a new named tmux session on Quark. Works.
+- Swiping scrolls tmux (history position shown by tmux: 115 of 159). Works. The user's tmux has mouse
+  mode on, so the swipe goes to tmux as wheel events; the Live button did not show because the app
+  did not know. Fixed: after wheel events the app asks tmux for the pane's scroll mode.
+- Dropping the connection (killing that session's sshd-session on the server) showed
+  "Connection lost. Reconnecting in 0 seconds" and then failed: the retry re-ran
+  `tmux new-session -s NAME`, which tmux refuses when the session exists. Fixed: new sessions now
+  use `new-session -A -s NAME` (Screen: `-S NAME -D -RR`), which attaches if it exists. The message
+  no longer says "0 seconds". Not yet re-run on the phone because the screen locked.
+- HOME was clipped to "HOM" at 11sp. Labels of four or more characters are now 9sp. Not yet seen on
+  the phone.
+- Left to check on the phone: reconnect with the fix, the Live button, tapping a link, Auto mode on a
+  new host, the local shell.

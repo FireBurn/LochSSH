@@ -14,6 +14,8 @@ data class Multiplexer(val tool: Tool, val target: String?) {
 
     fun cancel(): String = "tmux send-keys -t ${quote()} -X cancel 2>/dev/null; " + inMode()
 
+    fun mode(): String = inMode()
+
     private fun inMode() = "tmux display-message -p -t ${quote()} '#{pane_in_mode}'"
 
     private fun quote() = "'" + requireNotNull(target).replace("'", "'\\''") + "'"
