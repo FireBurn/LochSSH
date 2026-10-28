@@ -212,6 +212,7 @@ internal fun HostRow(
                     if (host.telnet) append("Telnet · ")
                     if (host.localShell) append("This device · ")
                     if (host.mosh) append("Mosh · ")
+                    if (host.serial) append("USB serial · ")
                     append("${host.host}:${host.port}")
                     if (host.group.isNotBlank()) append(" · ${host.group}")
                 }

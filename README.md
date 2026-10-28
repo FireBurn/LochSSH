@@ -184,5 +184,7 @@ BSD 3-Clause. See [LICENSE](LICENSE).
 
 Unicode character data uses [Unicode License V3](licenses/Unicode.txt).
 Ed25519 and X25519 fall back to BouncyCastle (MIT) where the platform lacks them. See [licenses/BouncyCastle.txt](licenses/BouncyCastle.txt).
+
+USB serial uses usb-serial-for-android (MIT). See [licenses/usb-serial-for-android.txt](licenses/usb-serial-for-android.txt).
 JetBrains Mono v2.304 uses the [SIL Open Font License](app/src/main/assets/jetbrains-mono-license.txt).
 The bundled regular and bold files come from the upstream no-ligature family.

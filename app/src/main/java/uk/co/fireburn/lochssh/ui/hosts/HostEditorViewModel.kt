@@ -108,11 +108,13 @@ class HostEditorViewModel @Inject constructor(
         telnet: Boolean = false,
         localShell: Boolean = false,
         mosh: Boolean = false,
+        serial: Boolean = false,
+        serialSettings: String = "",
         onFinished: (String?) -> Unit
     ) {
         viewModelScope.launch {
             val error = try {
-                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet, localShell, mosh)
+                saveHost(name, hostName, port, keepAlive, group, identityId, autoCommand, remoteSessionMode, jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet, localShell, mosh, serial, serialSettings)
                 null
             } catch (e: CancellationException) {
                 throw e
@@ -139,7 +141,9 @@ class HostEditorViewModel @Inject constructor(
         proxy: HostProxyFields,
         telnet: Boolean,
         localShell: Boolean = false,
-        mosh: Boolean = false
+        mosh: Boolean = false,
+        serial: Boolean = false,
+        serialSettings: String = ""
     ) {
         check(loaded) { loadError ?: "Wait for the host to load" }
         val existing = host
@@ -160,7 +164,16 @@ class HostEditorViewModel @Inject constructor(
             "Telnet does not support jump hosts, proxies, tunnels, knocking or agent forwarding"
         }
         require(!(localShell && telnet)) { "Choose Telnet or this device, not both" }
-        require(listOf(telnet, localShell, mosh).count { it } <= 1) { "Choose one of Telnet, this device or Mosh" }
+        require(listOf(telnet, localShell, mosh, serial).count { it } <= 1) {
+            "Choose one of Telnet, this device, Mosh or USB serial"
+        }
+        require(!serial || (jumpHostId == null && forwards.isEmpty() && !agentForwarding &&
+            proxy.type == SavedSshProxy.NONE && knockSequence.isBlank())) {
+            "USB serial does not support jump hosts, proxies, tunnels, knocking or agent forwarding"
+        }
+        if (serial) require(serialSettings == uk.co.fireburn.lochssh.serial.SerialSettings.decode(serialSettings).encode()) {
+            "Check the serial settings"
+        }
         require(!mosh || (jumpHostId == null && forwards.isEmpty() && !agentForwarding &&
             proxy.type == SavedSshProxy.NONE)) {
             "Mosh does not support jump hosts, proxies, tunnels or agent forwarding"
@@ -180,7 +193,9 @@ class HostEditorViewModel @Inject constructor(
             knockPause = pause,
             telnet = telnet,
             localShell = localShell,
-            mosh = mosh
+            mosh = mosh,
+            serial = serial,
+            serialSettings = if (serial) serialSettings else ""
         ) ?: SshHostEntity(
             name = name,
             host = hostName,
@@ -196,7 +211,9 @@ class HostEditorViewModel @Inject constructor(
             knockPause = pause,
             telnet = telnet,
             localShell = localShell,
-            mosh = mosh
+            mosh = mosh,
+            serial = serial,
+            serialSettings = if (serial) serialSettings else ""
         )
         val entity = proxy.applyTo(details)
         database.withTransaction {

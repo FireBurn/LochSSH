@@ -11,6 +11,9 @@ import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
 import uk.co.fireburn.lochssh.local.LocalShellConnection
 import uk.co.fireburn.lochssh.mosh.MoshConnection
+import uk.co.fireburn.lochssh.serial.SerialConnection
+import uk.co.fireburn.lochssh.serial.SerialSettings
+import uk.co.fireburn.lochssh.serial.UsbSerial
 import uk.co.fireburn.lochssh.mosh.MoshServerOutput
 import uk.co.fireburn.lochssh.telnet.TelnetConnection
 import java.io.ByteArrayOutputStream
@@ -67,6 +70,8 @@ class SshConnectionManager(
     @Volatile
     private var moshConnection: MoshConnection? = null
     @Volatile
+    private var serialConnection: SerialConnection? = null
+    @Volatile
     private var localShell: LocalShellConnection? = null
     @Volatile
     private var connectingTelnet: Socket? = null
@@ -89,12 +94,13 @@ class SshConnectionManager(
     val isConnected: Boolean
         get() = running && (telnetConnection?.isOpen
             ?: moshConnection?.isOpen
+            ?: serialConnection?.isOpen
             ?: localShell?.isOpen
             ?: (channel?.isConnected == true && session?.isConnected == true))
 
     @Synchronized
     fun connect() {
-        try { connectionAttempt.run { if (config.local) connectLocal() else if (config.telnet) connectTelnet() else connectChain() } }
+        try { connectionAttempt.run { if (config.serial) connectSerial() else if (config.local) connectLocal() else if (config.telnet) connectTelnet() else connectChain() } }
         finally {
             connectingChannels.clear()
             connectingSessions.clear()
@@ -112,6 +118,33 @@ class SshConnectionManager(
         config.sameTransport(other) && transport?.isConnected == true
 
     private fun acquireTransport(): SharedSshConnection? = transport?.takeIf { it.acquire() }
+
+    private fun connectSerial() {
+        val connection = UsbSerial.open(context, SerialSettings.decode(config.serialSettings))
+        serialConnection = connection
+        remoteOut = connection.output
+        writer = Executors.newSingleThreadExecutor { r -> Thread(r, "serial-writer") }
+        running = true
+        readerThread = thread(name = "serial-reader") {
+            ShellOutputReader.read(
+                input = connection.input,
+                isRunning = { running },
+                onOutput = { buffer, count ->
+                    recording.append(buffer, count)
+                    titleScanner.feed(buffer, count)
+                    terminal.feed(buffer, count)
+                },
+                onStopped = { failure ->
+                    recording.close()
+                    if (running) {
+                        failure?.let { Log.w(TAG, "Serial read failed", it) }
+                        running = false
+                        onExit(if (failure == null) 0 else -1)
+                    }
+                }
+            )
+        }
+    }
 
     private fun connectLocal() {
         val home = java.io.File(System.getProperty("java.io.tmpdir") ?: "/").parentFile ?: java.io.File("/")
@@ -553,7 +586,7 @@ class SshConnectionManager(
     fun resize(cols: Int, rows: Int) {
         require(cols > 0 && rows > 0)
         windowSize.set(cols to rows)
-        if (localShell != null) return
+        if (localShell != null || serialConnection != null) return
         moshConnection?.let { mosh ->
             try { writer?.execute { runCatching { mosh.resize(cols, rows) } } }
             catch (_: RejectedExecutionException) { }
@@ -594,6 +627,8 @@ class SshConnectionManager(
         telnetConnection = null
         val mosh = moshConnection
         moshConnection = null
+        val serialPort = serialConnection
+        serialConnection = null
         val local = localShell
         localShell = null
         runCatching { connectingTelnet?.close() }
@@ -616,6 +651,7 @@ class SshConnectionManager(
         thread(name = "ssh-disconnect") {
             telnet?.close()
             mosh?.shutdown()
+            serialPort?.close()
             local?.close()
             sessionChannels.close()
             runCatching { out?.close() }

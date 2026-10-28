@@ -1011,3 +1011,8 @@ UDP session, DB version 15). Verified: unit tests; a real mosh-server built from
 screen change, resize, broken socket, shutdown); and an emulator run that signs in over SSH, starts Mosh and
 runs commands (Android 13). Not seen on the phone: Quark has no mosh-server. See `docs/other-sessions.md`.
 Open: serial only.
+
+Serial (2026-10-28): built (host switch, line settings, adapter list, USB permission, DB version 16). Checked:
+settings and a fake port in unit tests; the editor on an emulator; connecting with no adapter shows "No USB
+serial adapter found. Plug it in and try again." Not checked: a real adapter, the permission dialog, wiring
+and flow control. That needs a USB serial adapter and an OTG cable on the phone.

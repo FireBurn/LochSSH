@@ -18,7 +18,7 @@ internal object HostSessionGroups {
             val host = saved[id]
             HostSessionGroup(id, host?.name ?: entries.first().hostName,
                 host?.let { "${it.host}:${it.port}" }, entries,
-                hasTmux = host?.let { !it.telnet && !it.localShell } ?: false)
+                hasTmux = host?.let { !it.telnet && !it.localShell && !it.serial } ?: false)
         }
     }
 }

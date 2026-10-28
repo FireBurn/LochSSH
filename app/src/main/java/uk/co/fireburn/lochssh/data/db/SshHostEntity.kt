@@ -44,5 +44,7 @@ data class SshHostEntity(
     @ColumnInfo(name = "local_shell", defaultValue = "0") val localShell: Boolean = false,
     @ColumnInfo(name = "tmux_seen", defaultValue = "0") val tmuxSeen: Boolean = false,
     @ColumnInfo(name = "screen_seen", defaultValue = "0") val screenSeen: Boolean = false,
-    @ColumnInfo(name = "mosh", defaultValue = "0") val mosh: Boolean = false
+    @ColumnInfo(name = "mosh", defaultValue = "0") val mosh: Boolean = false,
+    @ColumnInfo(name = "serial", defaultValue = "0") val serial: Boolean = false,
+    @ColumnInfo(name = "serial_settings", defaultValue = "''") val serialSettings: String = ""
 )

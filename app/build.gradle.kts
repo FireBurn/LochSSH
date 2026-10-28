@@ -69,6 +69,7 @@ dependencies {
 
     // JSch falls back to these classes when the platform cannot do Ed25519 or X25519.
     implementation(libs.bouncycastle)
+    implementation(libs.usb.serial)
 
     // TEMP: local JSch and Android support builds until the upstream release
     implementation(files("libs/jsch-patched.jar"))

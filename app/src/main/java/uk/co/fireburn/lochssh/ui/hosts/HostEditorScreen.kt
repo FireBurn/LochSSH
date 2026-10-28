@@ -40,6 +40,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import uk.co.fireburn.lochssh.data.db.ForwardTypes
 import uk.co.fireburn.lochssh.data.db.PortForwardEntity
 import uk.co.fireburn.lochssh.data.db.RemoteSessionModes
+import uk.co.fireburn.lochssh.serial.SerialSettings
 import uk.co.fireburn.lochssh.ssh.KeepAlive
 import uk.co.fireburn.lochssh.ssh.SavedSshProxy
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
@@ -63,6 +64,13 @@ fun HostEditorScreen(
     var telnet by remember(hostId) { mutableStateOf(false) }
     var localShell by remember(hostId) { mutableStateOf(false) }
     var mosh by remember(hostId) { mutableStateOf(false) }
+    var serial by remember(hostId) { mutableStateOf(false) }
+    var serialBaud by remember(hostId) { mutableStateOf("115200") }
+    var serialBits by remember(hostId) { mutableStateOf(8) }
+    var serialParity by remember(hostId) { mutableStateOf(SerialSettings.Parity.NONE) }
+    var serialStop by remember(hostId) { mutableStateOf(SerialSettings.StopBits.ONE) }
+    var serialFlow by remember(hostId) { mutableStateOf(SerialSettings.Flow.NONE) }
+    var serialDevice by remember(hostId) { mutableStateOf("") }
     var tmuxSeen by remember(hostId) { mutableStateOf(false) }
     var screenSeen by remember(hostId) { mutableStateOf(false) }
     var confirmAgent by remember(hostId) { mutableStateOf(false) }
@@ -121,6 +129,11 @@ fun HostEditorScreen(
             telnet = it.telnet
             localShell = it.localShell
             mosh = it.mosh
+            serial = it.serial
+            SerialSettings.decode(it.serialSettings).let { line ->
+                serialBaud = line.baud.toString(); serialBits = line.dataBits; serialParity = line.parity
+                serialStop = line.stopBits; serialFlow = line.flow; serialDevice = line.device
+            }
             tmuxSeen = it.tmuxSeen
             screenSeen = it.screenSeen
             proxy = HostProxyFields.from(it)
@@ -143,8 +156,15 @@ fun HostEditorScreen(
         }
         SavedSshProxy.checkRoute(listOf(candidate))
     }.exceptionOrNull()?.message
+    val serialLine = runCatching {
+        SerialSettings(serialBaud.toInt(), serialBits, serialParity, serialStop, serialFlow, serialDevice.trim())
+    }
+    val serialError = if (serial) serialLine.exceptionOrNull()?.let {
+        if (it is NumberFormatException) "Baud rate must be a number" else it.message
+    } else null
     val canSave = viewModel.loaded && !saving && name.isNotBlank() && host.isNotBlank() &&
-        validPort && validKeepAlive && validCommand && knockError == null && proxyError == null
+        validPort && validKeepAlive && validCommand && knockError == null && proxyError == null &&
+        serialError == null
     val minListenPort = if (draftType == ForwardTypes.REMOTE) 1 else 1024
     val validDraftLocal = draftLocal.toIntOrNull() in minListenPort..65535
     val validDraftRemote = draftType == ForwardTypes.DYNAMIC ||
@@ -157,7 +177,8 @@ fun HostEditorScreen(
         saving = true
         saveError = null
         viewModel.save(name, host, port, keepAlive, group, identityId, autoCommand, remoteSessionMode,
-            jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet, localShell, mosh) { error ->
+            jumpHostId, agentForwarding, knockSequence, knockPause, proxy, telnet, localShell, mosh,
+            serial, serialLine.getOrNull()?.encode().orEmpty()) { error ->
             saving = false
             if (error == null) onBack() else saveError = error
         }
@@ -351,7 +372,7 @@ fun HostEditorScreen(
                 }
                 androidx.compose.material3.Switch(checked = telnet, onCheckedChange = {
                     telnet = it
-                    if (it) { localShell = false; mosh = false }
+                    if (it) { localShell = false; mosh = false; serial = false }
                     if (it && port == "22") port = "23" else if (!it && port == "23") port = "22"
                 })
             }
@@ -363,7 +384,7 @@ fun HostEditorScreen(
                 }
                 androidx.compose.material3.Switch(checked = localShell, onCheckedChange = {
                     localShell = it
-                    if (it) { telnet = false; mosh = false }
+                    if (it) { telnet = false; mosh = false; serial = false }
                 })
             }
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
@@ -374,9 +395,29 @@ fun HostEditorScreen(
                 }
                 androidx.compose.material3.Switch(checked = mosh, onCheckedChange = {
                     mosh = it
-                    if (it) { telnet = false; localShell = false }
+                    if (it) { telnet = false; localShell = false; serial = false }
                 })
             }
+            Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Use USB serial")
+                    Text("Talks to a USB serial adapter plugged into this phone. The Host field is only a label. Not tested with a real adapter yet.",
+                        style = MaterialTheme.typography.bodySmall)
+                }
+                androidx.compose.material3.Switch(checked = serial, onCheckedChange = {
+                    serial = it
+                    if (it) { telnet = false; localShell = false; mosh = false }
+                })
+            }
+            if (serial) SerialFields(
+                baud = serialBaud, onBaud = { serialBaud = it },
+                bits = serialBits, onBits = { serialBits = it },
+                parity = serialParity, onParity = { serialParity = it },
+                stop = serialStop, onStop = { serialStop = it },
+                flow = serialFlow, onFlow = { serialFlow = it },
+                device = serialDevice, onDevice = { serialDevice = it },
+                error = serialError
+            )
             Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Forward SSH agent")

@@ -30,7 +30,8 @@ object DatabaseModule {
                 LochSshDatabase.MIGRATION_11_12,
                 LochSshDatabase.MIGRATION_12_13,
                 LochSshDatabase.MIGRATION_13_14,
-                LochSshDatabase.MIGRATION_14_15
+                LochSshDatabase.MIGRATION_14_15,
+                LochSshDatabase.MIGRATION_15_16
             )
             .fallbackToDestructiveMigrationOnDowngrade()
             .build()

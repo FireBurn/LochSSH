@@ -28,12 +28,17 @@ byte script, 0xFF escaping, split reads, and a local server round trip.
 
 ## Serial
 
-USB serial adapters over OTG using the `usb-serial-for-android` library (Java,
-MIT). Host kind `SERIAL` with baud rate, data bits, parity, stop bits and flow
-control. Ask for the Android USB permission when connecting; list attached
-devices to choose one. No automatic reconnect; unplugging ends the session with a
-clear message. Terminal size does not apply. Tests: settings validation and a
-loopback through a fake port; the real adapter needs a phone with OTG.
+Built (host switch "Use USB serial", database version 16). Uses `usb-serial-for-android` 3.9.0 (Java, MIT,
+fetched from JitPack for that one group only; licence in `licenses/`). The line settings (baud, data bits,
+parity, stop bits, flow control, optional vendor:product id) are one validated text column
+(`SerialSettings`). Connecting finds the adapter, asks for Android's USB permission (waits 30 seconds),
+opens the first serial port and applies the settings. Unplugging ends the session with "The USB serial
+adapter was disconnected". No reconnect, no local echo, terminal size does not apply, no jump hosts,
+proxies, tunnels or agent forwarding.
+
+Tests: settings validation and round trip, and a fake port (`SerialIo`) covering both directions, closing
+and unplugging. The USB part (`UsbSerial`) is only checked up to "no adapter found" on an emulator; it has
+not been run against a real adapter, and the editor says so.
 
 ## Mosh
 

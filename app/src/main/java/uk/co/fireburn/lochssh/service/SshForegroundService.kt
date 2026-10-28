@@ -204,6 +204,8 @@ class SshForegroundService : Service() {
                         telnet = host.id == hostId && host.telnet,
                         local = host.id == hostId && host.localShell,
                         mosh = host.id == hostId && host.mosh,
+                        serial = host.id == hostId && host.serial,
+                        serialSettings = host.serialSettings,
                         forwards = if (host.id == hostId) portForwardDao.getByHost(hostId).map {
                             PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
                         } else emptyList()
@@ -251,7 +253,7 @@ class SshForegroundService : Service() {
             }
             history.connected(attempt.token)
             parked.remove(sessionId)
-            if (AutoReattach.applies(connected.config.local || connected.config.mosh)) reattach.add(sessionId)
+            if (AutoReattach.applies(connected.config.local || connected.config.mosh || connected.config.serial)) reattach.add(sessionId)
             else reattach.remove(sessionId)
             val initialCommand = connected.config.autoCommand.takeIf {
                 attempt.remoteCommand == null &&
