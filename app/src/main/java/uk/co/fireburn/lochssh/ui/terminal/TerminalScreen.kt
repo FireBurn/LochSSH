@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -122,6 +123,9 @@ fun TerminalScreen(
     val session = sessions.firstOrNull { it.id == sessionId }
     val savedCommands by viewModel.savedCommands.collectAsStateWithLifecycle()
     val manager = session?.manager
+    val remoteScrolled by (manager?.multiplexerScrolled ?: remember { kotlinx.coroutines.flow.MutableStateFlow(false) })
+        .collectAsStateWithLifecycle()
+    LaunchedEffect(liveRequest) { manager?.leaveMultiplexerScroll() }
     var splitId by remember(sessionId) { mutableStateOf<Long?>(null) }
     var splitFocused by remember(sessionId) { mutableStateOf(false) }
     var splitPicker by remember(sessionId) { mutableStateOf(false) }
@@ -455,7 +459,7 @@ fun TerminalScreen(
                         }
                     },
                     actions = {
-                        if (scrollbackOffset > 0) {
+                        if (scrollbackOffset > 0 || remoteScrolled) {
                             TextButton(onClick = { liveRequest++ }) { Text("Live") }
                         }
                         Box {
@@ -578,7 +582,23 @@ fun TerminalScreen(
                 ) {
                     RecordingStatus(recording, startingRecording, recordingError)
                     val error = session?.error
-                    if (session == null || error != null || (manager != null && !manager.isConnected)) {
+                    if (session != null && manager == null && error == null && session.hostKeyReview == null) {
+                        Column(
+                            modifier = Modifier
+                                .weight(1f)
+                                .fillMaxWidth()
+                                .padding(24.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
+                            Text(session.statusText, style = MaterialTheme.typography.bodyLarge)
+                            TextButton(onClick = {
+                                SshForegroundService.disconnect(context, sessionId)
+                                leave()
+                            }) { Text("Cancel") }
+                            TextButton(onClick = onHosts) { Text("Manage hosts") }
+                        }
+                    } else if (session == null || error != null || (manager != null && !manager.isConnected)) {
                         Column(
                             modifier = Modifier
                                 .weight(1f)
@@ -614,6 +634,7 @@ fun TerminalScreen(
                                 onSelectionChanged = { selectedText = it?.takeIf { text -> text.isNotEmpty() } },
                                 onBuffer = { terminalBuffer = it },
                                 onLinkTap = { pendingLinks = listOf(it) },
+                                onMultiplexerScroll = { up, lines -> manager?.scrollMultiplexer(up, lines) == true },
                                 modifier = paneModifier
                             )
                         }
@@ -634,6 +655,7 @@ fun TerminalScreen(
                                         wrapLines = wrapLines,
                                         theme = terminalTheme,
                                         onLinkTap = { pendingLinks = listOf(it) },
+                                        onMultiplexerScroll = { up, lines -> splitManager.scrollMultiplexer(up, lines) },
                                         modifier = it.splitFocus(splitFocused, accent) { splitFocused = true }
                                     )
                                 }
@@ -712,10 +734,19 @@ fun TerminalScreen(
                     )
                 }
                 if (!toolbarVisible) {
-                    TextButton(
-                        onClick = { toolbarVisible = true },
-                        modifier = Modifier.align(Alignment.TopEnd).padding(padding)
-                    ) { Text("Show controls") }
+                    IconButton(
+                        onClick = { leave() },
+                        modifier = Modifier.align(Alignment.TopStart).padding(padding)
+                    ) { Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Back") }
+                    Row(
+                        modifier = Modifier.align(Alignment.TopEnd).padding(padding),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (scrollbackOffset > 0 || remoteScrolled) {
+                            TextButton(onClick = { liveRequest++ }) { Text("Live") }
+                        }
+                        TextButton(onClick = { toolbarVisible = true }) { Text("Show controls") }
+                    }
                 }
             }
         }

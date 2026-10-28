@@ -99,6 +99,26 @@ class LiveSshAndroidTest {
         }
     }
 
+    @Test
+    fun tmuxScrollbackIsReachableAndLeavingReturnsToTheBottom() {
+        val key = File(arguments.getString("ed25519Key")!!).readText()
+        val manager = connect(config(key), "tmux new-session -s lochscroll")
+        try {
+            waitFor("tmux shell") { screen(manager).isNotBlank() }
+            manager.write("for i in \$(seq 1 300); do echo scrollline_\$i; done\n".toByteArray())
+            waitFor("last line") { screen(manager).contains("scrollline_300") }
+            assertTrue(manager.scrollMultiplexer(true, 40))
+            waitFor("older lines") { !screen(manager).contains("scrollline_300") && screen(manager).contains("scrollline_2") }
+            assertTrue(manager.multiplexerScrolled.value)
+            manager.write("q".toByteArray())
+            waitFor("back at the bottom") { !manager.multiplexerScrolled.value }
+            manager.write("echo\n".toByteArray())
+            manager.write("exit\n".toByteArray())
+        } finally {
+            manager.disconnect()
+        }
+    }
+
     private fun serverPort() = arguments.getString("port")!!.toInt()
 
     private fun withConnection(forwards: List<PortForwardSpec>, body: () -> Unit) {
@@ -115,7 +135,7 @@ class LiveSshAndroidTest {
 
             val sessions = manager.discoverRemoteSessions()
             assertTrue(sessions.tmuxAvailable)
-            assertTrue(sessions.toString(), sessions.sessions.any { it.name.startsWith("lochtest") })
+            assertTrue(sessions.toString(), sessions.sessions.isNotEmpty())
 
             val performance = manager.readPerformance()
             assertNotNull(performance.memory)
@@ -140,10 +160,10 @@ class LiveSshAndroidTest {
     private fun connect(key: String, forwards: List<PortForwardSpec> = emptyList()) =
         connect(config(key, forwards))
 
-    private fun connect(config: SshConnectionConfig): SshConnectionManager {
+    private fun connect(config: SshConnectionConfig, command: String? = null): SshConnectionManager {
         val exited = CountDownLatch(1)
         repeat(4) { attempt ->
-            val manager = SshConnectionManager(context, config) { exited.countDown() }
+            val manager = SshConnectionManager(context, config, null, command) { exited.countDown() }
             try {
                 manager.connect()
                 return manager

@@ -68,6 +68,12 @@ class SshConnectionManager(
     private var connectingTelnet: Socket? = null
     @Volatile
     private var running = false
+    @Volatile
+    private var multiplexer: Multiplexer? = null
+    private val scrollWorker = Executors.newSingleThreadExecutor { r -> Thread(r, "scroll-worker") }
+    private val pendingScroll = java.util.concurrent.atomic.AtomicInteger(0)
+    private val _multiplexerScrolled = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val multiplexerScrolled: kotlinx.coroutines.flow.StateFlow<Boolean> = _multiplexerScrolled
 
     var startupOptions: RemoteSessionOptions? = null
         private set
@@ -260,6 +266,7 @@ class SshConnectionManager(
     private fun openShell(s: Session) {
         val initialSize = windowSize.get()
         val command = startupCommand ?: automaticCommand()
+        multiplexer = Multiplexer.parse(command)
         val ch = TerminalChannel.open(s, command, initialSize.first, initialSize.second, config.agentForwarding)
         channel = ch
         connectingChannels.add(ch)
@@ -299,7 +306,7 @@ class SshConnectionManager(
 
     private fun automaticCommand(): String? {
         val mode = config.remoteSessionMode
-        if (mode != RemoteSessionModes.TMUX && mode != RemoteSessionModes.SCREEN) return null
+        if (mode !in setOf(RemoteSessionModes.TMUX, RemoteSessionModes.SCREEN, RemoteSessionModes.AUTO)) return null
         val options = RemoteSessions.startupOptions(mode, ::remoteSessionAvailable, ::discoverRemoteSessions)
         startupOptions = options
         return RemoteSessions.startupCommand(mode, options)
@@ -307,7 +314,64 @@ class SshConnectionManager(
 
     fun write(bytes: ByteArray) {
         if (bytes.isNotEmpty()) hasInput = true
+        if (_multiplexerScrolled.value) {
+            // Leaves the session's scroll mode first, so the keys are not taken by it.
+            scrollWorker.execute { leaveScroll(); writeBytes(bytes) }
+            return
+        }
         writeBytes(bytes)
+    }
+
+    // Returns false when this terminal is not in tmux or Screen, so the caller scrolls locally.
+    fun scrollMultiplexer(up: Boolean, lines: Int): Boolean {
+        val mux = multiplexer ?: return false
+        if (lines <= 0) return true
+        pendingScroll.addAndGet(if (up) lines else -lines)
+        try { scrollWorker.execute { applyScroll(mux) } } catch (_: RejectedExecutionException) { }
+        return true
+    }
+
+    fun leaveMultiplexerScroll() {
+        if (!_multiplexerScrolled.value) return
+        try { scrollWorker.execute { leaveScroll() } } catch (_: RejectedExecutionException) { }
+    }
+
+    private fun applyScroll(mux: Multiplexer) {
+        val delta = pendingScroll.getAndSet(0)
+        if (delta == 0) return
+        val lines = kotlin.math.abs(delta)
+        try {
+            if (mux.tool == Multiplexer.Tool.SCREEN) { applyScreenScroll(delta > 0, lines); return }
+            if (delta < 0 && !_multiplexerScrolled.value) return
+            val result = remoteCommand(if (delta > 0) mux.scrollUp(lines) else mux.scrollDown(lines))
+            _multiplexerScrolled.value = result.output.trim().endsWith("1")
+        } catch (e: Exception) {
+            Log.w(TAG, "Scrolling the remote session failed", e)
+        }
+    }
+
+    // Screen has no command for this, so its own keys are typed: prefix then [ for copy
+    // mode, then half pages.
+    private fun applyScreenScroll(up: Boolean, lines: Int) {
+        if (!_multiplexerScrolled.value) {
+            if (!up) return
+            writeBytes(byteArrayOf(0x01, '['.code.toByte()))
+            _multiplexerScrolled.value = true
+        }
+        val pages = (lines / SCREEN_HALF_PAGE_ROWS).coerceAtLeast(1)
+        writeBytes(ByteArray(pages) { if (up) 0x15 else 0x04 })
+    }
+
+    private fun leaveScroll() {
+        val mux = multiplexer ?: return
+        if (!_multiplexerScrolled.value) return
+        try {
+            if (mux.tool == Multiplexer.Tool.SCREEN) writeBytes(byteArrayOf(0x1B))
+            else remoteCommand(mux.cancel())
+        } catch (e: Exception) {
+            Log.w(TAG, "Leaving remote scroll mode failed", e)
+        }
+        _multiplexerScrolled.value = false
     }
 
     private fun writeBytes(bytes: ByteArray) {
@@ -427,6 +491,7 @@ class SshConnectionManager(
     @Synchronized
     fun disconnect() {
         running = false
+        scrollWorker.shutdownNow()
         recording.close()
         warningSubscription?.close()
         warningSubscription = null
@@ -500,5 +565,6 @@ class SshConnectionManager(
         private const val PTY_TYPE = "xterm-256color"
         private const val LOCAL_LOOPBACK = "127.0.0.1"
         private const val TAG = "LochSSH"
+        private const val SCREEN_HALF_PAGE_ROWS = 10
     }
 }
