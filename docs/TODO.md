@@ -999,3 +999,9 @@ with a dotted circle. They are now drawn together with the letter before them wh
 one column wide (glibc wcwidth is 1 for them, so cursor positions still match tmux and other programs). Seen
 on the phone: no dotted circles, with a small gap after some clusters. Selection and copy are unchanged.
 Open: serial and Mosh only.
+
+JSch jars (2026-10-28): `app/libs` now holds one jar, `jsch-patched.jar`, built from the PR branch
+(`mwiede/jsch#1160`, single-jar design, `ddc1e87`); `jsch-android.jar` is gone because the Android classes are
+inside the main jar. A live test (`LiveSshAndroidTest.hybridMlKemKeyExchangeWorksAlongsideThePlatformX25519`,
+run with `-e mlkem true`) connects to Quark offering only `mlkem768x25519-sha256`; it passed on the Android 13
+emulator, so the PR's platform X25519 works inside the hybrid key exchange with BouncyCastle providing ML-KEM.

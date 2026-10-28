@@ -118,6 +118,31 @@ class LiveSshAndroidTest {
         }
     }
 
+    // The hybrid key exchange uses the platform X25519 for one half and BouncyCastle for ML-KEM.
+    @Test
+    fun hybridMlKemKeyExchangeWorksAlongsideThePlatformX25519() {
+        assumeTrue(arguments.getString("mlkem") == "true")
+        val key = File(arguments.getString("ed25519Key")!!).readText()
+        val jsch = com.jcraft.jsch.JSch()
+        jsch.setHostKeyRepository(HostKeyTrust.repository(context))
+        IdentityLoader.add(jsch, null, key, null)
+        repeat(2) { attempt ->
+            val session = jsch.getSession(arguments.getString("user"), arguments.getString("host"), serverPort())
+            session.setConfig("StrictHostKeyChecking", "yes")
+            session.setConfig("kex", "mlkem768x25519-sha256")
+            try {
+                session.connect(10_000)
+                assertTrue(session.isConnected)
+                session.disconnect()
+                return
+            } catch (e: Throwable) {
+                val review = generateSequence(e) { it.cause }.filterIsInstance<HostKeyReviewRequired>().firstOrNull()
+                if (review == null || attempt == 1) throw e
+                HostKeyTrust.accept(context, review.key)
+            }
+        }
+    }
+
     private fun serverPort() = arguments.getString("port")!!.toInt()
 
     private fun withConnection(forwards: List<PortForwardSpec>, body: () -> Unit) {

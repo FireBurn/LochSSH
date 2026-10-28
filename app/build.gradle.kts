@@ -72,7 +72,6 @@ dependencies {
 
     // TEMP: local JSch and Android support builds until the upstream release
     implementation(files("libs/jsch-patched.jar"))
-    implementation(files("libs/jsch-android.jar"))
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.junit)
