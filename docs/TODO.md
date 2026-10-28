@@ -970,3 +970,15 @@ forgotten when the user disconnects or the remote shell exits. On a fresh launch
 the app reconnects to all remembered ones and opens the one that was on screen; a stale session screen
 reconnects in place. Checked on the emulator by killing the app process while in a Telnet session and
 reopening from recents: it reconnected and returned to that session. Not yet seen on the phone.
+
+Phone run 2026-10-28 20:00 (CPH2747, build 3898c72), all against Quark:
+- New tmux on a host row creates and opens a session. Works.
+- Scrolling a tmux session with mouse mode on shows the Live button (tmux reported 40 of 229) and Live
+  returns to the bottom with tmux out of scroll mode. Works.
+- HOME displays in full.
+- Dropping that session's connection (killing its sshd-session on the server): the app reconnected in a
+  few seconds with a new connection into the same created tmux session. Works.
+- Force-stopping the app (no client attached) and reopening it: the app reconnected and went straight back
+  to the same tmux session. Works.
+- Ending the tmux session from the server: the app returned to the host list and did not recreate it.
+Open on the phone: Auto mode on a new host, tapping a link, the local shell (all seen on the emulator only).
