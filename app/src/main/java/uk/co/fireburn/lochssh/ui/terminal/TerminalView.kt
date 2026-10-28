@@ -214,6 +214,10 @@ fun TerminalView(
     }
 }
 
+internal fun isSpacingMark(text: String): Boolean = text.isNotEmpty() &&
+    text.codePointCount(0, text.length) == 1 &&
+    Character.getType(text.codePointAt(0)) == Character.COMBINING_SPACING_MARK.toInt()
+
 internal fun linkAt(buffer: TerminalBuffer, point: TerminalBuffer.Point, scrollOffset: Int): String? {
     if (point.row !in 0 until buffer.rows || point.col !in 0 until buffer.cols) return null
     val offset = scrollOffset.coerceIn(0, buffer.scrollbackSize)
@@ -348,6 +352,27 @@ private fun DrawScope.drawRowText(
         }
         val runStart = col
         col++
+        // A vowel sign has its own column, which keeps cursor positions in step with programs
+        // that count it, but drawn alone it gets a dotted circle, so draw it with its letter.
+        var markEnd = runStart + cell.columns
+        val cluster = StringBuilder(cell.text)
+        while (markEnd < buffer.cols && isSpacingMark(buffer.visibleCellAt(row, markEnd, scrollOffset).text)) {
+            cluster.append(buffer.visibleCellAt(row, markEnd, scrollOffset).text)
+            markEnd++
+        }
+        if (markEnd > runStart + cell.columns) {
+            drawTerminalText(
+                textMeasurer,
+                cluster.toString(),
+                Offset(runStart * metrics.width, y),
+                style.copy(
+                    fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
+                    color = Color(theme.color(cell.fg))
+                )
+            )
+            col = markEnd
+            continue
+        }
         while (
             col < buffer.cols &&
             cell.text.length == 1 && cell.text[0] in '!'..'~' &&

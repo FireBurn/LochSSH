@@ -993,3 +993,9 @@ Phone run 2026-10-28 20:03 to 20:08, throwaway hosts created and deleted afterwa
 - Found: a session whose host was deleted still showed New tmux and Rescan in its group. Fixed by showing
   them only when the host exists and can run tmux.
 Open: serial, Mosh, spacing marks.
+
+Spacing marks (2026-10-28, phone): Devanagari, Bengali and Tamil vowel signs were drawn alone in their own cell
+with a dotted circle. They are now drawn together with the letter before them while the grid keeps the sign
+one column wide (glibc wcwidth is 1 for them, so cursor positions still match tmux and other programs). Seen
+on the phone: no dotted circles, with a small gap after some clusters. Selection and copy are unchanged.
+Open: serial and Mosh only.

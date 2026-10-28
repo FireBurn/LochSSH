@@ -24,7 +24,7 @@ becomes two columns when U+FE0F follows it and the next cell is free; ASCII
 characters stay one column. U+FE0E narrows a listed two-column emoji to one
 column. Spacing marks still need work. Check glyph placement and font fallback on a device.
 
-Spacing marks currently occupy their own grid cells. Devanagari U+093E and
+Spacing marks occupy their own grid cell, one column wide, because glibc's wcwidth counts them as one and programs such as tmux position the cursor that way. The renderer draws a mark together with the letter before it, as one cluster, so it no longer shows a dotted circle (checked on a phone with Devanagari, Bengali and Tamil; Thai marks already joined). The letter and mark can still look a little apart because the mark's cell stays empty. Devanagari U+093E and
 U+093F and Bengali U+09BE use one column; U+16FF0 uses two. A regression test
 keeps those widths separate from the zero-width mark table. This does not
 verify shaping across cells.
