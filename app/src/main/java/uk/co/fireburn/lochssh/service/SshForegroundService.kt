@@ -88,10 +88,12 @@ class SshForegroundService : Service() {
     private val connectedTokens = ConcurrentHashMap<Long, String>()
     private val attempts = ConcurrentHashMap<Long, ConnectionAttempt>()
     private val reattach: MutableSet<Long> = ConcurrentHashMap.newKeySet()
+    private val parked: MutableSet<Long> = ConcurrentHashMap.newKeySet()
     private val waiting: MutableSet<Long> = ConcurrentHashMap.newKeySet()
     private val retryCounts = ConcurrentHashMap<Long, Int>()
     private val hostLocks = ConcurrentHashMap<Long, Mutex>()
     private var wakeLock: PowerManager.WakeLock? = null
+    private var networkCallback: android.net.ConnectivityManager.NetworkCallback? = null
     private var stopReason: String? = null
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
 
@@ -100,6 +102,7 @@ class SshForegroundService : Service() {
         history.start()
         createNotificationChannel()
         acquireWakeLock()
+        watchNetwork()
         scope.launch {
             while (true) {
                 delay(15_000)
@@ -242,7 +245,8 @@ class SshForegroundService : Service() {
                 history.finished(it, ConnectionStates.ENDED)
             }
             history.connected(attempt.token)
-            if (AutoReattach.applies(attempt.remoteCommand, connected.config.remoteSessionMode)) reattach.add(sessionId)
+            parked.remove(sessionId)
+            if (AutoReattach.applies(connected.config.local)) reattach.add(sessionId)
             else reattach.remove(sessionId)
             val initialCommand = connected.config.autoCommand.takeIf {
                 attempt.remoteCommand == null &&
@@ -319,6 +323,7 @@ class SshForegroundService : Service() {
                 RemoteSessionModes.SCREEN -> "Screen is not installed"
                 else -> null
             }
+            if (config.remoteSessionMode == RemoteSessionModes.AUTO) return
             registry.offerRemoteSessions(sessionId, options.copy(error = options.error ?: missing))
         }
     }
@@ -375,10 +380,32 @@ class SshForegroundService : Service() {
         if (retry) scheduleReattach(sessionId)
     }
 
+    private fun retryNow() {
+        for (id in reattach.toList()) {
+            val session = registry.find(id) ?: continue
+            if (!session.canReconnect || attempts.containsKey(id)) continue
+            retryCounts[id] = 0
+            parked.remove(id)
+            start(this, session.hostId, id, session.remoteCommand)
+        }
+    }
+
+    private fun watchNetwork() {
+        val manager = getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+        val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: android.net.Network) {
+                scope.launch { retryNow() }
+            }
+        }
+        runCatching { manager.registerDefaultNetworkCallback(callback) }.onSuccess { networkCallback = callback }
+    }
+
     private fun scheduleReattach(sessionId: Long) {
         val tries = retryCounts.getOrDefault(sessionId, 0)
         val wait = AutoReattach.delayMs(tries) ?: run {
             retryCounts.remove(sessionId)
+            parked.add(sessionId)
+            registry.failed(sessionId, "Connection lost. Waiting for the network to reconnect")
             stopIfIdle()
             return
         }
@@ -416,6 +443,7 @@ class SshForegroundService : Service() {
             reattach.remove(sessionId)
             retryCounts.remove(sessionId)
             waiting.remove(sessionId)
+            parked.remove(sessionId)
             registry.remove(sessionId)
         } else registry.failed(sessionId, error)
         NotificationManagerCompat.from(this).cancel(sessionNotificationId(sessionId))
@@ -431,7 +459,7 @@ class SshForegroundService : Service() {
     }
 
     private fun stopIfIdle() {
-        if (managers.isEmpty() && attempts.isEmpty() && waiting.isEmpty()) {
+        if (managers.isEmpty() && attempts.isEmpty() && waiting.isEmpty() && parked.isEmpty()) {
             stopSelf()
         } else {
             updateSummary()
@@ -566,6 +594,12 @@ class SshForegroundService : Service() {
     }
 
     override fun onDestroy() {
+        networkCallback?.let {
+            runCatching {
+                (getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager)
+                    .unregisterNetworkCallback(it)
+            }
+        }
         val ids = (attempts.keys + managers.keys).toSet()
         val attemptTokens = attempts.values.map { it.token }
         attempts.values.forEach(::cancelAttempt)

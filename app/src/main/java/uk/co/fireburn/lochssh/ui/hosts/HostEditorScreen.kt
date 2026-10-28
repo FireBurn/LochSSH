@@ -87,7 +87,7 @@ fun HostEditorScreen(
     var autoCommand by remember(hostId) { mutableStateOf("") }
     var knockSequence by remember(hostId) { mutableStateOf("") }
     var knockPause by remember(hostId) { mutableStateOf("200") }
-    var remoteSessionMode by remember(hostId) { mutableStateOf(RemoteSessionModes.SHELL) }
+    var remoteSessionMode by remember(hostId) { mutableStateOf(RemoteSessionModes.AUTO) }
     var identityId by remember(hostId) { mutableStateOf<Long?>(null) }
     var identityMenu by remember(hostId) { mutableStateOf(false) }
     var saveError by remember(hostId) { mutableStateOf<String?>(null) }
@@ -268,6 +268,7 @@ fun HostEditorScreen(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 listOf(
+                    RemoteSessionModes.AUTO to "Auto",
                     RemoteSessionModes.SHELL to "Shell",
                     RemoteSessionModes.ASK to "Ask"
                 ).forEach { (mode, label) ->
@@ -291,7 +292,7 @@ fun HostEditorScreen(
                 }
             }
             Text(
-                "Ask lists remote sessions after connecting. Auto tmux and Auto screen appear " +
+                "Auto uses tmux, or Screen if the host has no tmux, and plain shell if it has neither. Ask lists remote sessions after connecting. Auto tmux and Auto screen appear " +
                     "once the host has been seen to have that tool. Auto tmux resumes or creates " +
                     "a session named lochssh. Auto screen resumes the first available session " +
                     "or creates one. A dropped connection to one of these reconnects by itself.",

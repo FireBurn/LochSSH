@@ -7,7 +7,7 @@ internal object ShellCleanup {
     fun canClose(config: SshConnectionConfig, command: String?, hasInput: Boolean,
         buffer: TerminalBuffer): Boolean {
         if (command != null || hasInput || config.autoCommand.isNotBlank() ||
-            config.remoteSessionMode in setOf(RemoteSessionModes.TMUX, RemoteSessionModes.SCREEN)) return false
+            config.remoteSessionMode in setOf(RemoteSessionModes.TMUX, RemoteSessionModes.SCREEN, RemoteSessionModes.AUTO)) return false
         return buffer.read { !buffer.isAlternateScreen && !buffer.mouseTracking }
     }
 }

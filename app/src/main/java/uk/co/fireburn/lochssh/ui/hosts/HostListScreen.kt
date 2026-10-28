@@ -43,6 +43,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import uk.co.fireburn.lochssh.data.db.SshHostEntity
 import uk.co.fireburn.lochssh.service.SshForegroundService
+import uk.co.fireburn.lochssh.ssh.RemoteSessions
 import uk.co.fireburn.lochssh.ui.terminal.ReconnectAllButton
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -113,7 +114,16 @@ fun HostListScreen(
                     }
                 }
                 items(HostSessionGroups.create(hosts, sessions), key = { "session-host-${it.hostId}" }) { group ->
-                    HostSessionGroupView(group, onResumeSession) { SshForegroundService.disconnect(context, it) }
+                    val host = hosts.firstOrNull { it.id == group.hostId }
+                    HostSessionGroupView(group, onResumeSession,
+                        onDisconnect = { SshForegroundService.disconnect(context, it) },
+                        onNewSession = {
+                            host?.let {
+                                SshForegroundService.start(context, it.id, viewModel.newSessionId(),
+                                    RemoteSessions.createPreferred(it.tmuxSeen, it.screenSeen))
+                            }
+                        },
+                        onRescan = { host?.let(::findRemoteSessions) })
                 }
             }
             item(key = "host-actions") {

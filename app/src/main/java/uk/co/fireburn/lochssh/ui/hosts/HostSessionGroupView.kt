@@ -12,6 +12,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.key
 import androidx.compose.ui.Alignment
@@ -22,12 +23,16 @@ import androidx.compose.ui.unit.dp
 
 @Composable
 internal fun HostSessionGroupView(group: HostSessionGroup, onResume: (Long) -> Unit,
-    onDisconnect: (Long) -> Unit) {
+    onDisconnect: (Long) -> Unit, onNewSession: () -> Unit = {}, onRescan: () -> Unit = {}) {
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Column(Modifier.padding(top = 8.dp)) {
-            Text(group.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
-            group.address?.let { Text(it, style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant) }
+        Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text(group.name, style = MaterialTheme.typography.titleMedium, modifier = Modifier.semantics { heading() })
+                group.address?.let { Text(it, style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant) }
+            }
+            TextButton(onClick = onNewSession) { Text("New tmux") }
+            TextButton(onClick = onRescan) { Text("Rescan") }
         }
         group.sessions.forEach { session -> key(session.id) {
             Card(onClick = { onResume(session.id) }, modifier = Modifier.fillMaxWidth()) {

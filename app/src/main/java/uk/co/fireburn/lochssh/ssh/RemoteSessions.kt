@@ -20,6 +20,11 @@ object RemoteSessions {
     fun startupCommand(mode: String, options: RemoteSessionOptions): String? = when (mode) {
         RemoteSessionModes.TMUX -> if (options.tmuxAvailable) automatic(mode) else null
         RemoteSessionModes.SCREEN -> if (options.screenAvailable) automatic(mode) else null
+        RemoteSessionModes.AUTO -> when {
+            options.tmuxAvailable -> automatic(RemoteSessionModes.TMUX)
+            options.screenAvailable -> automatic(RemoteSessionModes.SCREEN)
+            else -> null
+        }
         else -> null
     }
 
@@ -91,11 +96,16 @@ object RemoteSessions {
         else -> throw IllegalArgumentException("Unknown remote session tool")
     }
 
-    fun create(tool: String): String = when (tool) {
-        RemoteSessionModes.TMUX -> "tmux new-session"
-        RemoteSessionModes.SCREEN -> "screen"
+    // Named so the app can find the session again to scroll it.
+    fun create(tool: String, name: String = "loch${System.currentTimeMillis() % 100_000}"): String = when (tool) {
+        RemoteSessionModes.TMUX -> "tmux new-session -s $name"
+        RemoteSessionModes.SCREEN -> "screen -S $name"
         else -> throw IllegalArgumentException("Unknown remote session tool")
     }
+
+    // tmux unless the host is known to have only Screen.
+    fun createPreferred(tmuxSeen: Boolean, screenSeen: Boolean): String =
+        create(if (!tmuxSeen && screenSeen) RemoteSessionModes.SCREEN else RemoteSessionModes.TMUX)
 
     fun automatic(tool: String): String = when (tool) {
         RemoteSessionModes.TMUX -> "tmux new-session -A -s lochssh"

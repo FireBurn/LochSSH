@@ -899,3 +899,25 @@ customizable keyboard.
   Check Claude authentication URLs in a live session: application-inserted hard
   breaks are not automatic wraps. Discarded history, width reductions
   and full-screen redraws need more checks. Links are not underlined yet.
+
+## Reconnect, scrollback and controls (2026-10-28)
+
+- Any dropped SSH or Telnet connection reconnects by itself: first try after half a second, then
+  2, 5, 10, 20 and 30 seconds (eight tries), and again whenever the phone reports a network.
+  A session that was in tmux or Screen reattaches through the same command; a plain shell
+  returns to a plain shell on the same host. Clean exits, manual disconnects and the local
+  shell do not retry. Rules in `ssh/AutoReattach.kt`; the retry loop is unchecked on a phone.
+- Hosts have an Auto mode, the default for new hosts: tmux if the host has it, otherwise Screen,
+  otherwise a plain shell. Existing hosts keep their mode.
+- A session group on the host list has "New tmux" (Screen if only Screen was seen) and "Rescan"
+  beside the machine name.
+- Keyboard default: DEL right of the up arrow, HOME right of DEL, END below HOME, Enter replaces
+  FN. Saved custom layouts are not changed; Reset in the keyboard editor applies the new one.
+- With the top bar hidden the back arrow and Live stay on screen.
+- A session that is connecting no longer shows a blank terminal: it shows its status with
+  Cancel and Manage hosts.
+- Scrolling inside tmux scrolls the tmux session (copy mode through a second channel, tested
+  against tmux 3.8 on quark); inside Screen it types Screen's own prefix and page keys, which is
+  unchecked against a real Screen. Typing or Live leaves scroll mode. Needs tmux or Screen to
+  have been started by the app; a tmux typed by hand in a plain shell is not recognised.
+- Local scrollback is still 2000 rows.
