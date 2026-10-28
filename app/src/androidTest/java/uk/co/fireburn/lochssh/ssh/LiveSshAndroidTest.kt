@@ -112,8 +112,7 @@ class LiveSshAndroidTest {
             assertTrue(manager.multiplexerScrolled.value)
             manager.write("q".toByteArray())
             waitFor("back at the bottom") { !manager.multiplexerScrolled.value }
-            manager.write("echo\n".toByteArray())
-            manager.write("exit\n".toByteArray())
+            manager.write("tmux kill-session -t lochscroll\n".toByteArray())
         } finally {
             manager.disconnect()
         }
