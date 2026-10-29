@@ -1086,3 +1086,4 @@ Colours and reconnect wording (2026-10-29):
   ended with status N", in place of "Connection lost" and "Connection closed (exit code N)".
 
 - 2026-10-29: Restored sessions keep their last name (`RememberedSession.name`); `tmux N` is no longer shown for `$N` targets. Checked on the phone: restored session shows its remembered name.
+- 2026-10-29: Phone check (OnePlus, Android 16): long-press selection shows the hint, copies on lift and shows red handles; Settings Colours card shows palettes and minimum contrast; restored session names correct. Link popup not tried on the phone (no link on screen); passed on the emulator. No test hosts or sessions were created on the phone.
