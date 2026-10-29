@@ -1084,3 +1084,5 @@ Colours and reconnect wording (2026-10-29):
 - Status words while a session reconnects are now "Reconnecting", "Reconnecting in N seconds" and "Waiting for the
   network to reconnect". A dropped connection says "The connection dropped" and a program that ended says "The program
   ended with status N", in place of "Connection lost" and "Connection closed (exit code N)".
+
+- 2026-10-29: Restored sessions keep their last name (`RememberedSession.name`); `tmux N` is no longer shown for `$N` targets. Checked on the phone: restored session shows its remembered name.

@@ -32,10 +32,11 @@ class SessionRegistry @Inject constructor() {
             return listOfNotNull(remote, live).distinct().joinToString(" · ").ifBlank { hostName }
         }
 
-        // A tmux or Screen session opened without a name from a scan still has one in its command.
+        // A session opened by name still has the name in its command. One opened by tmux's own id has no
+        // name worth showing until a scan finds what is in it, so the computer's name stands in.
         private fun nameFromCommand(): String? {
             val target = Multiplexer.parse(remoteCommand)?.target ?: return null
-            return if (target.startsWith("$")) "tmux ${target.drop(1)}" else target.substringAfter('.')
+            return if (target.startsWith("$")) null else target.substringAfter('.')
         }
 
         val isConnected: Boolean get() = manager?.isConnected == true

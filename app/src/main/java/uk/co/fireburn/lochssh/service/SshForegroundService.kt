@@ -164,6 +164,8 @@ class SshForegroundService : Service() {
         attempts.put(sessionId, attempt)?.let(::cancelAttempt)
         history.started(attempt.token, hostId)
         registry.opening(sessionId, hostId, "Host", attempt.remoteCommand, attempt.findRemoteSessions)
+        // Show what the session was called last time while it reconnects.
+        if (registry.find(sessionId)?.remoteName == null) memory.find(sessionId)?.name?.let { registry.named(sessionId, it) }
         memory.remember(sessionId, hostId, attempt.remoteCommand)
         scope.launch { connect(attempt) }
         return Service.START_NOT_STICKY
@@ -390,6 +392,7 @@ class SshForegroundService : Service() {
                     ?: return@sessionLoop
                 if (entry.name != session.remoteName) {
                     registry.named(session.id, entry.name)
+                    memory.rename(session.id, entry.name)
                     registry.find(session.id)?.let {
                         showSessionNotification(it.id, it.notificationTitle, "Connected to ${it.hostName}")
                     }
