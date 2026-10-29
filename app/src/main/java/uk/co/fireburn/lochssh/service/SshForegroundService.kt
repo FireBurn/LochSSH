@@ -35,6 +35,7 @@ import uk.co.fireburn.lochssh.ssh.PortForwardSpec
 import uk.co.fireburn.lochssh.ssh.RemoteSessionOptions
 import uk.co.fireburn.lochssh.ssh.RemoteSessions
 import uk.co.fireburn.lochssh.ssh.SessionRegistry
+import uk.co.fireburn.lochssh.AppVisibility
 import uk.co.fireburn.lochssh.ssh.AutoReattach
 import uk.co.fireburn.lochssh.ssh.Multiplexer
 import uk.co.fireburn.lochssh.ssh.SessionMemory
@@ -87,6 +88,8 @@ class SshForegroundService : Service() {
     lateinit var history: ConnectionHistoryRecorder
     @Inject
     lateinit var memory: SessionMemory
+    @Inject
+    lateinit var preferences: uk.co.fireburn.lochssh.data.AppPreferences
 
     private val managers = ConcurrentHashMap<Long, SshConnectionManager>()
     private val connectedTokens = ConcurrentHashMap<Long, String>()
@@ -111,9 +114,13 @@ class SshForegroundService : Service() {
         acquireWakeLock()
         watchNetwork()
         scope.launch {
+            AppVisibility.visible.collect { if (it) { delay(NAME_REFRESH_SOON_MS); refreshRemoteNames() } }
+        }
+        scope.launch {
             while (true) {
                 delay(15_000)
-                refreshRemoteNames()
+                // Names only matter to someone looking at the app, so nothing is polled while it is hidden.
+                if (AppVisibility.visible.value) refreshRemoteNames()
             }
         }
     }
@@ -210,6 +217,7 @@ class SshForegroundService : Service() {
                         mosh = host.id == hostId && host.mosh,
                         serial = host.id == hostId && host.serial,
                         serialSettings = host.serialSettings,
+                        compress = preferences.compression.value,
                         forwards = if (host.id == hostId) portForwardDao.getByHost(hostId).map {
                             PortForwardSpec(it.type, it.localPort, it.remoteHost, it.remotePort)
                         } else emptyList()
@@ -296,7 +304,7 @@ class SshForegroundService : Service() {
         retryCounts.remove(sessionId)
         connectedAt[sessionId] = System.currentTimeMillis()
         // Names come from a scan, so do one soon instead of waiting for the next regular one.
-        if (nameRefreshQueued.compareAndSet(false, true)) scope.launch {
+        if (AppVisibility.visible.value && nameRefreshQueued.compareAndSet(false, true)) scope.launch {
             delay(NAME_REFRESH_SOON_MS)
             nameRefreshQueued.set(false)
             refreshRemoteNames()
@@ -371,14 +379,14 @@ class SshForegroundService : Service() {
         }.groupBy { it.hostId }
         targets.values.forEach { sessions ->
             val manager = sessions.first().manager ?: return@forEach
-            val options = withContext(Dispatchers.IO) {
-                try { manager.discoverRemoteSessions() } catch (_: Exception) { null }
+            val scanned = withContext(Dispatchers.IO) {
+                try { manager.scanTmuxNames() } catch (_: Exception) { null }
             } ?: return@forEach
             sessions.forEach sessionLoop@ { session ->
                 if (registry.find(session.id)?.manager !== session.manager) return@sessionLoop
                 val opened = Multiplexer.parse(session.remoteCommand)
-                val entry = options.sessions.firstOrNull { RemoteSessions.attach(it) == session.remoteCommand }
-                    ?: options.sessions.firstOrNull { opened?.refersTo(it) == true }
+                val entry = scanned.firstOrNull { RemoteSessions.attach(it) == session.remoteCommand }
+                    ?: scanned.firstOrNull { opened?.refersTo(it) == true }
                     ?: return@sessionLoop
                 if (entry.name != session.remoteName) {
                     registry.named(session.id, entry.name)

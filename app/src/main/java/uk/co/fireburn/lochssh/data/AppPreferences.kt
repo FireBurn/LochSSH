@@ -26,6 +26,8 @@ class AppPreferences @Inject constructor(
     val terminalTypeface: StateFlow<TerminalTypeface> = _terminalTypeface
     private val _sessionShortcuts = MutableStateFlow(prefs.getBoolean(KEY_SHORTCUTS, false))
     val sessionShortcuts: StateFlow<Boolean> = _sessionShortcuts
+    private val _compression = MutableStateFlow(prefs.getBoolean(KEY_COMPRESSION, true))
+    val compression: StateFlow<Boolean> = _compression
     private val _wrapLines = MutableStateFlow(prefs.getBoolean(KEY_WRAP_LINES, true))
     val wrapLines: StateFlow<Boolean> = _wrapLines
     private val _appLock = MutableStateFlow(prefs.getBoolean(KEY_APP_LOCK, false))
@@ -34,6 +36,11 @@ class AppPreferences @Inject constructor(
     fun setAppLock(enabled: Boolean) {
         if (!prefs.edit().putBoolean(KEY_APP_LOCK, enabled).commit()) throw IOException("Could not save app lock")
         _appLock.value = enabled
+    }
+
+    fun setCompression(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_COMPRESSION, enabled).apply()
+        _compression.value = enabled
     }
 
     fun setWrapLines(enabled: Boolean) {
@@ -81,6 +88,7 @@ class AppPreferences @Inject constructor(
         _terminalTypeface.value = TerminalTypeface.NOTO
         _sessionShortcuts.value = false
         _wrapLines.value = true
+        _compression.value = true
         _appLock.value = false
     }
 
@@ -103,6 +111,7 @@ class AppPreferences @Inject constructor(
         private const val KEY_TYPEFACE = "terminal_typeface"
         private const val KEY_SHORTCUTS = "session_shortcuts"
         private const val KEY_WRAP_LINES = "wrap_lines"
+        private const val KEY_COMPRESSION = "compression"
         private const val KEY_APP_LOCK = "app_lock"
     }
 }

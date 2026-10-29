@@ -51,6 +51,7 @@ fun SettingsScreen(
     val sessionShortcuts by viewModel.sessionShortcuts.collectAsStateWithLifecycle()
     val terminalTypeface by viewModel.terminalTypeface.collectAsStateWithLifecycle()
     val wrapLines by viewModel.wrapLines.collectAsStateWithLifecycle()
+    val compression by viewModel.compression.collectAsStateWithLifecycle()
     val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val cleanupError by viewModel.cleanupError.collectAsStateWithLifecycle()
@@ -141,6 +142,15 @@ fun SettingsScreen(
             }
             BatterySettingsCard()
             AppLockCard(appLock, viewModel::setAppLock)
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Compress SSH traffic", style = MaterialTheme.typography.titleMedium)
+                        Text("Uses less mobile data, most noticeably for listings and logs. Takes effect on the next connection, and only where the server offers it.")
+                    }
+                    Switch(checked = compression, onCheckedChange = viewModel::setCompression)
+                }
+            }
             Card(modifier = Modifier.fillMaxWidth()) {
                 Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Column(modifier = Modifier.weight(1f)) {

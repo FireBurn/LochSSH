@@ -33,7 +33,8 @@ data class SshConnectionConfig(
     val local: Boolean = false,
     val mosh: Boolean = false,
     val serial: Boolean = false,
-    val serialSettings: String = ""
+    val serialSettings: String = "",
+    val compress: Boolean = true
 ) {
     fun sameTransport(other: SshConnectionConfig): Boolean =
         copy(autoCommand = other.autoCommand, remoteSessionMode = other.remoteSessionMode) == other

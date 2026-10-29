@@ -126,12 +126,18 @@ class MainActivity : ComponentActivity() {
         if (resumeSession.value == null) memory.lastViewed()?.takeIf { it in saved }?.let { resumeSession.value = it }
     }
 
+    override fun onStart() {
+        super.onStart()
+        AppVisibility.set(true)
+    }
+
     override fun onPause() {
         if (!isChangingConfigurations) lockModel.lock.background()
         super.onPause()
     }
 
     override fun onStop() {
+        AppVisibility.set(false)
         if (!isChangingConfigurations) lockModel.lock.background()
         super.onStop()
     }

@@ -353,6 +353,12 @@ class SshConnectionManager(
         val s = jsch.getSession(config.username, config.host, config.port)
         val proxy = config.proxy?.create()
         proxy?.let(s::setProxy)
+        if (config.compress) {
+            // Delayed compression starts after sign-in. "none" stays last, so a server without it still connects.
+            s.setConfig("compression.s2c", "zlib@openssh.com,none")
+            s.setConfig("compression.c2s", "zlib@openssh.com,none")
+            s.setConfig("compression_level", "6")
+        }
         s.setServerAliveInterval(KeepAlive.milliseconds(config.keepAliveSeconds))
         s.setServerAliveCountMax(3)
         s.setConfig("StrictHostKeyChecking", "yes")
@@ -526,12 +532,19 @@ class SshConnectionManager(
         return SftpBrowser(active)
     }
 
+    // The names refresh asks for only tmux, in one command, so a scan costs one round trip.
+    fun scanTmuxNames(): List<RemoteSessionEntry> {
+        val output = remoteCommand("${RemoteSessions.TMUX_LIST}; echo ${RemoteSessions.SPLIT}; ${RemoteTasks.command}", 262_144 + 4_096).output
+        val parts = output.split("${RemoteSessions.SPLIT}\n", limit = 2)
+        return RemoteSessions.parseTmux(RemoteTasks.enrich(parts[0], parts.getOrElse(1) { "" }))
+    }
+
     fun discoverRemoteSessions(): RemoteSessionOptions {
         val tmuxAvailable = remoteSessionAvailable(RemoteSessionModes.TMUX)
         val screenAvailable = remoteSessionAvailable(RemoteSessionModes.SCREEN)
         val sessions = buildList {
             if (tmuxAvailable) {
-                val panes = remoteCommand("tmux list-sessions -F '#{session_id}|#{session_name}\t#{pane_current_command}\t#{window_name}\t#{pane_pid}\t#{pane_title}|#{session_attached}' 2>/dev/null").output
+                val panes = remoteCommand(RemoteSessions.TMUX_LIST).output
                 val processes = try { remoteCommand(RemoteTasks.command, 262_144).output }
                     catch (_: Exception) { "" }
                 addAll(RemoteSessions.parseTmux(

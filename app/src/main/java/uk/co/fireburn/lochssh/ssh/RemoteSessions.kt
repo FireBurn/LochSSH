@@ -37,6 +37,9 @@ object RemoteSessions {
         else -> discover()
     }
 
+    const val TMUX_LIST = "tmux list-sessions -F '#{session_id}|#{session_name}\t#{pane_current_command}\t#{window_name}\t#{pane_pid}\t#{pane_title}|#{session_attached}' 2>/dev/null"
+    const val SPLIT = "@@LOCH@@"
+
     fun availabilityCommand(tool: String): String {
         val name = when (tool) {
             RemoteSessionModes.TMUX -> "tmux"

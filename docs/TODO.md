@@ -1052,3 +1052,9 @@ refreshed like any other, so it shows tmux's number, what is running and its tit
 name. The refresh also runs two seconds after a connect instead of waiting for the next 15 second round, and the
 label before it arrives is `tmux 12` rather than `tmux $12`. Seen on the phone: Axion showed `21 · claude · python3 ·
 claude · Handover and todo`. Quark's app-named session was not looked at after the last two changes.
+
+Data use (2026-10-29): SSH compression (zlib@openssh.com) is on by default with a Settings switch; the session-name scan
+is one command instead of four and is paused while the app is hidden (it ran every 15 seconds, about 5 MB an hour per
+host). See `docs/data-use.md`. Live tests on an emulator against Quark: compression negotiated, and off when disabled;
+one-command scan finds an app-named tmux session. Not measured on the phone. Also: the tmux scroll live test now cleans
+up its own session (a stray `q` had turned its cleanup into a bad command).

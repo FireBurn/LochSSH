@@ -48,6 +48,8 @@ class SettingsViewModel @Inject constructor(
     val sessionShortcuts = preferences.sessionShortcuts
     fun setSessionShortcuts(enabled: Boolean) = preferences.setSessionShortcuts(enabled)
     val terminalTypeface = preferences.terminalTypeface
+    val compression = preferences.compression
+    fun setCompression(enabled: Boolean) = preferences.setCompression(enabled)
     val wrapLines = preferences.wrapLines
     fun setWrapLines(enabled: Boolean) = preferences.setWrapLines(enabled)
     fun setTerminalTypeface(typeface: TerminalTypeface) = preferences.setTerminalTypeface(typeface)

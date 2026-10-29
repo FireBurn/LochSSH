@@ -110,9 +110,12 @@ class LiveSshAndroidTest {
             assertTrue(manager.scrollMultiplexer(true, 40))
             waitFor("older lines") { !screen(manager).contains("scrollline_300") && screen(manager).contains("scrollline_2") }
             assertTrue(manager.multiplexerScrolled.value)
-            manager.write("q".toByteArray())
+            // Any key leaves scroll mode and is then passed on, so use the call the Live button makes.
+            manager.leaveMultiplexerScroll()
             waitFor("back at the bottom") { !manager.multiplexerScrolled.value }
             manager.write("tmux kill-session -t lochscroll\n".toByteArray())
+            // The write is queued, so give it time to leave before the disconnect cancels it.
+            Thread.sleep(1_500)
         } finally {
             manager.disconnect()
         }
@@ -158,6 +161,55 @@ class LiveSshAndroidTest {
             manager.write("echo SIZE_$(stty size | tr ' ' x)\r".toByteArray())
             try { waitFor("size change") { screen(manager).contains("SIZE_30x100") } }
             catch (e: AssertionError) { throw AssertionError("screen was:\n" + screen(manager).lines().filter { it.isNotBlank() }.joinToString("\n"), e) }
+        } finally {
+            manager.disconnect()
+        }
+    }
+
+    @Test
+    fun theConnectionNegotiatesCompressionAndStillWorksWithoutIt() {
+        val key = File(arguments.getString("ed25519Key")!!).readText()
+        for ((compress, expected) in listOf(true to "compression: zlib@openssh.com", false to "compression: none")) {
+            val lines = java.util.Collections.synchronizedList(ArrayList<String>())
+            val jsch = com.jcraft.jsch.JSch()
+            jsch.setHostKeyRepository(HostKeyTrust.repository(context))
+            jsch.setInstanceLogger(object : com.jcraft.jsch.Logger {
+                override fun isEnabled(level: Int) = true
+                override fun log(level: Int, message: String) { lines.add(message) }
+            })
+            IdentityLoader.add(jsch, null, key, null)
+            val session = jsch.getSession(arguments.getString("user"), arguments.getString("host"), serverPort())
+            session.setConfig("StrictHostKeyChecking", "yes")
+            if (compress) {
+                session.setConfig("compression.s2c", "zlib@openssh.com,none")
+                session.setConfig("compression.c2s", "zlib@openssh.com,none")
+            }
+            try { session.connect(10_000) } catch (e: Throwable) {
+                val review = generateSequence(e) { it.cause }.filterIsInstance<HostKeyReviewRequired>().firstOrNull() ?: throw e
+                HostKeyTrust.accept(context, review.key)
+                session.disconnect()
+                val again = jsch.getSession(arguments.getString("user"), arguments.getString("host"), serverPort())
+                again.setConfig("StrictHostKeyChecking", "yes")
+                if (compress) {
+                    again.setConfig("compression.s2c", "zlib@openssh.com,none")
+                    again.setConfig("compression.c2s", "zlib@openssh.com,none")
+                }
+                again.connect(10_000)
+                try { assertTrue(lines.joinToString("\n"), lines.any { it.contains(expected) }) } finally { again.disconnect() }
+                continue
+            }
+            try { assertTrue(lines.joinToString("\n"), lines.any { it.contains(expected) }) } finally { session.disconnect() }
+        }
+    }
+
+    @Test
+    fun oneCommandScansTheNamesOfTmuxSessions() {
+        assumeTrue(arguments.getString("tmuxSession") != null)
+        val key = File(arguments.getString("ed25519Key")!!).readText()
+        val manager = connect(config(key))
+        try {
+            val names = manager.scanTmuxNames()
+            assertTrue(names.toString(), names.any { it.sessionName == arguments.getString("tmuxSession") })
         } finally {
             manager.disconnect()
         }

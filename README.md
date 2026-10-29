@@ -22,6 +22,8 @@ Review or remove saved keys under Settings → Saved host keys. Existing saved
 keys are kept. Check [the work list](docs/TODO.md) before relying on the app for
 sensitive connections.
 
+Data use is described in [docs/data-use.md](docs/data-use.md): SSH traffic is compressed by default, and nothing is polled while the app is hidden.
+
 ## Other connection types
 
 Each is a switch in the host editor. None of them supports jump hosts, proxies, tunnels or agent forwarding.
