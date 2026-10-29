@@ -70,7 +70,7 @@ class TerminalLinkTouchAndroidTest {
     private fun showTerminal(modifier: Modifier = Modifier) {
         ui.setContent { MaterialTheme {
             TerminalView(modifier.size(300.dp, 200.dp).testTag("terminal"),
-                onBuffer = { buffer = it }, onLinkTap = { opened.add(it) })
+                onBuffer = { buffer = it }, onLinkTap = { opened.addAll(it.take(1)) })
         } }
         ui.waitUntil(5_000) { buffer?.cols?.let { it > 20 } == true }
     }

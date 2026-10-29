@@ -1058,3 +1058,18 @@ is one command instead of four and is paused while the app is hidden (it ran eve
 host). See `docs/data-use.md`. Live tests on an emulator against Quark: compression negotiated, and off when disabled;
 one-command scan finds an app-named tmux session. Not measured on the phone. Also: the tmux scroll live test now cleans
 up its own session (a stray `q` had turned its cleanup into a bad command).
+
+Copy, paste and links (2026-10-29):
+- Selecting: long press shows a red outline on the cell you pressed; moving your finger moves the other end
+  (a red bar), lifting copies the text to the clipboard and leaves it highlighted with a red handle at each end.
+  Drag a handle to change it (copied again when you lift); tap anywhere else to clear. A small message at the top
+  explains each step and disappears by itself. Copying joins rows the terminal wrapped itself. Works in both split panes.
+- Links: a tap shows every address it could be, with Open and Copy for each. Rows the terminal wrapped itself are
+  joined for certain. A full row followed by text that nothing marks as a break (a program's own line break, such
+  as Claude's login address inside tmux) gives the joined address first and the shorter ones after it, labelled.
+  The selection menu has "Open or copy link" and offers both readings when a selection holds a line break.
+- Paste: control characters (escape, bell and the rest) are removed before sending, so a pasted escape sequence
+  cannot end a bracketed paste early or be run as a command; line breaks and tabs stay. A multi-line paste shows the
+  first lines and how many more before asking.
+Tests: pure logic for candidates, geometry and paste (unit); the four gestures on an emulator. Not yet tried by hand
+on the phone.

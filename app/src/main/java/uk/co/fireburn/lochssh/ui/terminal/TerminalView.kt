@@ -5,7 +5,8 @@ import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.waitForUpOrCancellation
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
-import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.foundation.gestures.drag
+import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -41,6 +42,10 @@ private const val RESIZE_DELAY_MS = 150L
 
 private class CellMetrics(val width: Float, val height: Float, val baseline: Float)
 private const val MAX_LINK_TEXT = 65_536
+private const val MAX_LINK_ROWS = 40
+private const val HANDLE_RADIUS = 7
+private const val HANDLE_REACH = 36
+private val SelectionMark = Color(0xFFE53935)
 
 private data class Selection(val start: TerminalBuffer.Point, val end: TerminalBuffer.Point)
 
@@ -56,8 +61,10 @@ fun TerminalView(
     clearSelectionKey: Int = 0,
     onScrollOffsetChanged: (Int) -> Unit = {},
     onSelectionChanged: (String?) -> Unit = {},
+    onSelectionCopied: (String) -> Unit = {},
+    onHint: (String?) -> Unit = {},
     onBuffer: (TerminalBuffer) -> Unit = {},
-    onLinkTap: (String) -> Unit = {},
+    onLinkTap: (List<String>) -> Unit = {},
     onMultiplexerScroll: (up: Boolean, lines: Int) -> Boolean = { _, _ -> false },
     onRemoteWheel: () -> Unit = {},
     onTap: () -> Unit = {},
@@ -70,9 +77,13 @@ fun TerminalView(
     val scrollMultiplexer by rememberUpdatedState(onMultiplexerScroll)
     val remoteWheel by rememberUpdatedState(onRemoteWheel)
     val tapped by rememberUpdatedState(onTap)
+    val copied by rememberUpdatedState(onSelectionCopied)
+    val showHint by rememberUpdatedState(onHint)
     val frame = remember(buffer) { mutableIntStateOf(0) }
     val scrollOffset = remember(buffer) { mutableIntStateOf(0) }
     var selection by remember(buffer) { mutableStateOf<Selection?>(null) }
+    // True once the finger has been lifted: the selection stays, can be adjusted and is copied again after each change.
+    var settled by remember(buffer) { mutableStateOf(false) }
     val textMeasurer = rememberTextMeasurer()
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
 
@@ -177,71 +188,140 @@ fun TerminalView(
                     val up = waitForUpOrCancellation() ?: return@awaitEachGesture
                     if ((up.position - down.position).getDistance() > viewConfiguration.touchSlop) return@awaitEachGesture
                     tapped()
-                    val link = buffer.read { linkAt(buffer, pointAt(up.position, metrics, buffer), scrollOffset.intValue) }
-                    if (link != null) openLink(link)
+                    if (selection != null) {
+                        selection = null
+                        settled = false
+                        onSelectionChanged(null)
+                        showHint(null)
+                        return@awaitEachGesture
+                    }
+                    val links = buffer.read { linksAt(buffer, pointAt(up.position, metrics, buffer), scrollOffset.intValue) }
+                    if (links.isNotEmpty()) openLink(links)
                 }
             }
             .pointerInput(metrics.width, metrics.height, buffer) {
-                detectDragGesturesAfterLongPress(
-                    onDragStart = { position ->
-                        val point = pointAt(position, metrics, buffer)
-                        selection = Selection(point, point)
-                        onSelectionChanged(null)
-                    },
-                    onDragEnd = {
-                        selection?.let { selected ->
-                            onSelectionChanged(buffer.read {
-                                buffer.selectedText(
-                                    selected.start, selected.end, scrollOffset.intValue
-                                )
-                            })
+                val handleRadius = HANDLE_RADIUS.dp.toPx()
+                val reach = HANDLE_REACH.dp.toPx()
+                fun text(selected: Selection) = buffer.read {
+                    buffer.selectedText(selected.start, selected.end, scrollOffset.intValue)
+                }
+                fun settle() {
+                    val chosen = selection ?: return
+                    settled = true
+                    val copy = text(chosen)
+                    onSelectionChanged(copy)
+                    if (copy.isNotEmpty()) copied(copy)
+                }
+                awaitEachGesture {
+                    val down = awaitFirstDown(requireUnconsumed = false)
+                    val held = selection
+                    val grabbed = if (held != null && settled) {
+                        val (first, last) = SelectionMarks.ordered(held.start, held.end)
+                        SelectionMarks.grabbed(down.position, first, last, metrics.width, metrics.height,
+                            handleRadius, reach)?.let { end -> Triple(first, last, end) }
+                    } else null
+                    if (grabbed != null) {
+                        down.consume()
+                        val (first, last, end) = grabbed
+                        val fixed = if (end == SelectionMarks.End.FIRST) last else first
+                        val origin = if (end == SelectionMarks.End.FIRST) first else last
+                        showHint("Lift to copy the new selection")
+                        drag(down.id) { change ->
+                            change.consume()
+                            val moving = buffer.read {
+                                SelectionMarks.moved(origin, down.position, change.position, metrics.width,
+                                    metrics.height, buffer.rows, buffer.cols)
+                            }
+                            selection = Selection(fixed, moving)
                         }
-                    },
-                    onDragCancel = {
-                        selection = null
-                        onSelectionChanged(null)
-                    },
-                    onDrag = { change, _ ->
-                        change.consume()
-                        selection = selection?.copy(end = pointAt(change.position, metrics, buffer))
+                        settle()
+                        return@awaitEachGesture
                     }
-                )
+                    // A press that is not held, or that moves, is left to scrolling and taps.
+                    if (!awaitHold(down)) return@awaitEachGesture
+                    down.consume()
+                    val anchor = pointAt(down.position, metrics, buffer)
+                    selection = Selection(anchor, anchor)
+                    settled = false
+                    onSelectionChanged(null)
+                    showHint("Move your finger to choose the end, then lift to copy")
+                    drag(down.id) { change ->
+                        change.consume()
+                        val moving = buffer.read {
+                            SelectionMarks.moved(anchor, down.position, change.position, metrics.width,
+                                metrics.height, buffer.rows, buffer.cols)
+                        }
+                        selection = Selection(anchor, moving)
+                    }
+                    settle()
+                }
             }
     ) {
         // Read in the draw lambda: the root layer observes reads made while
         // drawing, so the canvas invalidates on every output chunk.
         frame.intValue
         clipRect {
-            drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue, selection, theme)
+            drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue, selection, settled, theme)
         }
     }
+}
+
+// True when the pointer stays down and in place for the long-press time.
+private suspend fun androidx.compose.ui.input.pointer.AwaitPointerEventScope.awaitHold(
+    down: androidx.compose.ui.input.pointer.PointerInputChange
+): Boolean {
+    val slop = viewConfiguration.touchSlop
+    val survived = withTimeoutOrNull(viewConfiguration.longPressTimeoutMillis) {
+        while (true) {
+            val event = awaitPointerEvent()
+            val change = event.changes.firstOrNull { it.id == down.id } ?: return@withTimeoutOrNull false
+            if (change.isConsumed || !change.pressed) return@withTimeoutOrNull false
+            if ((change.position - down.position).getDistance() > slop) return@withTimeoutOrNull false
+        }
+        @Suppress("UNREACHABLE_CODE") true
+    }
+    return survived == null
 }
 
 internal fun isSpacingMark(text: String): Boolean = text.isNotEmpty() &&
     text.codePointCount(0, text.length) == 1 &&
     Character.getType(text.codePointAt(0)) == Character.COMBINING_SPACING_MARK.toInt()
 
-internal fun linkAt(buffer: TerminalBuffer, point: TerminalBuffer.Point, scrollOffset: Int): String? {
-    if (point.row !in 0 until buffer.rows || point.col !in 0 until buffer.cols) return null
+internal fun linkAt(buffer: TerminalBuffer, point: TerminalBuffer.Point, scrollOffset: Int): String? =
+    linksAt(buffer, point, scrollOffset, withPossible = false).firstOrNull()
+
+// The addresses under a tap, longest first. Rows the terminal wrapped itself are joined for certain; a row that
+// is full to its last column with text starting the next one may be a program's own line break, so the address
+// is also offered cut at that row.
+internal fun linksAt(buffer: TerminalBuffer, point: TerminalBuffer.Point, scrollOffset: Int,
+    withPossible: Boolean = true): List<String> {
+    if (point.row !in 0 until buffer.rows || point.col !in 0 until buffer.cols) return emptyList()
     val offset = scrollOffset.coerceIn(0, buffer.scrollbackSize)
-    if (buffer.selectedText(point, point, offset).isBlank()) return null
+    if (buffer.selectedText(point, point, offset).isBlank()) return emptyList()
     val historyOnly = buffer.isAlternateScreen && point.row < offset
     val oldest = if (buffer.isAlternateScreen && !historyOnly) offset else offset - buffer.scrollbackSize
     val newest = if (historyOnly) offset - 1 else buffer.rows + offset - 1
+    fun wrapped(row: Int) = row in oldest until newest && buffer.visibleWrapWidth(row, offset) != null
+    fun possible(row: Int) = withPossible && row in oldest until newest &&
+        buffer.visibleCellAt(row, buffer.cols - 1, offset).text.isNotBlank() &&
+        buffer.visibleCellAt(row + 1, 0, offset).text.isNotBlank()
     var first = point.row
-    while (first > oldest && buffer.visibleWrapWidth(first - 1, offset) != null) first--
+    var guesses = 0
+    while (first > oldest && (wrapped(first - 1) || (possible(first - 1) && guesses++ < MAX_LINK_ROWS))) first--
     var last = point.row
-    while (last < newest && buffer.visibleWrapWidth(last, offset) != null) last++
-    if (buffer.visibleWrapWidth(last, offset) != null) return null
+    guesses = 0
+    while (last < newest && (wrapped(last) || (possible(last) && guesses++ < MAX_LINK_ROWS))) last++
     val text = StringBuilder()
+    val breaks = ArrayList<Int>()
     var index = -1
     for (row in first..last) {
         val line = buffer.visibleRowText(row, 0, buffer.visibleWrapWidth(row, offset) ?: buffer.cols, offset)
-        if (line.length > MAX_LINK_TEXT - text.length) return null
+        if (line.length > MAX_LINK_TEXT - text.length) return emptyList()
         if (row == point.row) index = text.length + buffer.visibleRowText(row, 0, point.col + 1, offset).length - 1
         text.append(line)
+        if (row < last && buffer.visibleWrapWidth(row, offset) == null) breaks.add(text.length)
     }
-    return TerminalLinks.at(text.toString(), index)
+    return TerminalLinks.candidatesAt(text.toString(), index, breaks)
 }
 
 private fun pointAt(position: Offset, metrics: CellMetrics, buffer: TerminalBuffer):
@@ -259,6 +339,7 @@ private fun DrawScope.drawTerminal(
     metrics: CellMetrics,
     scrollOffset: Int,
     selection: Selection?,
+    settled: Boolean,
     theme: TerminalTheme
 ) {
     drawRect(Color(theme.background))
@@ -272,6 +353,8 @@ private fun DrawScope.drawTerminal(
             if (selection != null) drawSelection(row, selection, buffer.cols, y, metrics)
             drawRowText(buffer, row, y, textMeasurer, style, metrics, scrollOffset, theme)
         }
+
+        if (selection != null) drawSelectionMarks(selection, settled, metrics)
 
         if (buffer.cursorVisible && scrollOffset == 0) {
             val cursorRow = buffer.cursorRow.coerceIn(0, buffer.rows - 1)
@@ -289,6 +372,23 @@ private fun DrawScope.drawTerminal(
             }
         }
     }
+}
+
+// A red bar at each end, and while settled a round handle under each that can be picked up and moved.
+private fun DrawScope.drawSelectionMarks(selection: Selection, settled: Boolean, metrics: CellMetrics) {
+    val (first, last) = SelectionMarks.ordered(selection.start, selection.end)
+    val bar = 2.dp.toPx()
+    val radius = HANDLE_RADIUS.dp.toPx()
+    drawRect(SelectionMark, Offset(first.col * metrics.width - bar / 2, first.row * metrics.height), Size(bar, metrics.height))
+    drawRect(SelectionMark, Offset((last.col + 1) * metrics.width - bar / 2, last.row * metrics.height), Size(bar, metrics.height))
+    if (!settled) {
+        // While the finger is down, outline the cell the selection started in so it is easy to find.
+        drawRect(SelectionMark.copy(alpha = 0.35f), Offset(selection.start.col * metrics.width, selection.start.row * metrics.height),
+            Size(metrics.width, metrics.height))
+        return
+    }
+    drawCircle(SelectionMark, radius, SelectionMarks.handleCentre(first, SelectionMarks.End.FIRST, metrics.width, metrics.height, radius))
+    drawCircle(SelectionMark, radius, SelectionMarks.handleCentre(last, SelectionMarks.End.LAST, metrics.width, metrics.height, radius))
 }
 
 private fun DrawScope.drawSelection(

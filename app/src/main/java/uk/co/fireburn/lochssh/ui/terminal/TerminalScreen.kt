@@ -125,8 +125,13 @@ fun TerminalScreen(
     var batterySettingsOpen by remember { mutableStateOf(false) }
     var performanceOpen by remember(sessionId) { mutableStateOf(false) }
     var pendingLinks by remember(sessionId) { mutableStateOf<List<String>>(emptyList()) }
+    var hint by remember(sessionId) { mutableStateOf<String?>(null) }
+    LaunchedEffect(hint) {
+        // Instructions stay while a gesture is going on; the confirmation fades by itself.
+        if (hint?.startsWith("Copied") == true) { delay(4_000); hint = null }
+    }
     var linkError by remember(sessionId) { mutableStateOf<String?>(null) }
-    val selectedLinks = remember(selectedText) { TerminalLinks.find(selectedText.orEmpty()) }
+    val selectedLinks = remember(selectedText) { TerminalLinks.candidatesIn(selectedText.orEmpty()) }
     var confirmExport by remember(sessionId) { mutableStateOf(false) }
     val exportError by viewModel.exportError.collectAsStateWithLifecycle()
     val exportPicker = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("text/plain")) {
@@ -232,7 +237,7 @@ fun TerminalScreen(
 
     fun sendPaste(text: String) {
         val target = inputManager ?: return
-        val content = ImeKeyEncoder.encodeText(text.replace("\r\n", "\n"))
+        val content = ImeKeyEncoder.encodeText(PasteText.clean(text))
         val pasteBuffer = target.terminal.buffer
         val bytes = if (pasteBuffer.read { pasteBuffer.bracketedPaste }) {
             "\u001B[200~".toByteArray() + content + "\u001B[201~".toByteArray()
@@ -286,26 +291,20 @@ fun TerminalScreen(
             confirmButton = { TextButton(onClick = viewModel::clearExportError) { Text("OK") } })
     }
     if (pendingLinks.isNotEmpty()) {
-        AlertDialog(
-            onDismissRequest = { pendingLinks = emptyList() },
-            title = { Text("Open link in browser?") },
-            text = {
-                Column(Modifier.verticalScroll(rememberScrollState())) {
-                    pendingLinks.forEach { link ->
-                        TextButton(onClick = {
-                            runCatching {
-                                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link)).apply {
-                                    addCategory(Intent.CATEGORY_BROWSABLE)
-                                })
-                            }.onFailure { linkError = "Could not open link: ${it.message ?: "no browser available"}" }
-                            pendingLinks = emptyList()
-                        }) { Text(link) }
-                    }
-                }
+        LinkChoice(pendingLinks,
+            onOpen = { link ->
+                runCatching {
+                    context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(link)).apply {
+                        addCategory(Intent.CATEGORY_BROWSABLE)
+                    })
+                }.onFailure { linkError = "Could not open link: ${it.message ?: "no browser available"}" }
+                pendingLinks = emptyList()
             },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { pendingLinks = emptyList() }) { Text("Cancel") } }
-        )
+            onCopy = { link ->
+                clipboard.setPrimaryClip(ClipData.newPlainText("Link", link))
+                pendingLinks = emptyList()
+            },
+            onDismiss = { pendingLinks = emptyList() })
     }
     linkError?.let { message ->
         AlertDialog(onDismissRequest = { linkError = null }, title = { Text("Could not open link") },
@@ -316,8 +315,16 @@ fun TerminalScreen(
     pendingPaste?.let { text ->
         AlertDialog(
             onDismissRequest = { pendingPaste = null },
-            title = { Text("Paste multiple lines?") },
-            text = { Text("Line breaks may run commands on the remote system.") },
+            title = { Text("Paste ${PasteText.lineCount(PasteText.clean(text))} lines?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Each line break presses Enter, which may run commands on the remote system.",
+                        style = MaterialTheme.typography.bodySmall)
+                    Text(PasteText.preview(text), style = MaterialTheme.typography.bodyMedium,
+                        fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace, maxLines = 10,
+                        overflow = TextOverflow.Ellipsis)
+                }
+            },
             confirmButton = {
                 TextButton(onClick = {
                     sendPaste(text)
@@ -556,7 +563,7 @@ fun TerminalScreen(
                                     })
                                 if (selectedText != null) {
                                     if (selectedLinks.isNotEmpty()) {
-                                        DropdownMenuItem(text = { Text("Open selected link") }, onClick = {
+                                        DropdownMenuItem(text = { Text("Open or copy link") }, onClick = {
                                             pendingLinks = selectedLinks
                                             moreOpen = false
                                         })
@@ -661,8 +668,13 @@ fun TerminalScreen(
                                 clearSelectionKey = selectionClearKey,
                                 onScrollOffsetChanged = { scrollbackOffset = it },
                                 onSelectionChanged = { selectedText = it?.takeIf { text -> text.isNotEmpty() } },
+                                onSelectionCopied = { copyText ->
+                                    clipboard.setPrimaryClip(ClipData.newPlainText("Terminal text", copyText))
+                                    hint = "Copied ${copyText.length} characters. Drag the red handles to change it, tap elsewhere to clear."
+                                },
+                                onHint = { hint = it },
                                 onBuffer = { terminalBuffer = it },
-                                onLinkTap = { pendingLinks = listOf(it) },
+                                onLinkTap = { pendingLinks = it },
                                 onMultiplexerScroll = { up, lines -> manager?.scrollMultiplexer(up, lines) == true },
                                 onRemoteWheel = { manager?.noteRemoteWheel() },
                                 onTap = ::restoreImeFocus,
@@ -685,7 +697,12 @@ fun TerminalScreen(
                                         typeface = terminalTypeface,
                                         wrapLines = wrapLines,
                                         theme = terminalTheme,
-                                        onLinkTap = { pendingLinks = listOf(it) },
+                                        onLinkTap = { pendingLinks = it },
+                                        onSelectionCopied = { copyText ->
+                                            clipboard.setPrimaryClip(ClipData.newPlainText("Terminal text", copyText))
+                                            hint = "Copied ${copyText.length} characters. Drag the red handles to change it, tap elsewhere to clear."
+                                        },
+                                        onHint = { hint = it },
                                         onMultiplexerScroll = { up, lines -> splitManager.scrollMultiplexer(up, lines) },
                                         onRemoteWheel = { splitManager.noteRemoteWheel() },
                                         onTap = ::restoreImeFocus,
@@ -765,6 +782,16 @@ fun TerminalScreen(
                             imeVisible = !imeVisible
                         }
                     )
+                }
+                hint?.let { message ->
+                    androidx.compose.material3.Surface(
+                        color = MaterialTheme.colorScheme.inverseSurface.copy(alpha = 0.88f),
+                        contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                        modifier = Modifier.align(Alignment.TopCenter).padding(padding).padding(top = 8.dp, start = 16.dp, end = 16.dp)
+                    ) {
+                        Text(message, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp))
+                    }
                 }
                 if (!toolbarVisible) {
                     IconButton(
