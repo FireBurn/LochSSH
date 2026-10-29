@@ -417,7 +417,11 @@ class SshForegroundService : Service() {
             memory.forget(sessionId)
         }
         if (retry) waiting.add(sessionId)
-        endSession(sessionId, if (code == 0) null else "Connection closed (exit code $code)")
+        endSession(sessionId, when (code) {
+            0 -> null
+            AutoReattach.LOST -> "The connection dropped"
+            else -> "The program ended with status $code"
+        })
         if (retry) scheduleReattach(sessionId)
     }
 
@@ -446,13 +450,13 @@ class SshForegroundService : Service() {
         val wait = AutoReattach.delayMs(tries) ?: run {
             retryCounts.remove(sessionId)
             parked.add(sessionId)
-            registry.failed(sessionId, "Connection lost. Waiting for the network to reconnect")
+            registry.failed(sessionId, "Waiting for the network to reconnect")
             stopIfIdle()
             return
         }
         retryCounts[sessionId] = tries + 1
         waiting.add(sessionId)
-        registry.failed(sessionId, if (wait < 1_000) "Connection lost. Reconnecting" else "Connection lost. Reconnecting in ${wait / 1000} seconds")
+        registry.failed(sessionId, if (wait < 1_000) "Reconnecting" else "Reconnecting in ${wait / 1000} seconds")
         scope.launch {
             delay(wait)
             waiting.remove(sessionId)

@@ -48,6 +48,10 @@ class SettingsViewModel @Inject constructor(
     val sessionShortcuts = preferences.sessionShortcuts
     fun setSessionShortcuts(enabled: Boolean) = preferences.setSessionShortcuts(enabled)
     val terminalTypeface = preferences.terminalTypeface
+    val terminalPalette = preferences.terminalPalette
+    fun setTerminalPalette(palette: uk.co.fireburn.lochssh.ui.terminal.TerminalPalette) = preferences.setTerminalPalette(palette)
+    val minimumContrast = preferences.minimumContrast
+    fun setMinimumContrast(contrast: uk.co.fireburn.lochssh.ui.terminal.MinimumContrast) = preferences.setMinimumContrast(contrast)
     val compression = preferences.compression
     fun setCompression(enabled: Boolean) = preferences.setCompression(enabled)
     val wrapLines = preferences.wrapLines

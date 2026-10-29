@@ -52,6 +52,8 @@ fun SettingsScreen(
     val terminalTypeface by viewModel.terminalTypeface.collectAsStateWithLifecycle()
     val wrapLines by viewModel.wrapLines.collectAsStateWithLifecycle()
     val compression by viewModel.compression.collectAsStateWithLifecycle()
+    val terminalPalette by viewModel.terminalPalette.collectAsStateWithLifecycle()
+    val minimumContrast by viewModel.minimumContrast.collectAsStateWithLifecycle()
     val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
     val error by viewModel.error.collectAsStateWithLifecycle()
     val cleanupError by viewModel.cleanupError.collectAsStateWithLifecycle()
@@ -121,6 +123,35 @@ fun SettingsScreen(
                             RadioButton(selected = terminalTheme == theme,
                                 onClick = { viewModel.setTerminalTheme(theme) })
                             TextButton(onClick = { viewModel.setTerminalTheme(theme) }) { Text(theme.label) }
+                        }
+                    }
+                }
+            }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text("Colours", style = MaterialTheme.typography.titleMedium)
+                    Text("Changes the colours programs use. Text and its background also keep the contrast below.",
+                        style = MaterialTheme.typography.bodySmall)
+                    uk.co.fireburn.lochssh.ui.terminal.TerminalPalette.entries.forEach { palette ->
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            RadioButton(selected = terminalPalette == palette,
+                                onClick = { viewModel.setTerminalPalette(palette) })
+                            Column(Modifier.weight(1f)) {
+                                TextButton(onClick = { viewModel.setTerminalPalette(palette) }) { Text(palette.label) }
+                                Text(palette.description, style = MaterialTheme.typography.bodySmall)
+                            }
+                        }
+                    }
+                    Text("Minimum contrast", style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 12.dp))
+                    Text("Text that is harder to read than this against its background is made lighter or darker, and no further than it needs. 4.5:1 is the usual standard for readable text; 7:1 is stricter.",
+                        style = MaterialTheme.typography.bodySmall)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 4.dp)) {
+                        uk.co.fireburn.lochssh.ui.terminal.MinimumContrast.entries.forEach { level ->
+                            androidx.compose.material3.FilterChip(
+                                selected = minimumContrast == level,
+                                onClick = { viewModel.setMinimumContrast(level) },
+                                label = { Text(level.label) })
                         }
                     }
                 }

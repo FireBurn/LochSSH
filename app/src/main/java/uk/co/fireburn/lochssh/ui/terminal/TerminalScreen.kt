@@ -89,6 +89,8 @@ fun TerminalScreen(
     val terminalTypeface by viewModel.terminalTypeface.collectAsStateWithLifecycle()
     val wrapLines by viewModel.wrapLines.collectAsStateWithLifecycle()
     val terminalTheme by viewModel.terminalTheme.collectAsStateWithLifecycle()
+    val terminalPalette by viewModel.terminalPalette.collectAsStateWithLifecycle()
+    val minimumContrast by viewModel.minimumContrast.collectAsStateWithLifecycle()
     val keyboardLayout by viewModel.keyboardLayout.collectAsStateWithLifecycle()
     val sessions by viewModel.sessions.collectAsStateWithLifecycle()
     val replacements by viewModel.replacements.collectAsStateWithLifecycle()
@@ -664,6 +666,8 @@ fun TerminalScreen(
                                 typeface = terminalTypeface,
                                 wrapLines = wrapLines,
                                 theme = terminalTheme,
+                                palette = terminalPalette,
+                                minimumContrast = minimumContrast,
                                 scrollToLiveKey = liveRequest,
                                 clearSelectionKey = selectionClearKey,
                                 onScrollOffsetChanged = { scrollbackOffset = it },
@@ -697,6 +701,8 @@ fun TerminalScreen(
                                         typeface = terminalTypeface,
                                         wrapLines = wrapLines,
                                         theme = terminalTheme,
+                                palette = terminalPalette,
+                                minimumContrast = minimumContrast,
                                         onLinkTap = { pendingLinks = it },
                                         onSelectionCopied = { copyText ->
                                             clipboard.setPrimaryClip(ClipData.newPlainText("Terminal text", copyText))

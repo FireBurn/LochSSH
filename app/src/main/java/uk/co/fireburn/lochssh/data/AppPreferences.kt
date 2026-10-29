@@ -8,6 +8,8 @@ import kotlinx.coroutines.flow.StateFlow
 import javax.inject.Inject
 import javax.inject.Singleton
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTheme
+import uk.co.fireburn.lochssh.ui.terminal.MinimumContrast
+import uk.co.fireburn.lochssh.ui.terminal.TerminalPalette
 import uk.co.fireburn.lochssh.ui.terminal.TerminalTypeface
 
 @Singleton
@@ -26,6 +28,10 @@ class AppPreferences @Inject constructor(
     val terminalTypeface: StateFlow<TerminalTypeface> = _terminalTypeface
     private val _sessionShortcuts = MutableStateFlow(prefs.getBoolean(KEY_SHORTCUTS, false))
     val sessionShortcuts: StateFlow<Boolean> = _sessionShortcuts
+    private val _palette = MutableStateFlow(TerminalPalette.decode(prefs.getString(KEY_PALETTE, null)))
+    val terminalPalette: StateFlow<TerminalPalette> = _palette
+    private val _contrast = MutableStateFlow(MinimumContrast.decode(prefs.getString(KEY_CONTRAST, null)))
+    val minimumContrast: StateFlow<MinimumContrast> = _contrast
     private val _compression = MutableStateFlow(prefs.getBoolean(KEY_COMPRESSION, true))
     val compression: StateFlow<Boolean> = _compression
     private val _wrapLines = MutableStateFlow(prefs.getBoolean(KEY_WRAP_LINES, true))
@@ -36,6 +42,16 @@ class AppPreferences @Inject constructor(
     fun setAppLock(enabled: Boolean) {
         if (!prefs.edit().putBoolean(KEY_APP_LOCK, enabled).commit()) throw IOException("Could not save app lock")
         _appLock.value = enabled
+    }
+
+    fun setTerminalPalette(palette: TerminalPalette) {
+        prefs.edit().putString(KEY_PALETTE, palette.name).apply()
+        _palette.value = palette
+    }
+
+    fun setMinimumContrast(contrast: MinimumContrast) {
+        prefs.edit().putString(KEY_CONTRAST, contrast.name).apply()
+        _contrast.value = contrast
     }
 
     fun setCompression(enabled: Boolean) {
@@ -89,6 +105,8 @@ class AppPreferences @Inject constructor(
         _sessionShortcuts.value = false
         _wrapLines.value = true
         _compression.value = true
+        _palette.value = TerminalPalette.STANDARD
+        _contrast.value = MinimumContrast.READABLE
         _appLock.value = false
     }
 
@@ -112,6 +130,8 @@ class AppPreferences @Inject constructor(
         private const val KEY_SHORTCUTS = "session_shortcuts"
         private const val KEY_WRAP_LINES = "wrap_lines"
         private const val KEY_COMPRESSION = "compression"
+        private const val KEY_PALETTE = "terminal_palette"
+        private const val KEY_CONTRAST = "minimum_contrast"
         private const val KEY_APP_LOCK = "app_lock"
     }
 }

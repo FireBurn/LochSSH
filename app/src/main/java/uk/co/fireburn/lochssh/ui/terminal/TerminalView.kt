@@ -57,6 +57,8 @@ fun TerminalView(
     typeface: TerminalTypeface = TerminalTypeface.NOTO,
     wrapLines: Boolean = true,
     theme: TerminalTheme = TerminalTheme.LOCH,
+    palette: TerminalPalette = TerminalPalette.STANDARD,
+    minimumContrast: MinimumContrast = MinimumContrast.OFF,
     scrollToLiveKey: Int = 0,
     clearSelectionKey: Int = 0,
     onScrollOffsetChanged: (Int) -> Unit = {},
@@ -70,6 +72,7 @@ fun TerminalView(
     onTap: () -> Unit = {},
     onRemoteScroll: (ByteArray) -> Unit = { manager?.write(it) }
 ) {
+    val colours = remember(theme, palette, minimumContrast) { TerminalColours(theme, palette, minimumContrast) }
     val terminal = remember(manager) { manager?.terminal ?: TerminalSession(MIN_COLS, MIN_ROWS) }
     val buffer = terminal.buffer
     val sendScroll by rememberUpdatedState(onRemoteScroll)
@@ -261,7 +264,7 @@ fun TerminalView(
         // drawing, so the canvas invalidates on every output chunk.
         frame.intValue
         clipRect {
-            drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue, selection, settled, theme)
+            drawTerminal(buffer, textMeasurer, style, metrics, scrollOffset.intValue, selection, settled, colours)
         }
     }
 }
@@ -340,18 +343,18 @@ private fun DrawScope.drawTerminal(
     scrollOffset: Int,
     selection: Selection?,
     settled: Boolean,
-    theme: TerminalTheme
+    colours: TerminalColours
 ) {
-    drawRect(Color(theme.background))
+    drawRect(Color(colours.background(TerminalBuffer.DEFAULT_BG)))
     buffer.read {
         if (buffer.cols == 0 || buffer.rows == 0) return@read
         val rows = minOf(buffer.rows, (size.height / metrics.height).toInt() + 1)
 
         for (row in 0 until rows) {
             val y = row * metrics.height
-            drawCellBackgrounds(buffer, row, y, metrics, scrollOffset, theme)
+            drawCellBackgrounds(buffer, row, y, metrics, scrollOffset, colours)
             if (selection != null) drawSelection(row, selection, buffer.cols, y, metrics)
-            drawRowText(buffer, row, y, textMeasurer, style, metrics, scrollOffset, theme)
+            drawRowText(buffer, row, y, textMeasurer, style, metrics, scrollOffset, colours)
         }
 
         if (selection != null) drawSelectionMarks(selection, settled, metrics)
@@ -363,11 +366,11 @@ private fun DrawScope.drawTerminal(
             if (cursorRow < rows) {
                 val origin = Offset(cursorCol * metrics.width, cursorRow * metrics.height)
                 val cell = buffer.cellAt(cursorRow, cursorCol)
-                drawRect(Color(theme.cursor), topLeft = origin,
+                drawRect(Color(colours.theme.cursor), topLeft = origin,
                     size = Size(metrics.width * cell.columns, metrics.height))
                 val under = cell.text
                 if (under != " ") {
-                    drawTerminalText(textMeasurer, under, origin, style.copy(color = Color(theme.background)))
+                    drawTerminalText(textMeasurer, under, origin, style.copy(color = Color(colours.foreground(colours.theme.background, colours.theme.cursor))))
                 }
             }
         }
@@ -417,7 +420,7 @@ private fun DrawScope.drawCellBackgrounds(
     y: Float,
     metrics: CellMetrics,
     scrollOffset: Int,
-    theme: TerminalTheme
+    colours: TerminalColours
 ) {
     var col = 0
     while (col < buffer.cols) {
@@ -429,7 +432,7 @@ private fun DrawScope.drawCellBackgrounds(
         val start = col
         while (col < buffer.cols && buffer.visibleCellAt(row, col, scrollOffset).bg == colour) col++
         drawRect(
-            Color(theme.color(colour)),
+            Color(colours.background(colour)),
             topLeft = Offset(start * metrics.width, y),
             size = Size((col - start) * metrics.width, metrics.height)
         )
@@ -444,7 +447,7 @@ private fun DrawScope.drawRowText(
     style: TextStyle,
     metrics: CellMetrics,
     scrollOffset: Int,
-    theme: TerminalTheme
+    colours: TerminalColours
 ) {
     var col = 0
     while (col < buffer.cols) {
@@ -470,7 +473,7 @@ private fun DrawScope.drawRowText(
                 Offset(runStart * metrics.width, y),
                 style.copy(
                     fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
-                    color = Color(theme.color(cell.fg))
+                    color = Color(colours.foreground(cell.fg, cell.bg))
                 )
             )
             col = markEnd
@@ -482,6 +485,7 @@ private fun DrawScope.drawRowText(
             buffer.visibleCellAt(row, col, scrollOffset).text.length == 1 &&
             buffer.visibleCellAt(row, col, scrollOffset).text[0] in '!'..'~' &&
             buffer.visibleCellAt(row, col, scrollOffset).fg == cell.fg &&
+            buffer.visibleCellAt(row, col, scrollOffset).bg == cell.bg &&
             buffer.visibleCellAt(row, col, scrollOffset).bold == cell.bold
         ) {
             col++
@@ -492,7 +496,7 @@ private fun DrawScope.drawRowText(
             Offset(runStart * metrics.width, y),
             style.copy(
                 fontWeight = if (cell.bold) FontWeight.Bold else FontWeight.Normal,
-                color = Color(theme.color(cell.fg))
+                color = Color(colours.foreground(cell.fg, cell.bg))
             )
         )
     }

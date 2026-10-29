@@ -1073,3 +1073,14 @@ Copy, paste and links (2026-10-29):
   first lines and how many more before asking.
 Tests: pure logic for candidates, geometry and paste (unit); the four gestures on an emulator. Not yet tried by hand
 on the phone.
+
+Colours and reconnect wording (2026-10-29):
+- Settings has a Colours card: Standard, Colour-blind safe (Okabe and Ito: orange and blue in place of red and green)
+  and High contrast, plus a Minimum contrast of Off, 3:1, 4.5:1 (default) or 7:1. Text harder to read than the chosen
+  ratio against what it is drawn on is blended toward white or black, only as far as needed; text a program made the
+  same colour as its background stays hidden. Tests: contrast maths, every palette colour readable on every theme at
+  4.5:1, and red and green simulated for deuteranopia and protanopia are further apart in the safe palette than in the
+  standard one. Not tried by someone with colour blindness.
+- Status words while a session reconnects are now "Reconnecting", "Reconnecting in N seconds" and "Waiting for the
+  network to reconnect". A dropped connection says "The connection dropped" and a program that ended says "The program
+  ended with status N", in place of "Connection lost" and "Connection closed (exit code N)".
