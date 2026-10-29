@@ -36,6 +36,14 @@ class TerminalCursorKeysTest {
     }
 
     @Test
+    fun ctrlAltDeleteIsOnlyTheModifiedDeleteSequence() {
+        val terminal = TerminalSession(80, 24)
+        val sent = encode(terminal, TerminalKey.Del, ctrl = true, alt = true)
+        assertEquals("\u001B[3;7~", sent)
+        assertEquals(6, sent.length)
+    }
+
+    @Test
     fun cursorModeStaysWithItsSessionThroughResize() {
         val first = TerminalSession(80, 24)
         val second = TerminalSession(80, 24)
